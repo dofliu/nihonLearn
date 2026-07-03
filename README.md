@@ -21,10 +21,13 @@ npm install
 npm run dev        # http://localhost:5173
 ```
 
-其他指令：`npm run build`（型別檢查 + 打包）、`npm run preview`、`npm run typecheck`、`npm test`（邏輯回歸）。
+其他指令：`npm run build`（型別檢查 + 打包）、`npm run preview`、`npm run typecheck`、
+`npm test`（邏輯回歸）、`npm run test:e2e`（Playwright 瀏覽器端到端，會自動啟動 dev server）。
 
 > 已驗證：`npm run build` 綠燈（Node 22 / Vite 5 / TS 5.5，PWA service worker 生成）。
-> 整合測試：`npm test` 前端邏輯 31/31；`sidecar/test_score.py` 後端 4/4。詳見 `tests/INTEGRATION_REPORT.md`，瀏覽器手動走查見 `tests/MANUAL_QA.md`。
+> 整合測試：`npm test` 前端邏輯 31/31；`npm run test:e2e` 瀏覽器 E2E 23/23（SRS 流程、
+> IndexedDB 持久化、Dexie v1→v2 升級、蓋章黃金路徑、評分降級鏈）；`sidecar/test_score.py`
+> 後端 4/4。詳見 `tests/INTEGRATION_REPORT.md`，仍需人工目視的項目見 `tests/MANUAL_QA.md`。
 
 ## 架構
 

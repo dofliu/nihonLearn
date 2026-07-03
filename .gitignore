@@ -1,5 +1,8 @@
 node_modules
 dist
+test-results
+playwright-report
+*.tsbuildinfo
 dist-ssr
 *.local
 .DS_Store

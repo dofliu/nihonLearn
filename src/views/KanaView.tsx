@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { KANA, KANA_BY_ID, type Kana } from '../data/kana'
 import { db } from '../db/schema'
 import { ensureCard, gradeCard, incNewIntro, getToday, DAILY_NEW_LIMIT } from '../db/repo'
@@ -220,7 +220,11 @@ function EarQuiz({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [n])
 
+  // StrictMode 下掛載 effect 會執行兩次；next() 非冪等（會跳過第一題），用 ref 守衛
+  const startedRef = useRef(false)
   useEffect(() => {
+    if (startedRef.current) return
+    startedRef.current = true
     if (pool.length < 4) {
       toast('先修行至少 4 枚假名，再來挑戰')
       onExit()
