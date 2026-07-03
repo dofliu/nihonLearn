@@ -1,0 +1,972 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>日本語の道 — 每日十分鐘</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;700&family=Zen+Maru+Gothic:wght@400;500;700&display=swap');
+:root{
+  --washi:#F4F1E8;
+  --washi2:#ECE8DB;
+  --sumi:#2B2A26;
+  --ai:#24466B;
+  --ai-deep:#18324E;
+  --shu:#C7412F;
+  --take:#4E8D6E;
+  --yama:#D9A521;
+  --nezu:#8A8578;
+  --card:#FBF9F2;
+  --disp:"Shippori Mincho","Hiragino Mincho ProN","Yu Mincho",serif;
+  --body:"Zen Maru Gothic","Hiragino Sans","Yu Gothic","Noto Sans TC",sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%}
+body{
+  font-family:var(--body);color:var(--sumi);
+  background:
+    radial-gradient(1200px 400px at 50% -100px, rgba(36,70,107,.08), transparent 60%),
+    repeating-linear-gradient(0deg, transparent 0 3px, rgba(43,42,38,.012) 3px 4px),
+    var(--washi);
+  padding-bottom:76px;
+}
+header{
+  background:var(--ai);color:#F4F1E8;
+  padding:14px 18px 12px;
+  display:flex;align-items:baseline;justify-content:space-between;
+  border-bottom:3px solid var(--ai-deep);
+}
+header h1{font-family:var(--disp);font-size:20px;font-weight:700;letter-spacing:.12em}
+header h1 span{font-size:11px;letter-spacing:.2em;opacity:.75;margin-left:8px;font-family:var(--body)}
+#streakBadge{font-size:13px;font-weight:700;letter-spacing:.05em}
+#streakBadge b{font-size:18px;color:var(--yama)}
+main{max-width:640px;margin:0 auto;padding:16px 14px 30px}
+.view{display:none}
+.view.active{display:block;animation:fade .25s ease}
+@keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+/* ---- nav ---- */
+nav{
+  position:fixed;left:0;right:0;bottom:0;z-index:50;
+  background:var(--card);border-top:2px solid var(--ai);
+  display:flex;max-width:640px;margin:0 auto;
+  padding-bottom:env(safe-area-inset-bottom);
+}
+nav button{
+  flex:1;background:none;border:none;cursor:pointer;
+  padding:8px 0 7px;font-family:var(--body);color:var(--nezu);
+  display:flex;flex-direction:column;align-items:center;gap:2px;
+}
+nav button .ki{font-family:var(--disp);font-size:19px;line-height:1}
+nav button .lb{font-size:10px;letter-spacing:.05em}
+nav button.on{color:var(--ai)}
+nav button.on .ki{color:var(--shu)}
+
+/* ---- common ---- */
+.card{background:var(--card);border:1.5px solid var(--washi2);border-radius:12px;padding:16px;margin-bottom:14px;box-shadow:0 1px 3px rgba(43,42,38,.05)}
+.eyebrow{font-size:11px;letter-spacing:.25em;color:var(--ai);font-weight:700;margin-bottom:8px}
+h2{font-family:var(--disp);font-size:19px;margin-bottom:4px;letter-spacing:.06em}
+.sub{font-size:12.5px;color:var(--nezu);line-height:1.6}
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:6px;
+  background:var(--ai);color:#F4F1E8;border:none;border-radius:10px;
+  padding:11px 18px;font-family:var(--body);font-size:15px;font-weight:700;
+  cursor:pointer;letter-spacing:.05em;
+}
+.btn:active{transform:scale(.97)}
+.btn.ghost{background:transparent;color:var(--ai);border:1.5px solid var(--ai)}
+.btn.red{background:var(--shu)}
+.btn.small{padding:7px 13px;font-size:13px;border-radius:8px}
+.btn:disabled{opacity:.4;cursor:default}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.spacer{height:8px}
+
+/* ---- stamp card ---- */
+#stampGrid{display:grid;grid-template-columns:repeat(7,1fr);gap:8px;margin-top:12px}
+.stampCell{
+  aspect-ratio:1;border:1.5px dashed #C9C3B2;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-size:10px;color:var(--nezu);position:relative;background:rgba(255,255,255,.4);
+}
+.stampCell .d{position:absolute;top:-2px;left:50%;transform:translateX(-50%);font-size:9px;background:var(--washi);padding:0 3px;color:var(--nezu)}
+.stampCell.hit{border:none}
+.hanko{
+  width:82%;height:82%;border-radius:50%;
+  border:2.5px solid var(--shu);color:var(--shu);
+  display:flex;align-items:center;justify-content:center;
+  font-family:var(--disp);font-weight:700;font-size:15px;
+  transform:rotate(-8deg);
+  box-shadow:inset 0 0 0 1.5px rgba(199,65,47,.25);
+  background:rgba(199,65,47,.06);
+}
+.hanko.pop{animation:stampIn .45s cubic-bezier(.2,1.6,.4,1)}
+@keyframes stampIn{0%{transform:rotate(-8deg) scale(2.2);opacity:0}60%{opacity:1}100%{transform:rotate(-8deg) scale(1)}}
+.stampCell.today{border-color:var(--ai)}
+
+/* ---- task list ---- */
+.task{
+  display:flex;align-items:center;gap:12px;padding:11px 4px;
+  border-bottom:1px solid var(--washi2);
+}
+.task:last-child{border-bottom:none}
+.task .tmark{
+  width:30px;height:30px;border-radius:50%;flex:none;
+  border:2px solid #C9C3B2;display:flex;align-items:center;justify-content:center;
+  font-family:var(--disp);font-size:13px;color:#C9C3B2;font-weight:700;
+}
+.task.done .tmark{border-color:var(--shu);color:var(--shu);transform:rotate(-8deg);background:rgba(199,65,47,.06)}
+.task .tinfo{flex:1}
+.task .tname{font-size:14.5px;font-weight:700}
+.task .tprog{font-size:11.5px;color:var(--nezu)}
+.task .go{font-size:12px;color:var(--ai);font-weight:700;background:none;border:1.5px solid var(--ai);border-radius:8px;padding:5px 11px;cursor:pointer;font-family:var(--body)}
+.task.done .go{opacity:.35;border-color:var(--nezu);color:var(--nezu)}
+.bar{height:5px;background:var(--washi2);border-radius:3px;margin-top:4px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--take);border-radius:3px;transition:width .3s}
+
+/* ---- kana ---- */
+.kanaFace{
+  font-family:var(--disp);font-size:96px;text-align:center;line-height:1.25;
+  padding:18px 0 6px;letter-spacing:0;
+}
+.kanaMeta{text-align:center;color:var(--nezu);font-size:13px;margin-bottom:6px}
+.reveal{text-align:center;font-size:26px;color:var(--ai);font-weight:700;min-height:38px;font-family:var(--disp)}
+.gradeRow{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:14px}
+.gradeRow button{
+  border:none;border-radius:10px;padding:12px 4px;font-family:var(--body);
+  font-weight:700;font-size:13.5px;cursor:pointer;color:#fff;letter-spacing:.03em;
+}
+.g0{background:#A85751}.g1{background:#C08A3E}.g2{background:var(--take)}.g3{background:var(--ai)}
+.qopt{
+  display:block;width:100%;text-align:left;background:var(--card);
+  border:1.5px solid var(--washi2);border-radius:10px;padding:13px 15px;
+  font-family:var(--body);font-size:16px;cursor:pointer;margin-bottom:9px;
+}
+.qopt.big{font-family:var(--disp);font-size:30px;text-align:center}
+.qopt.ok{border-color:var(--take);background:rgba(78,141,110,.1)}
+.qopt.ng{border-color:var(--shu);background:rgba(199,65,47,.08)}
+.qopt .zh{font-size:12px;color:var(--nezu);margin-top:2px}
+.statChips{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.chip{background:var(--washi2);border-radius:8px;padding:6px 11px;font-size:12px;color:var(--sumi)}
+.chip b{color:var(--ai)}
+.kanaGrid{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-top:10px}
+.kanaGrid span{
+  font-family:var(--disp);text-align:center;padding:8px 0;border-radius:8px;
+  background:var(--washi2);color:#B4AE9D;font-size:20px;
+}
+.kanaGrid span.learn{background:rgba(36,70,107,.12);color:var(--ai)}
+.kanaGrid span.master{background:rgba(78,141,110,.18);color:#2F6A50}
+
+/* ---- speak ---- */
+.sent{
+  font-family:var(--disp);font-size:22px;line-height:1.7;text-align:center;padding:8px 0 2px;
+}
+.sentZh{text-align:center;font-size:13.5px;color:var(--nezu);margin-bottom:12px}
+.micBtn{
+  width:74px;height:74px;border-radius:50%;border:none;background:var(--shu);
+  color:#fff;font-size:30px;cursor:pointer;display:flex;align-items:center;justify-content:center;
+  margin:0 auto;box-shadow:0 3px 10px rgba(199,65,47,.35);
+}
+.micBtn.rec{animation:pulse 1s infinite}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(199,65,47,.4)}50%{box-shadow:0 0 0 14px rgba(199,65,47,0)}}
+.scoreBig{text-align:center;font-family:var(--disp);font-size:44px;min-height:56px}
+.recTxt{text-align:center;font-size:13px;color:var(--nezu);min-height:20px;word-break:break-all}
+.lvTabs{display:flex;gap:6px;margin-bottom:12px}
+.lvTabs button{
+  flex:1;border:1.5px solid var(--washi2);background:var(--card);border-radius:9px;
+  padding:8px 0;font-family:var(--body);font-size:12.5px;cursor:pointer;color:var(--nezu);font-weight:700;
+}
+.lvTabs button.on{border-color:var(--ai);color:var(--ai);background:rgba(36,70,107,.07)}
+
+/* ---- read ---- */
+.rline{padding:9px 2px;border-bottom:1px dashed var(--washi2);cursor:pointer;line-height:1.9}
+.rline .jp{font-family:var(--disp);font-size:18px}
+.rline .zh{display:none;font-size:13px;color:var(--take);margin-top:2px}
+.rline.open .zh{display:block}
+ruby rt{font-size:10px;color:var(--ai)}
+.wordRow{display:flex;justify-content:space-between;align-items:center;padding:9px 4px;border-bottom:1px solid var(--washi2);cursor:pointer}
+.wordRow .wj{font-family:var(--disp);font-size:18px}
+.wordRow .wz{font-size:13px;color:var(--nezu)}
+.catTag{font-size:11px;letter-spacing:.2em;color:var(--shu);font-weight:700;margin:14px 0 2px}
+
+.toast{
+  position:fixed;left:50%;bottom:96px;transform:translateX(-50%);
+  background:var(--sumi);color:#F4F1E8;padding:10px 20px;border-radius:10px;
+  font-size:14px;z-index:99;opacity:0;pointer-events:none;transition:opacity .3s;letter-spacing:.05em;
+}
+.toast.show{opacity:1}
+.bigStamp{
+  position:fixed;inset:0;display:none;align-items:center;justify-content:center;
+  background:rgba(43,42,38,.45);z-index:98;
+}
+.bigStamp .inner{
+  width:190px;height:190px;border-radius:50%;border:6px solid var(--shu);
+  background:var(--washi);color:var(--shu);display:flex;flex-direction:column;
+  align-items:center;justify-content:center;font-family:var(--disp);
+  transform:rotate(-8deg);animation:stampIn .5s cubic-bezier(.2,1.6,.4,1);
+}
+.bigStamp .inner .b1{font-size:44px;font-weight:700}
+.bigStamp .inner .b2{font-size:14px;letter-spacing:.3em;margin-top:4px}
+.hint{font-size:12px;color:var(--nezu);line-height:1.7;background:var(--washi2);border-radius:8px;padding:9px 12px;margin-top:10px}
+select,input[type=range]{font-family:var(--body)}
+.rateRow{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--nezu);margin-top:10px}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>日本語の道<span>NIHONGO NO MICHI</span></h1>
+  <div id="streakBadge">連続 <b id="streakNum">0</b> 日</div>
+</header>
+
+<main>
+  <!-- ============ 今日 ============ -->
+  <section class="view active" id="view-today">
+    <div class="card">
+      <div class="eyebrow">今日の修行 ─ 每日十分鐘</div>
+      <h2 id="todayGreet">おはようございます</h2>
+      <p class="sub" id="todayDate"></p>
+      <div id="taskList"></div>
+    </div>
+
+    <div class="card">
+      <div class="eyebrow">出席印 ─ 蓋章卡</div>
+      <p class="sub">五項修行全部完成，即蓋下今日之印。章不斷，力不斷。</p>
+      <div id="stampGrid"></div>
+    </div>
+
+    <div class="card">
+      <div class="eyebrow">今日のひとこと</div>
+      <div class="sent" id="dailySent"></div>
+      <div class="sentZh" id="dailySentZh"></div>
+      <div class="row" style="justify-content:center">
+        <button class="btn small ghost" onclick="playDaily(0.75)">🔊 慢速</button>
+        <button class="btn small ghost" onclick="playDaily(1.0)">🔊 常速</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="eyebrow">修行の記録</div>
+      <div class="statChips" id="statChips"></div>
+      <div class="rateRow">語速基準：
+        <select id="rateSel" onchange="setRate(this.value)">
+          <option value="0.7">ゆっくり 0.7</option>
+          <option value="0.85" selected>ふつう 0.85</option>
+          <option value="1">ネイティブ 1.0</option>
+        </select>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ かな ============ -->
+  <section class="view" id="view-kana">
+    <div class="card" id="kanaHome">
+      <div class="eyebrow">字の修行 ─ 五十音道場</div>
+      <h2>間隔重複（SRS）</h2>
+      <p class="sub">系統依你的記憶曲線自動排程。看到假名 → 心中唸出讀音 → 翻面誠實自評。每天約 10 枚，兩週內補完五十音。</p>
+      <div class="spacer"></div>
+      <div class="row">
+        <button class="btn" onclick="startKana()">開始今日修行</button>
+        <button class="btn ghost" onclick="startEarQuiz()">音 → 字 測驗</button>
+      </div>
+      <div class="statChips" id="kanaStats"></div>
+      <div id="kanaMap"></div>
+    </div>
+
+    <div class="card" id="kanaSession" style="display:none">
+      <div class="eyebrow" id="kanaProg"></div>
+      <div class="kanaFace" id="kanaChar"></div>
+      <div class="kanaMeta" id="kanaScript"></div>
+      <div class="reveal" id="kanaAns"></div>
+      <div id="kanaBtns">
+        <button class="btn" style="width:100%" onclick="revealKana()">答えを見る（翻面）</button>
+      </div>
+      <div class="gradeRow" id="gradeRow" style="display:none">
+        <button class="g0" onclick="gradeKana(0)">忘了<br>&lt;10分</button>
+        <button class="g1" onclick="gradeKana(1)">很難<br>明天</button>
+        <button class="g2" onclick="gradeKana(2)">記得<br>隔日+</button>
+        <button class="g3" onclick="gradeKana(3)">秒答<br>數日+</button>
+      </div>
+    </div>
+
+    <div class="card" id="earQuiz" style="display:none">
+      <div class="eyebrow" id="earProg">音 → 字</div>
+      <p class="sub">聽發音，選出正確的假名。</p>
+      <div class="spacer"></div>
+      <div class="row" style="justify-content:center;margin-bottom:12px">
+        <button class="btn red" onclick="playEar()">🔊 再聽一次</button>
+      </div>
+      <div id="earOpts"></div>
+    </div>
+  </section>
+
+  <!-- ============ 聴く ============ -->
+  <section class="view" id="view-listen">
+    <div class="card">
+      <div class="eyebrow">耳の修行 ─ 辨音道場</div>
+      <h2>最小對立組（Minimal Pairs）</h2>
+      <p class="sub">中文母語者的三大盲點：<b>促音っ・長音・濁音</b>。聽一次發音，判斷說的是哪個詞。答錯不要緊——大腦正是在對比中長出新的音類。</p>
+      <div class="spacer"></div>
+      <button class="btn" id="listenStart" onclick="startListen()">開始 5 題</button>
+    </div>
+    <div class="card" id="listenQuiz" style="display:none">
+      <div class="eyebrow" id="listenProg"></div>
+      <div class="row" style="justify-content:center;margin:6px 0 14px">
+        <button class="btn red" onclick="playListen()">🔊 再聽一次</button>
+      </div>
+      <div id="listenOpts"></div>
+      <div id="listenFb" class="sub" style="text-align:center;min-height:22px;margin-top:6px"></div>
+    </div>
+  </section>
+
+  <!-- ============ 話す ============ -->
+  <section class="view" id="view-speak">
+    <div class="card">
+      <div class="eyebrow">口の修行 ─ 跟讀（Shadowing）</div>
+      <p class="sub">聽 → 立刻模仿，連語調一起。每句至少跟讀三次再進下一句。麥克風可用時系統會比對辨識結果評分；不可用時採自我評分。</p>
+      <div class="lvTabs" id="lvTabs">
+        <button class="on" onclick="setLv(1,this)">壱・生存句</button>
+        <button onclick="setLv(2,this)">弐・日常句</button>
+        <button onclick="setLv(3,this)">参・物語句</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="eyebrow" id="speakProg"></div>
+      <div class="sent" id="speakJp"></div>
+      <div class="sentZh" id="speakZh"></div>
+      <div class="row" style="justify-content:center;margin-bottom:14px">
+        <button class="btn small ghost" onclick="playSpeak(0.7)">🔊 慢速</button>
+        <button class="btn small ghost" onclick="playSpeak(1.0)">🔊 常速</button>
+      </div>
+      <button class="micBtn" id="micBtn" onclick="toggleRec()">🎤</button>
+      <div class="spacer"></div>
+      <div class="scoreBig" id="speakScore"></div>
+      <div class="recTxt" id="recTxt"></div>
+      <div class="row" id="selfGrade" style="display:none;justify-content:center">
+        <button class="btn small ghost" onclick="selfMark('◎')">◎ 很像</button>
+        <button class="btn small ghost" onclick="selfMark('○')">○ 還行</button>
+        <button class="btn small ghost" onclick="selfMark('△')">△ 再練</button>
+      </div>
+      <div class="spacer"></div>
+      <div class="row" style="justify-content:space-between">
+        <button class="btn small ghost" onclick="prevSent()">← 前の句</button>
+        <button class="btn small" onclick="nextSent()">次の句 →</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 読む ============ -->
+  <section class="view" id="view-read">
+    <div class="card">
+      <div class="eyebrow">読む修行 ─ ことば</div>
+      <h2>今日の 5 語</h2>
+      <p class="sub">看中文，選出正確的日文。每天 5 個生存詞彙，輪替循環。</p>
+      <div class="spacer"></div>
+      <button class="btn" onclick="startVocab()">開始測驗</button>
+    </div>
+    <div class="card" id="vocabQuiz" style="display:none">
+      <div class="eyebrow" id="vocabProg"></div>
+      <h2 id="vocabQ" style="text-align:center;padding:8px 0"></h2>
+      <div id="vocabOpts"></div>
+      <div id="vocabFb" class="sub" style="text-align:center;min-height:20px"></div>
+    </div>
+
+    <div class="card">
+      <div class="eyebrow">読む修行 ─ 読み物</div>
+      <p class="sub">分級短文。點任一句可切換中文對照；讀完按「読了」。</p>
+      <div class="row" style="margin-top:10px" id="passageBtns"></div>
+    </div>
+    <div class="card" id="passageCard" style="display:none">
+      <div class="eyebrow" id="passageTitle"></div>
+      <div id="passageBody"></div>
+      <div class="spacer"></div>
+      <div class="row" style="justify-content:space-between">
+        <button class="btn small ghost" onclick="playPassage()">🔊 全文朗讀</button>
+        <button class="btn small red" onclick="finishRead()">読了 ✓</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="eyebrow">單字帳（點擊發音）</div>
+      <div id="wordBook"></div>
+    </div>
+  </section>
+</main>
+
+<nav id="nav">
+  <button class="on" data-v="today"><span class="ki">今</span><span class="lb">今日</span></button>
+  <button data-v="kana"><span class="ki">字</span><span class="lb">かな</span></button>
+  <button data-v="listen"><span class="ki">耳</span><span class="lb">聴く</span></button>
+  <button data-v="speak"><span class="ki">口</span><span class="lb">話す</span></button>
+  <button data-v="read"><span class="ki">読</span><span class="lb">読む</span></button>
+</nav>
+
+<div class="toast" id="toast"></div>
+<div class="bigStamp" id="bigStamp" onclick="this.style.display='none'">
+  <div class="inner"><div class="b1">済</div><div class="b2" id="bigStampDate"></div></div>
+</div>
+
+<script>
+/* ================= DATA ================= */
+const HIRA="あa いi うu えe おo かka きki くku けke こko さsa しshi すsu せse そso たta ちchi つtsu てte とto なna にni ぬnu ねne のno はha ひhi ふfu へhe ほho まma みmi むmu めme もmo やya ゆyu よyo らra りri るru れre ろro わwa をwo んn がga ぎgi ぐgu げge ごgo ざza じji ずzu ぜze ぞzo だda ぢji づzu でde どdo ばba びbi ぶbu べbe ぼbo ぱpa ぴpi ぷpu ぺpe ぽpo";
+const KATA="アa イi ウu エe オo カka キki クku ケke コko サsa シshi スsu セse ソso タta チchi ツtsu テte トto ナna ニni ヌnu ネne ノno ハha ヒhi フfu ヘhe ホho マma ミmi ムmu メme モmo ヤya ユyu ヨyo ラra リri ルru レre ロro ワwa ヲwo ンn ガga ギgi グgu ゲge ゴgo ザza ジji ズzu ゼze ゾzo ダda ヂji ヅzu デde ドdo バba ビbi ブbu ベbe ボbo パpa ピpi プpu ペpe ポpo";
+function parseKana(str,prefix,script){
+  return str.split(" ").map((t,i)=>({id:prefix+i,ch:t[0],ro:t.slice(1),script}));
+}
+const KANA=[...parseKana(HIRA,'h','ひらがな'),...parseKana(KATA,'k','カタカナ')];
+const KANA_BY_ID=Object.fromEntries(KANA.map(c=>[c.id,c]));
+
+const VOCAB=[
+ ["挨拶","おはよう","早安"],["挨拶","こんにちは","你好（白天）"],["挨拶","こんばんは","晚上好"],
+ ["挨拶","ありがとう","謝謝"],["挨拶","すみません","不好意思／借過"],["挨拶","ごめんなさい","對不起"],
+ ["挨拶","さようなら","再見"],["挨拶","おやすみなさい","晚安（睡前）"],["挨拶","いただきます","我開動了"],["挨拶","おつかれさま","辛苦了"],
+ ["指示","これ","這個"],["指示","それ","那個（近對方）"],["指示","あれ","那個（遠處）"],
+ ["指示","ここ","這裡"],["指示","そこ","那裡"],["指示","あそこ","那邊（遠處）"],["指示","わたし","我"],["指示","あなた","你"],
+ ["数字","いち","一"],["数字","に","二"],["数字","さん","三"],["数字","よん","四"],["数字","ご","五"],
+ ["数字","ろく","六"],["数字","なな","七"],["数字","はち","八"],["数字","きゅう","九"],["数字","じゅう","十"],
+ ["食べ物","みず","水"],["食べ物","おちゃ","茶"],["食べ物","コーヒー","咖啡"],["食べ物","ごはん","米飯／餐"],
+ ["食べ物","パン","麵包"],["食べ物","たまご","蛋"],["食べ物","さかな","魚"],["食べ物","にく","肉"],
+ ["場所","えき","車站"],["場所","トイレ","廁所"],["場所","がっこう","學校"],["場所","いえ","家"],
+ ["場所","みせ","店"],["場所","びょういん","醫院"],["場所","くうこう","機場"],["場所","ホテル","飯店"],
+ ["動詞","いく","去"],["動詞","くる","來"],["動詞","たべる","吃"],["動詞","のむ","喝"],
+ ["動詞","みる","看"],["動詞","きく","聽／問"],["動詞","はなす","說"],["動詞","かう","買"],
+ ["形容詞","おいしい","好吃"],["形容詞","たかい","貴／高"],["形容詞","やすい","便宜"],["形容詞","おおきい","大"],
+ ["形容詞","ちいさい","小"],["形容詞","あつい","熱"],["形容詞","さむい","冷"],["形容詞","たのしい","開心／有趣"]
+].map(v=>({cat:v[0],jp:v[1],zh:v[2]}));
+
+const PAIRS=[
+ ["おばさん","阿姨","おばあさん","奶奶","長音"],
+ ["おじさん","叔叔","おじいさん","爺爺","長音"],
+ ["ビル","大樓","ビール","啤酒","長音"],
+ ["いえ","家","いいえ","不是","長音"],
+ ["しゅじん","丈夫","しゅうじん","囚犯","長音"],
+ ["きて","來（て形）","きって","郵票","促音"],
+ ["かた","肩膀","かった","買了","促音"],
+ ["さか","坡道","さっか","作家","促音"],
+ ["おと","聲音","おっと","丈夫","促音"],
+ ["まち","城鎮","マッチ","火柴","促音"],
+ ["てんき","天氣","でんき","電",  "濁音"],
+ ["かき","柿子","かぎ","鑰匙","濁音"],
+ ["ふた","蓋子","ぶた","豬","濁音"],
+ ["たいがく","退學","だいがく","大學","濁音"]
+].map(p=>({a:{jp:p[0],zh:p[1]},b:{jp:p[2],zh:p[3]},type:p[4]}));
+
+const SENTS=[
+ {lv:1,jp:"おはようございます。",zh:"早安（禮貌形）"},
+ {lv:1,jp:"ありがとうございます。",zh:"謝謝您"},
+ {lv:1,jp:"これをください。",zh:"請給我這個",alt:"これを下さい"},
+ {lv:1,jp:"すみません、トイレはどこですか。",zh:"不好意思，廁所在哪裡？"},
+ {lv:1,jp:"わたしはドフです。",zh:"我是 Dof",alt:"私はドフです"},
+ {lv:2,jp:"きょうは いい てんきですね。",zh:"今天天氣真好呢",alt:"今日はいい天気ですね"},
+ {lv:2,jp:"にほんごを べんきょうしています。",zh:"我正在學日文",alt:"日本語を勉強しています"},
+ {lv:2,jp:"もういちど おねがいします。",zh:"請再說一次",alt:"もう一度お願いします"},
+ {lv:2,jp:"ちょっと まってください。",zh:"請等一下",alt:"ちょっと待ってください"},
+ {lv:2,jp:"えきまで いくらですか。",zh:"到車站要多少錢？",alt:"駅までいくらですか"},
+ {lv:3,jp:"おれは さいきょうの にんじゃに なる！",zh:"我要成為最強的忍者！",alt:"俺は最強の忍者になる"},
+ {lv:3,jp:"まほうつかいの たびは、まだ つづく。",zh:"魔法使的旅途，仍在繼續",alt:"魔法使いの旅はまだ続く"},
+ {lv:3,jp:"なかまは ぜったいに みすてない。",zh:"絕不拋棄夥伴",alt:"仲間は絶対に見捨てない"},
+ {lv:3,jp:"あきらめなければ、みちは ひらける。",zh:"只要不放棄，路就會展開",alt:"諦めなければ道は開ける"},
+ {lv:3,jp:"じゅうねんごも、きみを おぼえている。",zh:"十年之後，我也記得你",alt:"十年後も君を覚えている"}
+];
+
+const PASSAGES=[
+ {title:"壱 ─ じこしょうかい（自我介紹・全假名）",lines:[
+  ["わたしは たいわんじん です。","我是台灣人。"],
+  ["なまえは ドフ です。","名字是 Dof。"],
+  ["にほんごを べんきょうしています。","我正在學日文。"],
+  ["にほんの アニメが すきです。","我喜歡日本動漫。"],
+  ["どうぞ よろしく おねがいします。","請多多指教。"]]},
+ {title:"弐 ─ まいにちの しゅうかん（每天的習慣）",lines:[
+  ["まいあさ、コーヒーを のみます。","每天早上喝咖啡。"],
+  ["それから、じゅっぷん にほんごを べんきょうします。","然後，學十分鐘日文。"],
+  ["すこしずつ、まえに すすみます。","一點一點，向前邁進。"],
+  ["きょうも がんばりましょう。","今天也加油吧。"]]},
+ {title:"参 ─ ことばの にんじゃ（言葉的忍者・附漢字）",ruby:true,lines:[
+  ["<ruby>忍者<rt>にんじゃ</rt></ruby>は<ruby>毎日<rt>まいにち</rt></ruby><ruby>修行<rt>しゅぎょう</rt></ruby>します。","忍者每天修行。","にんじゃはまいにちしゅぎょうします"],
+  ["<ruby>雨<rt>あめ</rt></ruby>の<ruby>日<rt>ひ</rt></ruby>も、<ruby>風<rt>かぜ</rt></ruby>の<ruby>日<rt>ひ</rt></ruby>も、<ruby>休<rt>やす</rt></ruby>みません。","下雨天、颳風天，都不休息。","あめのひも、かぜのひも、やすみません"],
+  ["<ruby>小<rt>ちい</rt></ruby>さな<ruby>一歩<rt>いっぽ</rt></ruby>が、<ruby>大<rt>おお</rt></ruby>きな<ruby>力<rt>ちから</rt></ruby>になります。","小小的一步，會成為巨大的力量。","ちいさないっぽが、おおきなちからになります"],
+  ["あなたも<ruby>今日<rt>きょう</rt></ruby>から、ことばの<ruby>忍者<rt>にんじゃ</rt></ruby>です。","你也從今天起，是言葉的忍者。","あなたもきょうから、ことばのにんじゃです"]]}
+];
+
+const TASKS=[
+ {id:'kana', name:'字の修行（五十音 SRS）', target:10, tab:'kana'},
+ {id:'vocab',name:'ことば（今日的 5 語）', target:5,  tab:'read'},
+ {id:'listen',name:'耳の修行（辨音 5 題）', target:5, tab:'listen'},
+ {id:'speak',name:'口の修行（跟讀 3 句）', target:3, tab:'speak'},
+ {id:'read', name:'読む修行（短文 1 篇）', target:1, tab:'read'}
+];
+
+/* ================= STATE ================= */
+const KEY='nihongo-michi-v1';
+let state=null;
+function defaultState(){return{srs:{},stamps:{},daily:{date:'',counts:{},newIntro:0},rate:0.85,attempts:0};}
+async function loadState(){
+  try{const r=await window.storage.get(KEY); state=JSON.parse(r.value);}catch(e){state=null;}
+  if(!state||typeof state!=='object') state=defaultState();
+  state.srs=state.srs||{}; state.stamps=state.stamps||{};
+  state.daily=state.daily||{date:'',counts:{},newIntro:0};
+  state.rate=state.rate||0.85; state.attempts=state.attempts||0;
+}
+let saveT=null;
+function save(){clearTimeout(saveT);saveT=setTimeout(async()=>{
+  try{await window.storage.set(KEY,JSON.stringify(state));}catch(e){console.error('save fail',e);}
+},400);}
+
+function todayStr(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+function dayNum(){return Math.floor((Date.now()-new Date().getTimezoneOffset()*60000)/86400000);}
+function ensureToday(){
+  const t=todayStr();
+  if(state.daily.date!==t){
+    state.daily={date:t,counts:{},newIntro:0};
+    TASKS.forEach(x=>state.daily.counts[x.id]=0);
+    save();
+  }
+  TASKS.forEach(x=>{if(state.daily.counts[x.id]==null)state.daily.counts[x.id]=0;});
+}
+function streak(){
+  let n=0;const d=new Date();
+  if(!state.stamps[todayStr()]) d.setDate(d.getDate()-1);
+  while(true){
+    const s=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+    if(state.stamps[s]){n++;d.setDate(d.getDate()-1);}else break;
+  }
+  return n;
+}
+function incTask(id,n=1){
+  ensureToday();
+  const t=TASKS.find(x=>x.id===id);
+  state.daily.counts[id]=Math.min(t.target,(state.daily.counts[id]||0)+n);
+  const allDone=TASKS.every(x=>state.daily.counts[x.id]>=x.target);
+  if(allDone && !state.stamps[todayStr()]){
+    state.stamps[todayStr()]=true;
+    showBigStamp();
+  }
+  save(); renderToday();
+}
+
+/* ================= TTS ================= */
+let jaVoice=null;
+function pickVoice(){
+  try{const vs=speechSynthesis.getVoices();
+    jaVoice=vs.find(v=>v.lang==='ja-JP')||vs.find(v=>v.lang&&v.lang.toLowerCase().startsWith('ja'))||null;
+  }catch(e){}
+}
+if('speechSynthesis' in window){speechSynthesis.onvoiceschanged=pickVoice;pickVoice();}
+function speak(txt,rate){
+  if(!('speechSynthesis' in window)){toast('此瀏覽器不支援語音合成');return;}
+  try{
+    speechSynthesis.cancel();
+    const u=new SpeechSynthesisUtterance(txt.replace(/\s+/g,''));
+    u.lang='ja-JP'; if(jaVoice)u.voice=jaVoice;
+    u.rate=rate||state.rate; u.pitch=1;
+    speechSynthesis.speak(u);
+  }catch(e){}
+}
+function setRate(v){state.rate=parseFloat(v);save();}
+
+/* ================= NAV ================= */
+document.querySelectorAll('nav button').forEach(b=>{
+  b.onclick=()=>{
+    document.querySelectorAll('nav button').forEach(x=>x.classList.remove('on'));
+    b.classList.add('on');
+    document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+    document.getElementById('view-'+b.dataset.v).classList.add('active');
+    if(b.dataset.v==='today')renderToday();
+    if(b.dataset.v==='kana')renderKanaHome();
+    window.scrollTo(0,0);
+  };
+});
+function gotoTab(v){document.querySelector('nav button[data-v="'+v+'"]').click();}
+
+function toast(msg){
+  const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),1800);
+}
+function showBigStamp(){
+  document.getElementById('bigStampDate').textContent=todayStr().slice(5).replace('-','／');
+  document.getElementById('bigStamp').style.display='flex';
+  setTimeout(()=>{document.getElementById('bigStamp').style.display='none';},2600);
+}
+
+/* ================= TODAY ================= */
+function renderToday(){
+  ensureToday();
+  const h=new Date().getHours();
+  document.getElementById('todayGreet').textContent=h<11?'おはようございます':(h<18?'こんにちは':'こんばんは');
+  document.getElementById('todayDate').textContent=todayStr()+'　── 章不斷，力不斷。';
+  document.getElementById('streakNum').textContent=streak();
+
+  const tl=document.getElementById('taskList');
+  tl.innerHTML='';
+  TASKS.forEach(t=>{
+    const c=state.daily.counts[t.id]||0;
+    const done=c>=t.target;
+    const div=document.createElement('div');
+    div.className='task'+(done?' done':'');
+    div.innerHTML=`<div class="tmark">${done?'済':'印'}</div>
+      <div class="tinfo"><div class="tname">${t.name}</div>
+      <div class="tprog">${c} / ${t.target}</div>
+      <div class="bar"><i style="width:${Math.round(c/t.target*100)}%"></i></div></div>
+      <button class="go">前往</button>`;
+    div.querySelector('.go').onclick=()=>gotoTab(t.tab);
+    tl.appendChild(div);
+  });
+
+  // stamp grid: last 14 days
+  const g=document.getElementById('stampGrid');g.innerHTML='';
+  for(let i=13;i>=0;i--){
+    const d=new Date();d.setDate(d.getDate()-i);
+    const s=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+    const cell=document.createElement('div');
+    cell.className='stampCell'+(state.stamps[s]?' hit':'')+(i===0?' today':'');
+    cell.innerHTML=`<span class="d">${d.getMonth()+1}/${d.getDate()}</span>`+
+      (state.stamps[s]?`<div class="hanko${i===0?' pop':''}">済</div>`:'');
+    g.appendChild(cell);
+  }
+
+  // daily sentence
+  const ds=SENTS[dayNum()%SENTS.length];
+  document.getElementById('dailySent').textContent=ds.jp;
+  document.getElementById('dailySentZh').textContent=ds.zh;
+  window._daily=ds;
+
+  // stats
+  const learned=Object.keys(state.srs).length;
+  const master=Object.values(state.srs).filter(c=>c.iv>=7).length;
+  document.getElementById('statChips').innerHTML=
+    `<span class="chip">已學假名 <b>${learned}</b> / ${KANA.length}</span>
+     <span class="chip">已定著（間隔≥7日）<b>${master}</b></span>
+     <span class="chip">跟讀累計 <b>${state.attempts}</b> 次</span>`;
+  document.getElementById('rateSel').value=String(state.rate);
+}
+function playDaily(r){if(window._daily)speak(window._daily.jp,r);}
+
+/* ================= KANA SRS ================= */
+let kq=[],kIdx=0,kGraded=0;
+function buildQueue(){
+  const today=dayNum();
+  const due=KANA.filter(c=>state.srs[c.id]&&state.srs[c.id].due<=today);
+  const newLimit=Math.max(0,10-(state.daily.newIntro||0));
+  const news=KANA.filter(c=>!state.srs[c.id]).slice(0,newLimit);
+  return [...due,...news];
+}
+function renderKanaHome(){
+  ensureToday();
+  document.getElementById('kanaSession').style.display='none';
+  document.getElementById('earQuiz').style.display='none';
+  document.getElementById('kanaHome').style.display='block';
+  const q=buildQueue();
+  const learned=Object.keys(state.srs).length;
+  document.getElementById('kanaStats').innerHTML=
+    `<span class="chip">今日待修行 <b>${q.length}</b> 枚</span>
+     <span class="chip">總進度 <b>${learned}</b> / ${KANA.length}</span>`;
+  // map: hiragana seion 46
+  const map=document.getElementById('kanaMap');
+  let html='<div class="catTag">ひらがな</div><div class="kanaGrid">';
+  KANA.slice(0,46).forEach(c=>{html+=cellHtml(c);});
+  html+='</div><div class="catTag">カタカナ</div><div class="kanaGrid">';
+  KANA.slice(71,71+46).forEach(c=>{html+=cellHtml(c);});
+  html+='</div>';
+  map.innerHTML=html;
+}
+function cellHtml(c){
+  const s=state.srs[c.id];
+  const cls=!s?'':(s.iv>=7?' class="master"':' class="learn"');
+  return `<span${cls}>${c.ch}</span>`;
+}
+function startKana(){
+  kq=buildQueue();kIdx=0;kGraded=0;
+  if(!kq.length){toast('今日の修行は完了！明日また来てください');incTask('kana',10);return;}
+  document.getElementById('kanaHome').style.display='none';
+  document.getElementById('kanaSession').style.display='block';
+  showKanaCard();
+}
+function showKanaCard(){
+  if(kIdx>=kq.length){
+    // session done
+    document.getElementById('kanaSession').style.display='none';
+    if(kGraded>0 && buildQueue().length===0) incTask('kana',TASKS[0].target);
+    renderKanaHome();
+    toast('本輪完成 — お見事！');
+    return;
+  }
+  const c=kq[kIdx];
+  document.getElementById('kanaProg').textContent=`${kIdx+1} / ${kq.length}　${state.srs[c.id]?'復習':'新しい字'}`;
+  document.getElementById('kanaChar').textContent=c.ch;
+  document.getElementById('kanaScript').textContent=c.script;
+  document.getElementById('kanaAns').textContent='';
+  document.getElementById('kanaBtns').style.display='block';
+  document.getElementById('gradeRow').style.display='none';
+}
+function revealKana(){
+  const c=kq[kIdx];
+  document.getElementById('kanaAns').textContent=c.ro;
+  document.getElementById('kanaBtns').style.display='none';
+  document.getElementById('gradeRow').style.display='grid';
+  speak(c.ch,0.85);
+}
+function gradeKana(g){
+  const c=kq[kIdx];const today=dayNum();
+  let s=state.srs[c.id];
+  if(!s){s={ef:2.5,iv:0,reps:0,due:today};state.srs[c.id]=s;state.daily.newIntro=(state.daily.newIntro||0)+1;}
+  if(g===0){
+    s.reps=0;s.iv=0;s.due=today;s.ef=Math.max(1.3,s.ef-0.2);
+    kq.splice(Math.min(kq.length,kIdx+3),0,c); // 稍後重出
+  }else{
+    if(g===1){s.iv=Math.max(1,Math.round((s.iv||1)*1.2));s.ef=Math.max(1.3,s.ef-0.15);}
+    if(g===2){s.iv=s.reps===0?1:Math.max(2,Math.round(s.iv*s.ef));}
+    if(g===3){s.iv=s.reps===0?3:Math.max(3,Math.round(s.iv*s.ef*1.3));s.ef=Math.min(3,s.ef+0.1);}
+    s.reps++;s.due=today+s.iv;
+  }
+  kGraded++;save();
+  incTask('kana',1);
+  kIdx++;showKanaCard();
+}
+
+/* ---- 音→字 quiz ---- */
+let earCur=null,earN=0;
+function startEarQuiz(){
+  const pool=Object.keys(state.srs).map(id=>KANA_BY_ID[id]).filter(Boolean);
+  if(pool.length<4){toast('先修行至少 4 枚假名，再來挑戰');return;}
+  document.getElementById('kanaHome').style.display='none';
+  document.getElementById('earQuiz').style.display='block';
+  earN=0;nextEar();
+}
+function nextEar(){
+  earN++;
+  if(earN>8){document.getElementById('earQuiz').style.display='none';renderKanaHome();toast('音→字 完成！');return;}
+  const pool=Object.keys(state.srs).map(id=>KANA_BY_ID[id]).filter(Boolean);
+  const ans=pool[Math.floor(Math.random()*pool.length)];
+  const opts=[ans];
+  const rest=pool.filter(c=>c.ro!==ans.ro);
+  while(opts.length<4&&rest.length){opts.push(rest.splice(Math.floor(Math.random()*rest.length),1)[0]);}
+  opts.sort(()=>Math.random()-0.5);
+  earCur=ans;
+  document.getElementById('earProg').textContent=`音 → 字　${earN} / 8`;
+  const box=document.getElementById('earOpts');box.innerHTML='';
+  opts.forEach(o=>{
+    const b=document.createElement('button');b.className='qopt big';b.textContent=o.ch;
+    b.onclick=()=>{
+      if(o.id===ans.id){b.classList.add('ok');toast('正解！');}
+      else{b.classList.add('ng');
+        [...box.children].forEach(x=>{if(x.textContent===ans.ch)x.classList.add('ok');});}
+      setTimeout(nextEar,900);
+    };
+    box.appendChild(b);
+  });
+  setTimeout(playEar,300);
+}
+function playEar(){if(earCur)speak(earCur.ch,0.85);}
+
+/* ================= LISTEN ================= */
+let lState=null;
+function startListen(){
+  lState={n:0,order:[...PAIRS].sort(()=>Math.random()-0.5)};
+  document.getElementById('listenQuiz').style.display='block';
+  nextListen();
+}
+function nextListen(){
+  lState.n++;
+  if(lState.n>5){
+    document.getElementById('listenQuiz').style.display='none';
+    toast('耳の修行 完成！');return;
+  }
+  const pair=lState.order[(lState.n-1)%lState.order.length];
+  const isA=Math.random()<0.5;
+  lState.cur={pair,ans:isA?'a':'b'};
+  document.getElementById('listenProg').textContent=`第 ${lState.n} / 5 題　── 焦點：${pair.type}`;
+  document.getElementById('listenFb').textContent='';
+  const box=document.getElementById('listenOpts');box.innerHTML='';
+  ['a','b'].forEach(k=>{
+    const w=pair[k];
+    const b=document.createElement('button');b.className='qopt';
+    b.innerHTML=`<span style="font-family:var(--disp);font-size:22px">${w.jp}</span><div class="zh">${w.zh}</div>`;
+    b.onclick=()=>answerListen(k,b,box);
+    box.appendChild(b);
+  });
+  setTimeout(playListen,350);
+}
+function playListen(){if(lState&&lState.cur)speak(lState.cur.pair[lState.cur.ans].jp,0.9);}
+function answerListen(k,btn,box){
+  const ok=k===lState.cur.ans;
+  const pair=lState.cur.pair;
+  if(ok){btn.classList.add('ok');document.getElementById('listenFb').textContent='正解！再聽一次兩個詞的差異 →';}
+  else{btn.classList.add('ng');
+    [...box.children][lState.cur.ans==='a'?0:1].classList.add('ok');
+    document.getElementById('listenFb').textContent=`是「${pair[lState.cur.ans].jp}」。注意${pair.type}的長度差。`;}
+  incTask('listen',1);
+  // 對比重播：慢速播 a 再播 b
+  setTimeout(()=>speak(pair.a.jp,0.7),600);
+  setTimeout(()=>speak(pair.b.jp,0.7),2100);
+  setTimeout(nextListen,3600);
+}
+
+/* ================= SPEAK ================= */
+let lv=1,sIdx=0,recObj=null,recording=false;
+function lvList(){return SENTS.filter(s=>s.lv===lv);}
+function setLv(n,btn){
+  lv=n;sIdx=0;
+  document.querySelectorAll('#lvTabs button').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  renderSent();
+}
+function renderSent(){
+  const list=lvList();const s=list[sIdx];
+  document.getElementById('speakProg').textContent=`第 ${sIdx+1} / ${list.length} 句`;
+  document.getElementById('speakJp').textContent=s.jp;
+  document.getElementById('speakZh').textContent=s.zh;
+  document.getElementById('speakScore').textContent='';
+  document.getElementById('recTxt').textContent='';
+  document.getElementById('selfGrade').style.display='none';
+}
+function playSpeak(r){speak(lvList()[sIdx].jp,r);}
+function prevSent(){const L=lvList().length;sIdx=(sIdx-1+L)%L;renderSent();}
+function nextSent(){const L=lvList().length;sIdx=(sIdx+1)%L;renderSent();}
+function kataToHira(s){return s.replace(/[\u30a1-\u30f6]/g,c=>String.fromCharCode(c.charCodeAt(0)-0x60));}
+function norm(s){return kataToHira((s||'').replace(/[。、！？!?.,\s「」]/g,''));}
+function lev(a,b){
+  const m=a.length,n=b.length;if(!m)return n;if(!n)return m;
+  let prev=Array.from({length:n+1},(_,j)=>j),cur=new Array(n+1);
+  for(let i=1;i<=m;i++){cur[0]=i;
+    for(let j=1;j<=n;j++){cur[j]=Math.min(prev[j]+1,cur[j-1]+1,prev[j-1]+(a[i-1]===b[j-1]?0:1));}
+    [prev,cur]=[cur,prev];}
+  return prev[n];
+}
+function sim(a,b){a=norm(a);b=norm(b);if(!a||!b)return 0;return Math.round((1-lev(a,b)/Math.max(a.length,b.length))*100);}
+function toggleRec(){
+  const s=lvList()[sIdx];
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(recording){try{recObj.stop();}catch(e){}return;}
+  if(!SR){fallbackSelf('此環境不支援語音辨識，請跟讀後自評');return;}
+  try{
+    recObj=new SR();recObj.lang='ja-JP';recObj.interimResults=false;recObj.maxAlternatives=3;
+    recObj.onstart=()=>{recording=true;document.getElementById('micBtn').classList.add('rec');
+      document.getElementById('recTxt').textContent='聞いています…（說完會自動停止）';};
+    recObj.onresult=e=>{
+      let best=0,bestTxt='';
+      for(const alt of e.results[0]){
+        const sc=Math.max(sim(alt.transcript,s.jp),s.alt?sim(alt.transcript,s.alt):0);
+        if(sc>=best){best=sc;bestTxt=alt.transcript;}
+      }
+      showScore(best,bestTxt);
+    };
+    recObj.onerror=e=>{
+      recording=false;document.getElementById('micBtn').classList.remove('rec');
+      if(e.error==='not-allowed'||e.error==='service-not-allowed'){fallbackSelf('麥克風無權限（此環境可能封鎖）— 改用自我評分');}
+      else fallbackSelf('辨識失敗（'+e.error+'）— 改用自我評分');
+    };
+    recObj.onend=()=>{recording=false;document.getElementById('micBtn').classList.remove('rec');};
+    recObj.start();
+  }catch(e){fallbackSelf('無法啟動辨識 — 改用自我評分');}
+}
+function showScore(sc,txt){
+  const mark=sc>=80?'◎':(sc>=55?'○':'△');
+  document.getElementById('speakScore').textContent=`${mark} ${sc}点`;
+  document.getElementById('speakScore').style.color=sc>=80?'var(--take)':(sc>=55?'var(--yama)':'var(--shu)');
+  document.getElementById('recTxt').textContent='聽到：'+txt;
+  countSpeak();
+}
+function fallbackSelf(msg){
+  document.getElementById('recTxt').textContent=msg;
+  document.getElementById('selfGrade').style.display='flex';
+}
+function selfMark(m){
+  document.getElementById('speakScore').textContent=m;
+  document.getElementById('speakScore').style.color=m==='◎'?'var(--take)':(m==='○'?'var(--yama)':'var(--shu)');
+  document.getElementById('selfGrade').style.display='none';
+  countSpeak();
+}
+function countSpeak(){state.attempts++;save();incTask('speak',1);}
+
+/* ================= VOCAB ================= */
+let vState=null;
+function startVocab(){
+  const off=(dayNum()*5)%VOCAB.length;
+  const todays=[];
+  for(let i=0;i<5;i++)todays.push(VOCAB[(off+i)%VOCAB.length]);
+  vState={list:todays,n:0};
+  document.getElementById('vocabQuiz').style.display='block';
+  nextVocab();
+}
+function nextVocab(){
+  if(vState.n>=5){document.getElementById('vocabQuiz').style.display='none';toast('ことば 完成！');return;}
+  const w=vState.list[vState.n];
+  document.getElementById('vocabProg').textContent=`今日の 5 語　${vState.n+1} / 5　── ${w.cat}`;
+  document.getElementById('vocabQ').textContent=w.zh;
+  document.getElementById('vocabFb').textContent='';
+  const opts=[w];
+  const rest=VOCAB.filter(x=>x.jp!==w.jp);
+  while(opts.length<4){opts.push(rest.splice(Math.floor(Math.random()*rest.length),1)[0]);}
+  opts.sort(()=>Math.random()-0.5);
+  const box=document.getElementById('vocabOpts');box.innerHTML='';
+  opts.forEach(o=>{
+    const b=document.createElement('button');b.className='qopt';
+    b.innerHTML=`<span style="font-family:var(--disp);font-size:20px">${o.jp}</span>`;
+    b.onclick=()=>{
+      speak(w.jp,0.85);
+      if(o.jp===w.jp){b.classList.add('ok');document.getElementById('vocabFb').textContent='正解！';}
+      else{b.classList.add('ng');
+        [...box.children].forEach(x=>{if(x.textContent.trim()===w.jp)x.classList.add('ok');});
+        document.getElementById('vocabFb').textContent=`是「${w.jp}」— 聽一次記住聲音。`;}
+      incTask('vocab',1);
+      vState.n++;setTimeout(nextVocab,1300);
+    };
+    box.appendChild(b);
+  });
+}
+
+/* ================= READ ================= */
+let curPassage=null;
+function renderPassageBtns(){
+  const box=document.getElementById('passageBtns');box.innerHTML='';
+  PASSAGES.forEach((p,i)=>{
+    const b=document.createElement('button');b.className='btn small ghost';
+    b.textContent=p.title.split(' ─ ')[0];
+    b.onclick=()=>openPassage(i);
+    box.appendChild(b);
+  });
+}
+function openPassage(i){
+  curPassage=PASSAGES[i];
+  document.getElementById('passageCard').style.display='block';
+  document.getElementById('passageTitle').textContent=curPassage.title;
+  const body=document.getElementById('passageBody');body.innerHTML='';
+  curPassage.lines.forEach(l=>{
+    const div=document.createElement('div');div.className='rline';
+    div.innerHTML=`<div class="jp">${l[0]}</div><div class="zh">${l[1]}</div>`;
+    div.onclick=()=>{div.classList.toggle('open');speak(l[2]||l[0],state.rate);};
+    body.appendChild(div);
+  });
+  document.getElementById('passageCard').scrollIntoView({behavior:'smooth'});
+}
+function playPassage(){
+  if(!curPassage)return;
+  const txt=curPassage.lines.map(l=>l[2]||l[0]).join('。');
+  speak(txt.replace(/<[^>]+>/g,''),state.rate);
+}
+function finishRead(){incTask('read',1);toast('読了の印、承りました');}
+
+function renderWordBook(){
+  const box=document.getElementById('wordBook');box.innerHTML='';
+  let cat='';
+  VOCAB.forEach(w=>{
+    if(w.cat!==cat){cat=w.cat;const t=document.createElement('div');t.className='catTag';t.textContent=cat;box.appendChild(t);}
+    const r=document.createElement('div');r.className='wordRow';
+    r.innerHTML=`<span class="wj">${w.jp}</span><span class="wz">${w.zh} 🔊</span>`;
+    r.onclick=()=>speak(w.jp,0.85);
+    box.appendChild(r);
+  });
+}
+
+/* ================= INIT ================= */
+(async function(){
+  await loadState();
+  ensureToday();
+  renderToday();
+  renderKanaHome();
+  renderSent();
+  renderPassageBtns();
+  renderWordBook();
+})();
+</script>
+</body>
+</html>

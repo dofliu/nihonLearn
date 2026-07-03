@@ -1,0 +1,8 @@
+node_modules
+dist
+dist-ssr
+*.local
+.DS_Store
+sidecar/__pycache__
+sidecar/.venv
+sidecar/voicevox_cache

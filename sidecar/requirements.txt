@@ -1,0 +1,12 @@
+# --- 基礎（先跑得起來）---
+fastapi>=0.115
+uvicorn[standard]>=0.30
+httpx>=0.27
+pydantic>=2.8
+
+# --- 發音評分（faster-whisper，需要 CUDA + ffmpeg 解碼 webm）---
+# faster-whisper>=1.0.3
+
+# --- 內容生成 ---
+# 直接用 httpx 呼叫 Anthropic API，無需額外 SDK。
+# 設定環境變數 ANTHROPIC_API_KEY（可選 ANTHROPIC_MODEL）即可。

@@ -1,0 +1,676 @@
+@import url('https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;700&family=Zen+Maru+Gothic:wght@400;500;700&display=swap');
+
+:root {
+  --washi: #f4f1e8;
+  --washi2: #ece8db;
+  --sumi: #2b2a26;
+  --ai: #24466b;
+  --ai-deep: #18324e;
+  --shu: #c7412f;
+  --take: #4e8d6e;
+  --yama: #d9a521;
+  --nezu: #8a8578;
+  --card: #fbf9f2;
+  --disp: 'Shippori Mincho', 'Hiragino Mincho ProN', 'Yu Mincho', serif;
+  --body: 'Zen Maru Gothic', 'Hiragino Sans', 'Yu Gothic', 'Noto Sans TC', sans-serif;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+html,
+body,
+#root {
+  height: 100%;
+}
+body {
+  font-family: var(--body);
+  color: var(--sumi);
+  background: radial-gradient(1200px 400px at 50% -100px, rgba(36, 70, 107, 0.08), transparent 60%),
+    repeating-linear-gradient(0deg, transparent 0 3px, rgba(43, 42, 38, 0.012) 3px 4px), var(--washi);
+}
+
+.app {
+  padding-bottom: 76px;
+  min-height: 100%;
+}
+.appHeader {
+  background: var(--ai);
+  color: #f4f1e8;
+  padding: 14px 18px 12px;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  border-bottom: 3px solid var(--ai-deep);
+}
+.appHeader h1 {
+  font-family: var(--disp);
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+}
+.appHeader h1 span {
+  font-size: 11px;
+  letter-spacing: 0.2em;
+  opacity: 0.75;
+  margin-left: 8px;
+  font-family: var(--body);
+}
+.streakBadge {
+  font-size: 13px;
+  font-weight: 700;
+}
+.streakBadge b {
+  font-size: 18px;
+  color: var(--yama);
+}
+main {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 16px 14px 30px;
+}
+
+.card {
+  background: var(--card);
+  border: 1.5px solid var(--washi2);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 14px;
+  box-shadow: 0 1px 3px rgba(43, 42, 38, 0.05);
+}
+.eyebrow {
+  font-size: 11px;
+  letter-spacing: 0.25em;
+  color: var(--ai);
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+h2 {
+  font-family: var(--disp);
+  font-size: 19px;
+  margin-bottom: 4px;
+  letter-spacing: 0.06em;
+}
+.sub {
+  font-size: 12.5px;
+  color: var(--nezu);
+  line-height: 1.6;
+}
+.spacer {
+  height: 8px;
+}
+.row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.between {
+  justify-content: space-between;
+}
+.center {
+  justify-content: center;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: var(--ai);
+  color: #f4f1e8;
+  border: none;
+  border-radius: 10px;
+  padding: 11px 18px;
+  font-family: var(--body);
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  letter-spacing: 0.05em;
+}
+.btn:active {
+  transform: scale(0.97);
+}
+.btn.ghost {
+  background: transparent;
+  color: var(--ai);
+  border: 1.5px solid var(--ai);
+}
+.btn.red {
+  background: var(--shu);
+}
+.btn.small {
+  padding: 7px 13px;
+  font-size: 13px;
+  border-radius: 8px;
+}
+.btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* nav */
+.nav {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 50;
+  background: var(--card);
+  border-top: 2px solid var(--ai);
+  display: flex;
+  max-width: 640px;
+  margin: 0 auto;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.nav button {
+  flex: 1;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 8px 0 7px;
+  font-family: var(--body);
+  color: var(--nezu);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+.nav button .ki {
+  font-family: var(--disp);
+  font-size: 19px;
+  line-height: 1;
+}
+.nav button .lb {
+  font-size: 10px;
+  letter-spacing: 0.05em;
+}
+.nav button.on {
+  color: var(--ai);
+}
+.nav button.on .ki {
+  color: var(--shu);
+}
+
+/* stamp */
+.stampGrid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 8px;
+  margin-top: 12px;
+}
+.stampCell {
+  aspect-ratio: 1;
+  border: 1.5px dashed #c9c3b2;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--nezu);
+  position: relative;
+  background: rgba(255, 255, 255, 0.4);
+}
+.stampCell.today {
+  border-color: var(--ai);
+}
+.stampCell .d {
+  position: absolute;
+  top: -2px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 9px;
+  background: var(--washi);
+  padding: 0 3px;
+  color: var(--nezu);
+}
+.stampCell.hit {
+  border: none;
+}
+.hanko {
+  width: 82%;
+  height: 82%;
+  border-radius: 50%;
+  border: 2.5px solid var(--shu);
+  color: var(--shu);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--disp);
+  font-weight: 700;
+  font-size: 15px;
+  transform: rotate(-8deg);
+  background: rgba(199, 65, 47, 0.06);
+}
+.hanko.pop {
+  animation: stampIn 0.45s cubic-bezier(0.2, 1.6, 0.4, 1);
+}
+@keyframes stampIn {
+  0% {
+    transform: rotate(-8deg) scale(2.2);
+    opacity: 0;
+  }
+  60% {
+    opacity: 1;
+  }
+  100% {
+    transform: rotate(-8deg) scale(1);
+  }
+}
+
+/* task */
+.task {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 4px;
+  border-bottom: 1px solid var(--washi2);
+}
+.task:last-child {
+  border-bottom: none;
+}
+.tmark {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  flex: none;
+  border: 2px solid #c9c3b2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--disp);
+  font-size: 13px;
+  color: #c9c3b2;
+  font-weight: 700;
+}
+.task.done .tmark {
+  border-color: var(--shu);
+  color: var(--shu);
+  transform: rotate(-8deg);
+  background: rgba(199, 65, 47, 0.06);
+}
+.tinfo {
+  flex: 1;
+}
+.tname {
+  font-size: 14.5px;
+  font-weight: 700;
+}
+.tprog {
+  font-size: 11.5px;
+  color: var(--nezu);
+}
+.go {
+  font-size: 12px;
+  color: var(--ai);
+  font-weight: 700;
+  background: none;
+  border: 1.5px solid var(--ai);
+  border-radius: 8px;
+  padding: 5px 11px;
+  cursor: pointer;
+  font-family: var(--body);
+}
+.task.done .go {
+  opacity: 0.35;
+  border-color: var(--nezu);
+  color: var(--nezu);
+}
+.bar {
+  height: 5px;
+  background: var(--washi2);
+  border-radius: 3px;
+  margin-top: 4px;
+  overflow: hidden;
+}
+.bar i {
+  display: block;
+  height: 100%;
+  background: var(--take);
+  border-radius: 3px;
+  transition: width 0.3s;
+}
+
+/* chips */
+.statChips {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+.chip {
+  background: var(--washi2);
+  border-radius: 8px;
+  padding: 6px 11px;
+  font-size: 12px;
+}
+.chip b {
+  color: var(--ai);
+}
+
+/* kana */
+.kanaFace {
+  font-family: var(--disp);
+  font-size: 96px;
+  text-align: center;
+  line-height: 1.25;
+  padding: 18px 0 6px;
+}
+.kanaMeta {
+  text-align: center;
+  color: var(--nezu);
+  font-size: 13px;
+  margin-bottom: 6px;
+}
+.reveal {
+  text-align: center;
+  font-size: 26px;
+  color: var(--ai);
+  font-weight: 700;
+  min-height: 38px;
+  font-family: var(--disp);
+}
+.gradeRow {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin-top: 14px;
+}
+.gradeRow button {
+  border: none;
+  border-radius: 10px;
+  padding: 12px 4px;
+  font-family: var(--body);
+  font-weight: 700;
+  font-size: 13.5px;
+  cursor: pointer;
+  color: #fff;
+  line-height: 1.35;
+}
+.g0 {
+  background: #a85751;
+}
+.g1 {
+  background: #c08a3e;
+}
+.g2 {
+  background: var(--take);
+}
+.g3 {
+  background: var(--ai);
+}
+.kanaGrid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 6px;
+  margin-top: 10px;
+}
+.kanaGrid span {
+  font-family: var(--disp);
+  text-align: center;
+  padding: 8px 0;
+  border-radius: 8px;
+  background: var(--washi2);
+  color: #b4ae9d;
+  font-size: 20px;
+}
+.kanaGrid span.learn {
+  background: rgba(36, 70, 107, 0.12);
+  color: var(--ai);
+}
+.kanaGrid span.master {
+  background: rgba(78, 141, 110, 0.18);
+  color: #2f6a50;
+}
+.catTag {
+  font-size: 11px;
+  letter-spacing: 0.2em;
+  color: var(--shu);
+  font-weight: 700;
+  margin: 14px 0 2px;
+}
+
+/* quiz option */
+.qopt {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: var(--card);
+  border: 1.5px solid var(--washi2);
+  border-radius: 10px;
+  padding: 13px 15px;
+  font-family: var(--body);
+  font-size: 16px;
+  cursor: pointer;
+  margin-bottom: 9px;
+}
+.qopt.big {
+  font-family: var(--disp);
+  font-size: 30px;
+  text-align: center;
+}
+.qopt.ok {
+  border-color: var(--take);
+  background: rgba(78, 141, 110, 0.1);
+}
+.qopt.ng {
+  border-color: var(--shu);
+  background: rgba(199, 65, 47, 0.08);
+}
+.qopt .zh {
+  font-size: 12px;
+  color: var(--nezu);
+  margin-top: 2px;
+}
+
+/* sentences */
+.sent {
+  font-family: var(--disp);
+  font-size: 22px;
+  line-height: 1.7;
+  text-align: center;
+  padding: 8px 0 2px;
+}
+.sentZh {
+  text-align: center;
+  font-size: 13.5px;
+  color: var(--nezu);
+  margin-bottom: 12px;
+}
+.micBtn {
+  width: 74px;
+  height: 74px;
+  border-radius: 50%;
+  border: none;
+  background: var(--shu);
+  color: #fff;
+  font-size: 30px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto;
+  box-shadow: 0 3px 10px rgba(199, 65, 47, 0.35);
+}
+.micBtn.rec {
+  animation: pulse 1s infinite;
+}
+@keyframes pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(199, 65, 47, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 14px rgba(199, 65, 47, 0);
+  }
+}
+.scoreBig {
+  text-align: center;
+  font-family: var(--disp);
+  font-size: 44px;
+  min-height: 56px;
+}
+.recTxt {
+  text-align: center;
+  font-size: 13px;
+  color: var(--nezu);
+  min-height: 20px;
+  word-break: break-all;
+}
+.lvTabs {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+.lvTabs button {
+  flex: 1;
+  border: 1.5px solid var(--washi2);
+  background: var(--card);
+  border-radius: 9px;
+  padding: 8px 0;
+  font-family: var(--body);
+  font-size: 12.5px;
+  cursor: pointer;
+  color: var(--nezu);
+  font-weight: 700;
+}
+.lvTabs button.on {
+  border-color: var(--ai);
+  color: var(--ai);
+  background: rgba(36, 70, 107, 0.07);
+}
+
+/* read */
+.rline {
+  padding: 9px 2px;
+  border-bottom: 1px dashed var(--washi2);
+  cursor: pointer;
+  line-height: 1.9;
+}
+.rline .jp {
+  font-family: var(--disp);
+  font-size: 18px;
+}
+.rline .zh {
+  display: none;
+  font-size: 13px;
+  color: var(--take);
+  margin-top: 2px;
+}
+.rline.open .zh {
+  display: block;
+}
+ruby rt {
+  font-size: 10px;
+  color: var(--ai);
+}
+.wordRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 9px 4px;
+  border-bottom: 1px solid var(--washi2);
+  cursor: pointer;
+}
+.wordRow .wj {
+  font-family: var(--disp);
+  font-size: 18px;
+}
+.wordRow .wz {
+  font-size: 13px;
+  color: var(--nezu);
+}
+
+/* toast + big stamp */
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 96px;
+  transform: translateX(-50%);
+  background: var(--sumi);
+  color: #f4f1e8;
+  padding: 10px 20px;
+  border-radius: 10px;
+  font-size: 14px;
+  z-index: 99;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s;
+  letter-spacing: 0.05em;
+}
+.toast.show {
+  opacity: 1;
+}
+.bigStamp {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(43, 42, 38, 0.45);
+  z-index: 98;
+}
+.bigStamp .inner {
+  width: 190px;
+  height: 190px;
+  border-radius: 50%;
+  border: 6px solid var(--shu);
+  background: var(--washi);
+  color: var(--shu);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--disp);
+  transform: rotate(-8deg);
+  animation: stampIn 0.5s cubic-bezier(0.2, 1.6, 0.4, 1);
+}
+.bigStamp .inner .b1 {
+  font-size: 44px;
+  font-weight: 700;
+}
+.bigStamp .inner .b2 {
+  font-size: 14px;
+  letter-spacing: 0.3em;
+  margin-top: 4px;
+}
+.hint {
+  font-size: 12px;
+  color: var(--nezu);
+  line-height: 1.7;
+  background: var(--washi2);
+  border-radius: 8px;
+  padding: 9px 12px;
+  margin-top: 10px;
+}
+.rateRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--nezu);
+  margin-top: 10px;
+}
+select {
+  font-family: var(--body);
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--washi2);
+  background: var(--card);
+}
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+/* 漢字模式：隱藏短文振り仮名（純漢字挑戰） */
+.kanji-mode ruby rt {
+  visibility: hidden;
+}
+.kanji-mode ruby {
+  margin: 0 1px;
+}
