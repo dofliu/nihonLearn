@@ -1,0 +1,52 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  web:
+    name: Web（build + 邏輯測試 + E2E）
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Strict build（web，含 PWA）
+        run: npm run build
+      - name: 邏輯回歸（Node 直跑 .ts）
+        run: npm test
+      - name: Playwright E2E
+        run: |
+          npx playwright install --with-deps chromium
+          npm run test:e2e
+
+  android:
+    name: Android（Capacitor 殼可編譯）
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: gradle/actions/setup-gradle@v4
+      - run: npm ci
+      - name: Web 資產（CAP_BUILD 模式，無 SW）＋ cap sync
+        run: npm run build:android
+      - name: 組 debug APK
+        run: cd android && ./gradlew assembleDebug --no-daemon
+      - name: 上傳 APK artifact（供真機側載測試）
+        uses: actions/upload-artifact@v4
+        with:
+          name: nihongo-michi-debug-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 14

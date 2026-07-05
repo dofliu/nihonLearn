@@ -1,6 +1,6 @@
 {
   "name": "nihongo-michi",
-  "version": "2.0.0",
+  "version": "3.0.0",
   "private": true,
   "type": "module",
   "description": "日本語の道 — 個人化日語學習 PWA（聽說讀三軌，local-first）",
@@ -10,9 +10,16 @@
     "preview": "vite preview",
     "typecheck": "tsc -b --noEmit",
     "test": "node --experimental-strip-types tests/integration.ts",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "build:android": "cross-env CAP_BUILD=1 npm run build && cap sync android",
+    "android:open": "npm run build:android && cap open android",
+    "android:run": "npm run build:android && cap run android"
   },
   "dependencies": {
+    "@capacitor-community/speech-recognition": "^7.0.1",
+    "@capacitor-community/text-to-speech": "^6.1.0",
+    "@capacitor/android": "^7.6.7",
+    "@capacitor/core": "^7.6.7",
     "dexie": "^4.0.8",
     "dexie-react-hooks": "^1.1.7",
     "react": "^18.3.1",
@@ -21,11 +28,13 @@
     "zustand": "^4.5.5"
   },
   "devDependencies": {
+    "@capacitor/cli": "^7.6.7",
     "@playwright/test": "^1.61.1",
     "@types/node": "^22.20.0",
     "@types/react": "^18.3.5",
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "^4.3.1",
+    "cross-env": "^10.1.0",
     "typescript": "^5.5.4",
     "vite": "^5.4.2",
     "vite-plugin-pwa": "^0.20.5"

@@ -93,6 +93,8 @@ export { TASKS }
 
 /** app 啟動：探測 TTS provider，套用已存說話者，載入狀態 */
 export async function bootstrap() {
+  // 學習進度都在 IndexedDB——請求持久化儲存，降低被系統回收的風險
+  void navigator.storage?.persist?.().catch(() => {})
   await initTTS()
   const spk = await getSetting<number | null>('voicevoxSpeaker', null)
   if (spk != null) setSpeaker(spk)
