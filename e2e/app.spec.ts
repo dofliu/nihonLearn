@@ -75,6 +75,32 @@ test.describe('基本載入與導覽', () => {
     await expect(page.locator('main')).toContainText('今日の修行')
   })
 
+  test('Sidecar 位址：儲存正規化、持久化、清除還原同源', async ({ page }) => {
+    await gotoApp(page)
+    await page.locator('.appHeader h1').click()
+
+    const card = page.locator('.card', { hasText: 'Sidecar 位址' })
+    const input = card.locator('input')
+    await expect(input).toHaveValue('')
+
+    // 無 scheme → 自動補 https、去尾斜線；連不上（假網址）→ 錯誤 toast、降級不中斷
+    await input.fill('sidecar.invalid/')
+    await card.getByRole('button', { name: /儲存並測試/ }).click()
+    await expect(page.locator('.toast')).toContainText('連不上 sidecar')
+    await expect(input).toHaveValue('https://sidecar.invalid')
+
+    // 持久化：重整後仍在（localStorage，不進 Dexie）
+    await page.reload()
+    await expect(page.locator('main')).not.toContainText('読み込み中', { timeout: 15_000 })
+    await page.locator('.appHeader h1').click()
+    await expect(card.locator('input')).toHaveValue('https://sidecar.invalid')
+
+    // 清空 → 還原同源 /api
+    await card.locator('input').fill('')
+    await card.getByRole('button', { name: /儲存並測試/ }).click()
+    await expect(page.locator('.toast')).toContainText('同源 /api')
+  })
+
   test('匯出 v2 備份會下載合法 JSON', async ({ page }) => {
     await gotoApp(page)
     await page.locator('.appHeader h1').click()

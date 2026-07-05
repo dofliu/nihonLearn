@@ -40,6 +40,13 @@ export interface Setting {
   value: unknown
 }
 
+/** VOICEVOX TTS 音檔快取（取代 service worker CacheFirst；原生 App 也可用） */
+export interface TTSCacheEntry {
+  key: string // ttsCacheKey(text, speaker, rate)，見 lib/sidecar.ts
+  blob: Blob // wav
+  lastUsed: number // LRU 淘汰依據
+}
+
 /** 審核通過、採用入庫的 AI 生成句 */
 export interface UserSentence {
   id?: number
@@ -59,6 +66,7 @@ export class MichiDB extends Dexie {
   attempts!: Table<Attempt, number>
   settings!: Table<Setting, string>
   userSentences!: Table<UserSentence, number>
+  ttsCache!: Table<TTSCacheEntry, string>
 
   constructor() {
     super('nihongo-michi')
@@ -71,6 +79,9 @@ export class MichiDB extends Dexie {
     })
     this.version(2).stores({
       userSentences: '++id, lv',
+    })
+    this.version(3).stores({
+      ttsCache: 'key, lastUsed',
     })
   }
 }

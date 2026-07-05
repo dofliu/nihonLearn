@@ -5,7 +5,9 @@
  *  2) sidecar /api/score：錄音上傳 → faster-whisper 轉寫 → 假名對齊相似度
  *     （跑在 5090，離線、可做到音素級 GOP，是 v2 的差異化天花板）
  * 目前實作 (1) 與相似度計算；(2) 的介面已備好，sidecar 完成後切換即可。
+ * 注意：本檔被 tests/integration.ts 在 Node 直接 import，模組層不得碰瀏覽器 API。
  */
+import { apiUrl, probeHealth } from '../lib/sidecar.ts'
 
 // ---------- 假名正規化 + 相似度 ----------
 function kataToHira(s: string): string {
@@ -110,15 +112,7 @@ export type ScoreEngine = 'whisper' | 'asr' | 'none'
 
 /** 偵測最佳評分引擎：whisper > 瀏覽器 ASR > 無（自評） */
 export async function detectScoreEngine(): Promise<ScoreEngine> {
-  try {
-    const r = await fetch('/api/health', { signal: AbortSignal.timeout(1500) })
-    if (r.ok) {
-      const j = await r.json()
-      if (j.whisper) return 'whisper'
-    }
-  } catch {
-    /* sidecar 不在線，往下 fallback */
-  }
+  if ((await probeHealth(1500)).whisper) return 'whisper'
   return asrAvailable() ? 'asr' : 'none'
 }
 
@@ -160,7 +154,7 @@ export class SidecarRecorder {
     const blob = await done
     this.stream?.getTracks().forEach((t) => t.stop())
     const b64 = await blobToBase64(blob)
-    const r = await fetch('/api/score', {
+    const r = await fetch(apiUrl('/api/score'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ audio_base64: b64, targets }),

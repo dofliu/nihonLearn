@@ -5,6 +5,9 @@
  * 遠勝瀏覽器內建。呼叫端不需知道用的是哪個 provider。
  */
 
+import { apiUrl, ttsCacheKey, probeHealth } from '../lib/sidecar'
+import { getCachedTTS, putCachedTTS } from './ttsCache'
+
 export interface TTSProvider {
   name: string
   speak(text: string, rate: number): Promise<void>
@@ -64,18 +67,11 @@ class VoicevoxTTS implements TTSProvider {
   speakerId: number | null = null
 
   async available() {
-    try {
-      const r = await fetch('/api/health', { signal: AbortSignal.timeout(1500) })
-      if (!r.ok) return false
-      const j = await r.json()
-      return Boolean(j.voicevox)
-    } catch {
-      return false
-    }
+    return (await probeHealth(1500)).voicevox
   }
   async listSpeakers(): Promise<VoicevoxSpeaker[]> {
     try {
-      const r = await fetch('/api/speakers', { signal: AbortSignal.timeout(3000) })
+      const r = await fetch(apiUrl('/api/speakers'), { signal: AbortSignal.timeout(3000) })
       if (!r.ok) return []
       const j = await r.json()
       if (this.speakerId == null) this.speakerId = j.default ?? null
@@ -85,16 +81,36 @@ class VoicevoxTTS implements TTSProvider {
     }
   }
   async speak(text: string, rate: number): Promise<void> {
-    const params = new URLSearchParams({ text: clean(text), rate: String(rate) })
-    if (this.speakerId != null) params.set('speaker', String(this.speakerId))
-    const url = `/api/tts?${params.toString()}` // GET → 便於 service worker 快取
+    const t = clean(text)
+    const key = ttsCacheKey(t, this.speakerId, rate)
+    let blob = await getCachedTTS(key)
+    if (!blob) {
+      // cache miss → 打 sidecar；失敗就靜默返回（與舊版 onerror 行為一致）
+      try {
+        const params = new URLSearchParams({ text: t, rate: String(rate) })
+        if (this.speakerId != null) params.set('speaker', String(this.speakerId))
+        const r = await fetch(apiUrl(`/api/tts?${params.toString()}`), {
+          signal: AbortSignal.timeout(15000),
+        })
+        if (!r.ok) return
+        blob = await r.blob()
+        void putCachedTTS(key, blob)
+      } catch {
+        return
+      }
+    }
+    const url = URL.createObjectURL(blob)
     return new Promise((resolve) => {
       this.audio?.pause()
       const a = new Audio(url)
       this.audio = a
-      a.onended = () => resolve()
-      a.onerror = () => resolve()
-      a.play().catch(() => resolve())
+      const done = () => {
+        URL.revokeObjectURL(url)
+        resolve()
+      }
+      a.onended = done
+      a.onerror = done
+      a.play().catch(done)
     })
   }
 }
