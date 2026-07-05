@@ -3,14 +3,14 @@ import { gotoApp, statChip, localDateStr } from './helpers'
 
 /**
  * IndexedDB 深度驗證（CLAUDE.md A-1）：
- * 1. Dexie v1 → v2 schema 升級：先以 Dexie version(1) 的原生 IDB 佈局（版本 10）
- *    塞入既有資料，再載入 app 觸發升級到 version(2)（版本 20），驗證資料不遺失、
- *    新表 userSentences 建立。
+ * 1. Dexie v1 → 現行 schema 升級：先以 Dexie version(1) 的原生 IDB 佈局（版本 10）
+ *    塞入既有資料，再載入 app 觸發升級到現行 version(3)（版本 30），驗證資料不遺失、
+ *    新表 userSentences / ttsCache 建立。
  * 2. v1 Artifact 存檔 JSON 匯入：假名 SRS 播種 + 蓋章沿用（streak 不歸零）。
  */
 
 test.describe('Dexie 升級與 v1 匯入', () => {
-  test('v1 → v2 schema 升級不遺失既有資料', async ({ page }) => {
+  test('v1 → 現行 schema 升級不遺失既有資料', async ({ page }) => {
     // 先開同源的靜態頁（不載入 app JS），以 Dexie v1 佈局建 DB 並塞資料
     await page.goto('/favicon.svg')
     const yesterday = localDateStr(-1)
@@ -73,7 +73,7 @@ test.describe('Dexie 升級與 v1 匯入', () => {
     // 昨日有章、今日沒有 → streak 從昨天起算 1
     await expect(page.locator('.streakBadge')).toContainText('連続 1 日')
 
-    // schema 已升級：IDB 版本 20、新表 userSentences 存在
+    // schema 已升級：IDB 版本 30（Dexie version(3)×10）、新表建立
     const info = await page.evaluate(async () => {
       const metas = await indexedDB.databases()
       const meta = metas.find((d) => d.name === 'nihongo-michi')
@@ -88,8 +88,9 @@ test.describe('Dexie 升級與 v1 匯入', () => {
       })
       return { version: meta?.version, names }
     })
-    expect(info.version).toBe(20)
+    expect(info.version).toBe(30)
     expect(info.names).toContain('userSentences')
+    expect(info.names).toContain('ttsCache')
     expect(info.names).toContain('cards')
 
     // 卡片狀態語義保留：あ 顯示為已定著（master）

@@ -1,5 +1,6 @@
 import { db, type UserSentence } from '../db/schema'
 import { VOCAB } from '../data/vocab'
+import { apiUrl } from './sidecar'
 export { analyzeCoverage, type Coverage } from './coverage'
 
 export interface Candidate {
@@ -26,7 +27,7 @@ export const THEME_LV: Record<Theme, 1 | 2 | 3> = {
 /** 呼叫 sidecar 生成候選句。sidecar 不在線 → 拋錯，UI 提示。 */
 export async function generate(theme: Theme, n = 5): Promise<ContentResult> {
   const knownWords = VOCAB.map((v) => v.jp)
-  const r = await fetch('/api/content', {
+  const r = await fetch(apiUrl('/api/content'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ theme, known_words: knownWords, n }),

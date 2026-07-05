@@ -24,19 +24,9 @@ export default defineConfig({
           { src: 'icon-512.png', sizes: '512x512', type: 'image/png' },
         ],
       },
-      workbox: {
-        // 音檔快取：sidecar 產生的 TTS wav 快取到本機，離線可複習
-        runtimeCaching: [
-          {
-            urlPattern: /\/api\/tts/,
-            handler: 'CacheFirst',
-            options: {
-              cacheName: 'tts-audio',
-              expiration: { maxEntries: 500, maxAgeSeconds: 60 * 60 * 24 * 30 },
-            },
-          },
-        ],
-      },
+      // TTS 音檔快取已改走 Dexie ttsCache（src/audio/ttsCache.ts）：
+      // sidecar base URL 可設定成跨源後 SW pattern 對不上，且 Capacitor
+      // 自訂 scheme 上 SW 不可靠。SW 只負責 app shell 離線。
     }),
   ],
   server: {

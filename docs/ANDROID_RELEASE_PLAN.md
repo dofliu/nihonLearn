@@ -40,15 +40,18 @@
 
 ## 2. 分階段實作
 
-### Phase 0 — 前置重構（純 web 可完成、可先測，**建議先做這階段**）
-- [ ] `src/lib/sidecar.ts`：`getSidecarBase()` / `setSidecarBase()`（存 localStorage）＋ `apiUrl(path)`；
-      全站 5 處 `fetch('/api/…')` 改走它。預設值空字串 → web 版行為 100% 不變。
-- [ ] 設定 UI（放 Progress 頁或獨立小節）：sidecar 網址輸入框＋「測試連線」按鈕（打 `/health` 顯示 voicevox/whisper 狀態）。
-- [ ] Dexie `version(3)`：新增 `ttsCache` 表；`VoicevoxTTS.speak()` 改為 cache-first；加簡單的容量上限（如 500 筆 LRU，對齊原 workbox 設定）。
-- [ ] `sidecar/main.py` 加 CORSMiddleware。
-- [ ] TTS / ASR provider 介面整理：確保「provider 清單＋優先序偵測」是資料驅動，Phase 2 插原生 provider 時零改動呼叫端。
-- [ ] 測試：`npm test` 補 sidecar URL 組合邏輯與 ttsCache key 的純函式測試；`npm run test:e2e` 全綠；
-      `python sidecar/test_score.py` 全綠。
+### Phase 0 — 前置重構（純 web 可完成、可先測）✅ 完成
+- [x] `src/lib/sidecar.ts`：`getSidecarBase()` / `setSidecarBase()`（存 localStorage）＋ `apiUrl(path)`＋
+      `probeHealth()`；全站 `fetch('/api/…')`（tts/scorer/content）全部改走它。預設空字串 → web 版行為不變。
+- [x] 設定 UI：設定面板新增「Sidecar 位址」卡（輸入框＋「儲存並測試連線」，打 `/health`
+      顯示語音/評分/生成三旗標，成功後自動 reprobe TTS）。
+- [x] Dexie `version(3)`：新增 `ttsCache` 表（`src/audio/ttsCache.ts`，500 筆 LRU）；
+      `VoicevoxTTS.speak()` 改 cache-first；`vite.config.ts` 移除 workbox 對 `/api/tts` 的 CacheFirst。
+- [x] `sidecar/main.py` CORSMiddleware——本來就有（`allow_origins=["*"]`），免改。
+- [x] provider 偵測共用 `probeHealth()`，Phase 2 插原生 provider 只動 `tts.ts`/`scorer.ts` 的門面。
+- [x] 測試：`npm test` 40/40（新增 5b 節 9 項：normalizeBase/joinApi/ttsCacheKey）；
+      `npm run test:e2e` 24/24（`db.spec.ts` 升級斷言改 IDB 30＋ttsCache；`app.spec.ts` 新增
+      sidecar 位址儲存/正規化/清除流程）；`sidecar/test_score.py` 4/4；build strict 綠燈。
 
 ### Phase 1 — Capacitor 殼
 - [ ] `npm i @capacitor/core && npm i -D @capacitor/cli && npm i @capacitor/android`

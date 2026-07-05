@@ -19,6 +19,7 @@ import {
   type VoicevoxSpeaker,
 } from './audio/tts'
 import { getSetting, setSetting } from './db/repo'
+import { getSidecarBase, setSidecarBase, probeHealth } from './lib/sidecar'
 
 export default function App() {
   const [tab, setTab] = useState<Tab>('today')
@@ -99,6 +100,8 @@ function SettingsPanel({ onDone }: { onDone: () => void }) {
   const [speakers, setSpeakers] = useState<VoicevoxSpeaker[]>([])
   const [speakerId, setSpeakerIdState] = useState<number | null>(null)
   const [probing, setProbing] = useState(false)
+  const [baseInput, setBaseInput] = useState(getSidecarBase())
+  const [testing, setTesting] = useState(false)
 
   const isVoicevox = ttsName === 'voicevox'
 
@@ -121,6 +124,24 @@ function SettingsPanel({ onDone }: { onDone: () => void }) {
     setSpeaker(id)
     await setSetting('voicevoxSpeaker', id)
     void speak('こんにちは、これから一緒にがんばりましょう。', 0.85)
+  }
+
+  async function saveBaseAndTest() {
+    setTesting(true)
+    const base = setSidecarBase(baseInput)
+    setBaseInput(base)
+    const h = await probeHealth()
+    if (h.ok) {
+      toast(
+        `連線成功：語音 ${h.voicevox ? '✓' : '✗'}・評分 ${h.whisper ? '✓' : '✗'}・生成 ${h.content ? '✓' : '✗'}`,
+      )
+      await reprobe()
+      if (ttsProviderName() === 'voicevox') setSpeakers(await listSpeakers())
+    } else {
+      toast(base ? '連不上 sidecar，請確認網址與服務狀態' : '已清除，改用同源 /api')
+      await reprobe()
+    }
+    setTesting(false)
   }
 
   async function redetect() {
@@ -197,6 +218,42 @@ function SettingsPanel({ onDone }: { onDone: () => void }) {
         <div className="hint">
           啟用高品質語音：在 5090 上執行 VOICEVOX engine 與 sidecar（見 sidecar/README），
           回此按「重新偵測」即可。未在線時功能不中斷，只是語音走瀏覽器降級版。
+        </div>
+      </div>
+
+      <div className="card">
+        <div className="eyebrow">Sidecar 位址</div>
+        <p className="sub">
+          留空＝同源 <code>/api</code>（開發 proxy／同網域部署）。手機 App 或跨網域時填
+          Cloudflare Tunnel / Tailscale 網址。
+        </p>
+        <input
+          type="url"
+          value={baseInput}
+          onChange={(e) => setBaseInput(e.target.value)}
+          placeholder="https://sidecar.example.com"
+          inputMode="url"
+          autoCapitalize="off"
+          autoCorrect="off"
+          spellCheck={false}
+          style={{
+            width: '100%',
+            marginTop: 8,
+            fontFamily: 'monospace',
+            fontSize: 13,
+            borderRadius: 8,
+            border: '1px solid var(--washi2)',
+            padding: 8,
+          }}
+        />
+        <div className="row" style={{ marginTop: 10 }}>
+          <button
+            className="btn small"
+            onClick={() => void saveBaseAndTest()}
+            disabled={testing}
+          >
+            {testing ? '測試中…' : '儲存並測試連線'}
+          </button>
         </div>
       </div>
 

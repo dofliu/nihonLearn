@@ -9,6 +9,7 @@ import { similarity, normKana } from '../src/audio/scorer.ts'
 import { computeStreak, todayStr, lastNDays } from '../src/lib/date.ts'
 import { newCard, review, isDue, isMastered } from '../src/srs/scheduler.ts'
 import { analyzeCoverage } from '../src/lib/coverage.ts'
+import { normalizeBase, joinApi, ttsCacheKey } from '../src/lib/sidecar.ts'
 
 let pass = 0
 let fail = 0
@@ -86,6 +87,19 @@ console.log('=== 5. 覆蓋率檢核 ===')
   const b = analyzeCoverage('しゅぎょうする', known)
   ok('超綱句 flagged', b.flagged)
   ok('超綱句標出未覆蓋段', b.newSpans.length >= 1)
+}
+
+console.log('=== 5b. Sidecar 位址與 TTS 快取 key ===')
+{
+  ok('空輸入 → 空 base（同源相對路徑）', normalizeBase('') === '' && normalizeBase('   ') === '')
+  ok('無 scheme 自動補 https', normalizeBase('sidecar.example.com') === 'https://sidecar.example.com')
+  ok('保留明確的 http（LAN 除錯用）', normalizeBase('http://192.168.1.5:8848') === 'http://192.168.1.5:8848')
+  ok('去尾斜線', normalizeBase('https://x.example.com///') === 'https://x.example.com')
+  ok('空 base join 維持相對路徑', joinApi('', '/api/tts') === '/api/tts')
+  ok('有 base join 成絕對路徑', joinApi('https://x.example.com', '/api/tts') === 'https://x.example.com/api/tts')
+  ok('cache key 含 speaker/rate/text', ttsCacheKey('こんにちは', 3, 0.85) === '3|0.85|こんにちは')
+  ok('無 speaker 用 default', ttsCacheKey('ねこ', null, 1) === 'default|1|ねこ')
+  ok('不同 rate 不同 key', ttsCacheKey('ねこ', 3, 0.85) !== ttsCacheKey('ねこ', 3, 1))
 }
 
 console.log('=== 6. 資料完整性 ===')
