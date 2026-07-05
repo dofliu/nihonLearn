@@ -1,10 +1,11 @@
 /**
- * TTS 抽象層。
- * v2 的核心升級路徑：預設用瀏覽器 Web Speech（零依賴、離線可用），
- * 但若偵測到 5090 上的 VOICEVOX sidecar 在線，改用它——自然度與可控韻律
- * 遠勝瀏覽器內建。呼叫端不需知道用的是哪個 provider。
+ * TTS 抽象層。優先序：VOICEVOX（sidecar 在線）> 原生 TTS（Android App）
+ * > 瀏覽器 Web Speech（web 版 fallback）。呼叫端不需知道用的是哪個 provider。
+ * Android WebView 沒有 speechSynthesis，原生 provider 走
+ * @capacitor-community/text-to-speech（系統 TTS 引擎的 ja-JP 聲音）。
  */
 
+import { Capacitor } from '@capacitor/core'
 import { apiUrl, ttsCacheKey, probeHealth } from '../lib/sidecar'
 import { getCachedTTS, putCachedTTS } from './ttsCache'
 
@@ -51,6 +52,31 @@ class WebSpeechTTS implements TTSProvider {
       u.onerror = () => resolve()
       speechSynthesis.speak(u)
     })
+  }
+}
+
+// ---------- 原生 TTS（Capacitor；Android WebView 無 Web Speech 的替代） ----------
+class NativeTTS implements TTSProvider {
+  name = 'native'
+  async available() {
+    if (!Capacitor.isNativePlatform()) return false
+    try {
+      const { TextToSpeech } = await import('@capacitor-community/text-to-speech')
+      const { languages } = await TextToSpeech.getSupportedLanguages()
+      return languages.some((l) => l.toLowerCase().startsWith('ja'))
+    } catch {
+      return false
+    }
+  }
+  async speak(text: string, rate: number): Promise<void> {
+    try {
+      const { TextToSpeech } = await import('@capacitor-community/text-to-speech')
+      await TextToSpeech.stop().catch(() => {})
+      // rate 刻度與 Web Speech 未必等感，真機聽感校準見 tests/MANUAL_QA-ANDROID.md
+      await TextToSpeech.speak({ text: clean(text), lang: 'ja-JP', rate, category: 'playback' })
+    } catch {
+      /* 與其他 provider 一致：播放失敗不拋錯 */
+    }
   }
 }
 
@@ -116,20 +142,27 @@ class VoicevoxTTS implements TTSProvider {
 }
 
 // ---------- 門面：自動選擇 ----------
-let active: TTSProvider = new WebSpeechTTS()
 const voicevox = new VoicevoxTTS()
+const native = new NativeTTS()
+let active: TTSProvider = new WebSpeechTTS()
 let probed = false
+
+async function pickProvider(): Promise<TTSProvider> {
+  if (await voicevox.available()) return voicevox
+  if (await native.available()) return native
+  return new WebSpeechTTS()
+}
 
 export async function initTTS() {
   if (probed) return active.name
   probed = true
-  if (await voicevox.available()) active = voicevox
+  active = await pickProvider()
   return active.name
 }
 
 /** 重新探測（sidecar 在 app 啟動後才開時可手動觸發切換） */
 export async function reprobeTTS() {
-  active = (await voicevox.available()) ? voicevox : new WebSpeechTTS()
+  active = await pickProvider()
   return active.name
 }
 

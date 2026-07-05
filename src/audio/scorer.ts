@@ -75,8 +75,51 @@ export function asrAvailable(): boolean {
   return Boolean(getSR())
 }
 
-/** 錄一次音並評分。無 ASR / 拒絕權限時 reject，呼叫端 fallback 到自評。 */
-export function recognizeAndScore(targets: string[]): Promise<ScoreResult> {
+// ---------- 原生 ASR（Capacitor；Android WebView 無 SpeechRecognition 的替代）
+// 動態 import：本檔被 Node 測試載入，不能在模組層拉進 @capacitor/*。
+async function nativeASRAvailable(): Promise<boolean> {
+  try {
+    const { Capacitor } = await import('@capacitor/core')
+    if (!Capacitor.isNativePlatform()) return false
+    const { SpeechRecognition } = await import('@capacitor-community/speech-recognition')
+    return (await SpeechRecognition.available()).available
+  } catch {
+    return false
+  }
+}
+
+/** Android SpeechRecognizer 錄一次並評分（自動偵測語尾）。失敗丟錯給呼叫端降級。 */
+async function recognizeNativeAndScore(targets: string[]): Promise<ScoreResult> {
+  const { SpeechRecognition } = await import('@capacitor-community/speech-recognition')
+  const perm = await SpeechRecognition.requestPermissions()
+  if (perm.speechRecognition !== 'granted') throw new Error('no-permission')
+  const { matches } = await SpeechRecognition.start({
+    language: 'ja-JP',
+    maxResults: 3,
+    partialResults: false,
+    popup: false,
+  })
+  if (!matches?.length) throw new Error('no-match')
+  let best = 0
+  let bestTxt = ''
+  for (const m of matches) {
+    const sc = similarity(m, targets)
+    if (sc >= best) {
+      best = sc
+      bestTxt = m
+    }
+  }
+  return { score: best, transcript: bestTxt, source: 'asr' }
+}
+
+/** 錄一次音並評分：web SpeechRecognition 優先，原生 App 走系統 ASR。
+ *  無 ASR / 拒絕權限時 reject，呼叫端 fallback 到自評。 */
+export async function recognizeAndScore(targets: string[]): Promise<ScoreResult> {
+  if (!getSR() && (await nativeASRAvailable())) return recognizeNativeAndScore(targets)
+  return recognizeWebAndScore(targets)
+}
+
+function recognizeWebAndScore(targets: string[]): Promise<ScoreResult> {
   return new Promise((resolve, reject) => {
     const SRCls = getSR()
     if (!SRCls) return reject(new Error('no-asr'))
@@ -110,10 +153,12 @@ export function recognizeAndScore(targets: string[]): Promise<ScoreResult> {
 // ---------- sidecar whisper（跑在 5090，離線、可音素級） ----------
 export type ScoreEngine = 'whisper' | 'asr' | 'none'
 
-/** 偵測最佳評分引擎：whisper > 瀏覽器 ASR > 無（自評） */
+/** 偵測最佳評分引擎：whisper > 瀏覽器 ASR > 原生 ASR（App）> 無（自評） */
 export async function detectScoreEngine(): Promise<ScoreEngine> {
   if ((await probeHealth(1500)).whisper) return 'whisper'
-  return asrAvailable() ? 'asr' : 'none'
+  if (asrAvailable()) return 'asr'
+  if (await nativeASRAvailable()) return 'asr'
+  return 'none'
 }
 
 function blobToBase64(blob: Blob): Promise<string> {

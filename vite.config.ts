@@ -6,10 +6,15 @@ import { VitePWA } from 'vite-plugin-pwa'
 // 讓前端不必處理 CORS。正式部署改用 Cloudflare Tunnel / Tailscale 的網址。
 const SIDECAR = process.env.SIDECAR_URL || 'http://127.0.0.1:8848'
 
+// Capacitor 打包模式（npm run build:android）：資產已在 APK 內，
+// 不需要也不該註冊 service worker（WebView 自訂 scheme 上不可靠）。
+const CAP_BUILD = process.env.CAP_BUILD === '1'
+
 export default defineConfig({
   plugins: [
     react(),
     VitePWA({
+      disable: CAP_BUILD,
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg'],
       manifest: {

@@ -53,47 +53,59 @@
       `npm run test:e2e` 24/24（`db.spec.ts` 升級斷言改 IDB 30＋ttsCache；`app.spec.ts` 新增
       sidecar 位址儲存/正規化/清除流程）；`sidecar/test_score.py` 4/4；build strict 綠燈。
 
-### Phase 1 — Capacitor 殼
-- [ ] `npm i @capacitor/core && npm i -D @capacitor/cli && npm i @capacitor/android`
-- [ ] `npx cap init` → `capacitor.config.ts`：appId 建議 `com.dof.nihongomichi`（**一旦上架不可改**，先定案）、
+### Phase 1 — Capacitor 殼（程式碼完成；真機驗收待做）
+- [x] Capacitor 7.6（core/cli/android）安裝。
+- [x] `capacitor.config.ts`：appId **`com.dof.nihongomichi`**（已定案，上架後不可改）、
       appName `日本語の道`、webDir `dist`。
-- [ ] `npx cap add android`，`android/` 目錄進 git（gradle wrapper 一併提交）。
-- [ ] npm scripts：`android:sync`（`npm run build && cap sync android`）、`android:open`、`android:run`。
-- [ ] 圖示與啟動畫面：`@capacitor/assets` 由現有 `public/icon-512.png` / favicon 設計生成（沿用 `scripts/gen-icons.mjs` 的來源設計，別另起爐灶）。
-- [ ] G6：原生環境不註冊 service worker。
-- [ ] 驗收：模擬器/真機開得起來、五十音一輪可完成、重啟 App 進度還在（IndexedDB 持久化）。
+- [x] `npx cap add android`，`android/` 進 git（gradle wrapper 一併提交）；
+      versionCode 30000 / versionName 3.0.0。
+- [x] npm scripts：`build:android`（`CAP_BUILD=1` build ＋ `cap sync`）、`android:open`、`android:run`。
+- [x] 圖示與啟動畫面：`scripts/gen-icons.mjs` 擴充為同時產 PWA 與 Android 資源
+      （`resources/icon-*.png`、splash 亮/暗），`@capacitor/assets generate --android` 已生成入 res。
+- [x] G6：`CAP_BUILD=1` 時 VitePWA `disable` → dist 無 sw.js（已驗證；web build 仍有）。
+- [ ] 驗收（**真機/模擬器，本機做**）：開得起來、五十音一輪可完成、重啟進度還在。
+      → 清單見 `tests/MANUAL_QA-ANDROID.md`；殼「可編譯」由 CI `android` job 驗證。
 
-### Phase 2 — 原生語音 providers
-- [ ] `@capacitor-community/text-to-speech` → `NativeTTS`（`tts.ts` 門面新成員）；
-      rate 對應（Web Speech 的 rate 與原生 rate 刻度不同，需校準聽感）。
-- [ ] `@capacitor-community/speech-recognition` → 原生 ASR provider（`scorer.ts`）；
-      ja-JP、partial results、無網路時的行為（系統 ASR 多半需要網路，離線時降級自評）。
-- [ ] `AndroidManifest.xml`：`RECORD_AUDIO`；權限被拒時的 UI 文案（引導去設定開）。
+### Phase 2 — 原生語音 providers（程式碼完成；真機驗收待做）
+- [x] `@capacitor-community/text-to-speech@6.1.0` → `NativeTTS`（`tts.ts` 門面新成員，
+      偵測 ja-JP 聲音才啟用）；優先序 VOICEVOX > native > web-speech。
+      ⚠️ 版本配對：TTS plugin **6.1.0** 才是 Cap 7 版（peer `>=7.0.0`；8.x 需 Cap 8）。
+- [x] `@capacitor-community/speech-recognition@7.0.1` → `scorer.ts` 原生 ASR
+      （**動態 import**——本檔被 Node 測試載入）；引擎序 whisper > web ASR > 原生 ASR > 自評。
+- [x] `AndroidManifest.xml`：`RECORD_AUDIO`、`MODIFY_AUDIO_SETTINGS`、
+      Android 11+ `<queries>`（RecognitionService / TTS_SERVICE）。
+- [x] `bootstrap()` 加 `navigator.storage.persist()`（G8）。
+- [ ] rate 聽感校準（真機）：原生 TTS 0.7/0.85/1.0 對照 web 版。
 - [ ] G7 真機驗證：🎤→⏹ 錄音、webm blob、base64 上傳到 whisper sidecar 全流程。
-- [ ] 驗收：飛航模式下聽/說兩軌仍可用（原生 TTS 離線聲音 + 自評降級）＝「降級不中斷」約定在 App 上成立。
+- [ ] 驗收（真機）：飛航模式下聽/說兩軌仍可用＝「降級不中斷」在 App 上成立。
 
-### Phase 3 — 裝置實測（對應 CLAUDE.md「本機實測任務 E」）
-- [ ] 建 `tests/MANUAL_QA-ANDROID.md` 檢查清單：安裝、離線開啟、三軌各一輪、蓋章/streak 跨日、
-      sidecar 在線/離線切換、App 更新後（versionCode +1 重裝）IndexedDB 資料保留。
+### Phase 3 — 裝置實測（清單就緒；實測本機做）
+- [x] `tests/MANUAL_QA-ANDROID.md` 檢查清單建立（安裝、離線、三軌、權限、
+      sidecar 連線、更新後資料保留、上架前最後檢查）。
+- [ ] 依清單逐項真機驗證（**全部通過才進 Phase 4 送審**）。
 - [ ] 手機 ↔ 5090 sidecar 實連：Tailscale 或 Cloudflare Tunnel 網址填進設定頁；
       若走 LAN `http://` 需 network security config 放行 cleartext（僅 debug build，release 不放行）。
 - [ ] 效能：低階機 WebView 上 FSRS 排程與 500 筆音檔快取的體感。
 
-### Phase 4 — Play 上架合規
-- [ ] **簽章**：產 upload keystore（妥善備份！）、啟用 Play App Signing；`./gradlew bundleRelease` 產 AAB（Play 只收 AAB）。
-- [ ] **版本策略**：`versionCode` 單調遞增整數（建議 `30000 + 流水號`）、`versionName` 對齊 package.json（3.0.0）。
-- [ ] **隱私權政策**：必填 URL。本 App local-first、不收集資料；sidecar 是使用者自架服務——寫清楚即可，
-      可放 GitHub Pages 一頁。Data safety 表單照實填「不收集、不分享」；麥克風權限用途說明（發音評分、音訊不離開使用者自控範圍）。
-- [ ] **內容分級**問卷、目標客群（成人學習者、非兒童導向）。
-- [ ] **商店素材**：512 icon、1024×500 feature graphic、手機截圖 ≥2 張（三軌畫面現成好看）。
-- [ ] **⚠️ 個人開發者帳號硬門檻**：2023-11 之後新註冊的個人 Play 帳號，上正式軌前必須先跑
-      **封閉測試：至少 12 位測試者、連續 14 天**。時程要把這兩週排進去；測試者可找朋友/家人的 Google 帳號。
+### Phase 4 — Play 上架合規（材料就緒；Console 操作本人做）
+- [x] **簽章接線**：`android/app/build.gradle` release 讀 `android/keystore.properties`
+      （已 gitignore；範本見 `keystore.properties.example`，含 keytool 指令）。
+      → 剩：實際產 keystore＋離線備份、Play App Signing 啟用。
+- [x] **版本策略**：versionCode 30000 起、每次上傳 +1；versionName 對齊 package.json（3.0.0）。
+- [x] **隱私權政策**：`docs/PRIVACY_POLICY.md`（中英，local-first、不收集、麥克風用途）
+      → 剩：放上公開 URL（GitHub Pages）填進 Console。
+- [x] **商店文案與流程**：`docs/PLAY_LISTING.md`（名稱/簡短/完整說明草稿、Data safety 填法、
+      內容分級、逐步操作、送審避雷）。
+- [ ] 商店圖像：feature graphic 1024×500、真機截圖 ≥2 張（QA 時順手擷取）。
+- [ ] **⚠️ 個人開發者帳號硬門檻**：封閉測試 **≥12 位測試者、連續 14 天**——Phase 3 一開始
+      就先建內部測試軌湊人，讓等待期並行。
 - [ ] 內部測試軌 → 封閉測試軌 → 正式發佈。
 
-### Phase 5 —（選配）發佈自動化
-- [ ] GitHub Actions：PR 上跑 `npm run build`＋`npm test`＋assembleDebug；
-      tag 時用 secrets 裡的 keystore 產簽章 AAB 存 artifact。
-- [ ] 更進一步可接 fastlane supply 自動上傳內測軌。
+### Phase 5 — 發佈自動化
+- [x] GitHub Actions `.github/workflows/ci.yml`：PR/main 跑 web job（build＋`npm test`＋
+      Playwright e2e）與 android job（`build:android`＋`gradlew assembleDebug`＋上傳
+      debug APK artifact——可直接下載側載到手機測）。
+- [ ] （選配）tag 時用 secrets 裡的 keystore 產簽章 AAB；再進一步 fastlane supply 上傳內測軌。
 
 ---
 
