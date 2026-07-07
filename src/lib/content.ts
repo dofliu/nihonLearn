@@ -1,4 +1,4 @@
-import { db, type UserSentence } from '../db/schema'
+import { db, type UserSentence, type GenCandidate } from '../db/schema'
 import { VOCAB } from '../data/vocab'
 import { apiUrl } from './sidecar'
 export { analyzeCoverage, type Coverage } from './coverage'
@@ -41,10 +41,42 @@ export async function generate(theme: Theme, n = 5): Promise<ContentResult> {
   }
 }
 
+// ── 審核佇列持久化：候選存 DB，退回前不消失、可稍後再審 ──
+export async function enqueueCandidates(theme: Theme, cands: Candidate[]): Promise<void> {
+  const now = Date.now()
+  await db.genQueue.bulkAdd(
+    cands.map((c, i) => ({
+      theme,
+      jp: c.jp,
+      zh: c.zh,
+      read: c.read || c.jp,
+      newWords: c.new_words || [],
+      createdAt: now + i, // 保序
+    })),
+  )
+}
+
+export async function listQueue(): Promise<GenCandidate[]> {
+  return db.genQueue.orderBy('createdAt').toArray()
+}
+
+export async function removeFromQueue(id: number): Promise<void> {
+  await db.genQueue.delete(id)
+}
+
+/** 佇列項審核通過 → 入學習庫並離開佇列 */
+export async function adoptFromQueue(item: GenCandidate): Promise<void> {
+  await adoptSentence(
+    { jp: item.jp, zh: item.zh, read: item.read, new_words: item.newWords },
+    item.theme as Theme,
+  )
+  if (item.id != null) await db.genQueue.delete(item.id)
+}
+
 /** 採用一個候選 → 寫入學習庫 */
 export async function adoptSentence(c: Candidate, theme: Theme): Promise<void> {
   const s: UserSentence = {
-    lv: THEME_LV[theme],
+    lv: THEME_LV[theme] ?? 2,
     jp: c.jp,
     zh: c.zh,
     read: c.read || c.jp,

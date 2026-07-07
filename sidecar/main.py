@@ -20,11 +20,14 @@ from __future__ import annotations
 
 import io
 import os
+import re
 import json
 import httpx
 from fastapi import FastAPI, Response
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+
+from article import NEWS_LIST_URL, article_url, parse_news_list, parse_article
 
 app = FastAPI(title="nihongo-michi-sidecar", version="2.0.0")
 
@@ -70,6 +73,7 @@ async def health():
         "voicevox": vv,
         "whisper": bool(os.environ.get("ENABLE_WHISPER")),
         "content": bool(os.environ.get("ANTHROPIC_API_KEY")),
+        "article": True,  # NHK Easy 文章導入（翻譯另需 content=true）
     }
 
 
@@ -335,6 +339,114 @@ async def content(req: ContentReq):
         }
     except Exception as e:
         return Response(status_code=502, content=f"content generation failed: {e}")
+
+
+# ── NHK やさしいニュース 文章導入 ───────────────────────────
+# 設計：注音（ruby）繼承 NHK 人工標註；LLM 只做中文對照與生詞解說，
+# 且一律 needs_review。解析純函式在 article.py（test_article.py 驗證）。
+
+NHK_HEADERS = {"User-Agent": "Mozilla/5.0 (nihongo-michi sidecar; personal learning app)"}
+_NEWS_ID_RE = re.compile(r"^[A-Za-z0-9_]+$")
+
+
+@app.get("/article/list")
+async def article_list():
+    """最新 NHK Easy 文章列表。"""
+    try:
+        async with httpx.AsyncClient(timeout=15, headers=NHK_HEADERS) as c:
+            r = await c.get(NEWS_LIST_URL)
+        if r.status_code != 200:
+            return Response(status_code=502, content=f"nhk list http {r.status_code}")
+        return {"articles": parse_news_list(r.content)}
+    except Exception as e:
+        return Response(status_code=502, content=f"nhk list failed: {e}")
+
+
+@app.get("/article/get")
+async def article_get(id: str):
+    """單篇文章：標題與逐句（jp 含 ruby 的安全 HTML、read 純讀音）。"""
+    if not _NEWS_ID_RE.match(id):
+        return Response(status_code=400, content="bad article id")
+    try:
+        async with httpx.AsyncClient(timeout=20, headers=NHK_HEADERS, follow_redirects=True) as c:
+            r = await c.get(article_url(id))
+        if r.status_code != 200:
+            return Response(status_code=502, content=f"nhk article http {r.status_code}")
+        parsed = parse_article(r.text)
+        if not parsed["lines"]:
+            return Response(status_code=502, content="article body not found (NHK 版型可能變了)")
+        return {"id": id, "source": "nhk", "needs_review": True, **parsed}
+    except Exception as e:
+        return Response(status_code=502, content=f"nhk article failed: {e}")
+
+
+class AnnotateReq(BaseModel):
+    title_read: str
+    lines: list[str]  # 每句讀音
+    known_words: list[str] = []
+
+
+@app.post("/article/annotate")
+async def article_annotate(req: AnnotateReq):
+    """
+    LLM 補中文對照與生詞解說。無 ANTHROPIC_API_KEY 時回空翻譯（demo），
+    文章本體（NHK 原文＋注音）仍可用。
+    """
+    key = os.environ.get("ANTHROPIC_API_KEY")
+    n = len(req.lines)
+    if not key:
+        return {
+            "demo": True,
+            "needs_review": True,
+            "title_zh": "",
+            "zh": [""] * n,
+            "new_words": [],
+            "note": "未設 ANTHROPIC_API_KEY——僅原文＋注音，無中文對照。",
+        }
+
+    known = "、".join(req.known_words[:120])
+    numbered = "\n".join(f"{i + 1}. {s}" for i, s in enumerate(req.lines))
+    system = (
+        "你是日語教學助理，服務對象是中文母語的日語初學者。"
+        "對 NHK やさしいニュース 的句子提供繁體中文翻譯，並挑出對初學者重要的生詞。"
+        "生詞的假名讀音必須取自句子本身既有的讀音，不得自行標音。"
+        "只輸出 JSON，不要任何解說或 markdown。"
+    )
+    user = (
+        f"標題（讀音）：{req.title_read}\n句子：\n{numbered}\n"
+        f"學習者已知詞彙：{known}\n"
+        f"輸出 JSON：{{\"title_zh\":\"標題中文\",\"zh\":[依序 {n} 句的繁體中文],"
+        "\"new_words\":[{\"jp\":\"生詞（句中原形）\",\"read\":\"讀音（取自句子）\",\"zh\":\"中文\"}]}"
+        "（new_words 最多 8 個，選最影響理解的）"
+    )
+    try:
+        async with httpx.AsyncClient(timeout=90) as c:
+            r = await c.post(
+                "https://api.anthropic.com/v1/messages",
+                headers={
+                    "x-api-key": key,
+                    "anthropic-version": "2023-06-01",
+                    "content-type": "application/json",
+                },
+                json={
+                    "model": ANTHROPIC_MODEL,
+                    "max_tokens": 2048,
+                    "system": system,
+                    "messages": [{"role": "user", "content": user}],
+                },
+            )
+        data = r.json()
+        text = "".join(b.get("text", "") for b in data.get("content", []))
+        parsed = json.loads(_strip_fences(text))
+        zh = list(parsed.get("zh", []))[:n] + [""] * max(0, n - len(parsed.get("zh", [])))
+        return {
+            "needs_review": True,
+            "title_zh": str(parsed.get("title_zh", "")),
+            "zh": [str(s) for s in zh],
+            "new_words": parsed.get("new_words", [])[:8],
+        }
+    except Exception as e:
+        return Response(status_code=502, content=f"annotate failed: {e}")
 
 
 # ── 真聲學 GOP（進階，未實作）──────────────────────────────

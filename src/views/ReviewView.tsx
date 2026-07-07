@@ -1,11 +1,14 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
   generate,
-  adoptSentence,
+  enqueueCandidates,
+  listQueue,
+  removeFromQueue,
+  adoptFromQueue,
   analyzeCoverage,
-  type Candidate,
   type Theme,
 } from '../lib/content'
+import type { GenCandidate } from '../db/schema'
 import { VOCAB } from '../data/vocab'
 import { speak } from '../audio/tts'
 import { toast } from '../components/ui'
@@ -18,24 +21,38 @@ const THEMES: { key: Theme; label: string }[] = [
   { key: 'quest', label: '旅途' },
 ]
 
+const THEME_LABEL: Record<string, string> = {
+  daily: '日常',
+  ninja: '忍者',
+  quest: '旅途',
+}
+
 export function ReviewView({ onDone }: { onDone: () => void }) {
   const [theme, setTheme] = useState<Theme>('daily')
   const [loading, setLoading] = useState(false)
-  const [cands, setCands] = useState<Candidate[]>([])
+  const [queue, setQueue] = useState<GenCandidate[]>([])
   const [demo, setDemo] = useState(false)
-  const [handled, setHandled] = useState<Set<number>>(new Set())
   const [adopted, setAdopted] = useState(0)
+
+  async function reload() {
+    setQueue(await listQueue())
+  }
+  useEffect(() => {
+    void reload()
+  }, [])
 
   async function run() {
     setLoading(true)
-    setCands([])
-    setHandled(new Set())
-    setAdopted(0)
     try {
       const res = await generate(theme, 5)
-      setCands(res.candidates)
       setDemo(res.demo)
-      if (res.candidates.length === 0) toast('沒有產生候選句')
+      if (res.candidates.length === 0) {
+        toast('沒有產生候選句')
+      } else {
+        // 候選先進持久化佇列——退回前不消失，可稍後再審
+        await enqueueCandidates(theme, res.candidates)
+        await reload()
+      }
     } catch (e) {
       const err = (e as Error).message
       toast(
@@ -48,14 +65,15 @@ export function ReviewView({ onDone }: { onDone: () => void }) {
     }
   }
 
-  async function adopt(i: number, c: Candidate) {
-    await adoptSentence(c, theme)
-    setHandled((s) => new Set(s).add(i))
+  async function adopt(item: GenCandidate) {
+    await adoptFromQueue(item)
     setAdopted((n) => n + 1)
     toast('已採用，加入「話す」跟讀庫')
+    await reload()
   }
-  function reject(i: number) {
-    setHandled((s) => new Set(s).add(i))
+  async function reject(item: GenCandidate) {
+    if (item.id != null) await removeFromQueue(item.id)
+    await reload()
   }
 
   return (
@@ -65,6 +83,7 @@ export function ReviewView({ onDone }: { onDone: () => void }) {
         <p className="sub">
           由 AI 依你的已學詞彙生成候選（每句最多 1 個新詞）。
           <b>採用後才會進入學習庫</b>——AI 不直接寫入，你是最後把關。
+          候選會保留在佇列裡，可稍後再審。
         </p>
         <div className="lvTabs" style={{ marginTop: 10 }}>
           {THEMES.map((t) => (
@@ -87,25 +106,22 @@ export function ReviewView({ onDone }: { onDone: () => void }) {
         )}
       </div>
 
-      {cands.map((c, i) => {
-        const done = handled.has(i)
-        if (done) return null
+      {queue.map((c) => {
         const cov = analyzeCoverage(c.read || c.jp, KNOWN_READS)
         return (
-          <div className="card" key={i}>
+          <div className="card" key={c.id}>
             <div className="sent" style={{ fontSize: 20 }}>
               {c.jp}
             </div>
             <div className="sentZh">{c.zh}</div>
-            {c.new_words && c.new_words.length > 0 && (
-              <div className="statChips">
-                {c.new_words.map((w, k) => (
-                  <span className="chip" key={k}>
-                    新詞 <b>{w.jp}</b> {w.zh}
-                  </span>
-                ))}
-              </div>
-            )}
+            <div className="statChips">
+              <span className="chip">主題 {THEME_LABEL[c.theme] || c.theme}</span>
+              {c.newWords.map((w, k) => (
+                <span className="chip" key={k}>
+                  新詞 <b>{w.jp}</b> {w.zh}
+                </span>
+              ))}
+            </div>
             <div className="statChips">
               <span
                 className="chip"
@@ -135,10 +151,10 @@ export function ReviewView({ onDone }: { onDone: () => void }) {
                 🔊 試聽
               </button>
               <div className="row">
-                <button className="btn small ghost" onClick={() => reject(i)}>
+                <button className="btn small ghost" onClick={() => void reject(c)}>
                   退回
                 </button>
-                <button className="btn small" onClick={() => void adopt(i, c)}>
+                <button className="btn small" onClick={() => void adopt(c)}>
                   採用 ✓
                 </button>
               </div>
@@ -149,7 +165,7 @@ export function ReviewView({ onDone }: { onDone: () => void }) {
 
       <div className="card">
         <p className="sub" style={{ textAlign: 'center' }}>
-          本次已採用 <b>{adopted}</b> 句
+          佇列中 <b>{queue.length}</b> 句待審・本次已採用 <b>{adopted}</b> 句
         </p>
         <div className="row center">
           <button className="btn ghost" onClick={onDone}>
