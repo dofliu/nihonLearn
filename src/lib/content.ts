@@ -1,6 +1,6 @@
 import { db, type UserSentence, type GenCandidate } from '../db/schema'
 import { VOCAB } from '../data/vocab'
-import { apiUrl, getSidecarBase } from './sidecar'
+import { hasLLM, generateJSON } from './llm'
 export { analyzeCoverage, type Coverage } from './coverage'
 
 export interface Candidate {
@@ -54,35 +54,35 @@ function clientDemo(theme: Theme, n: number): ContentResult {
   return { candidates: (CLIENT_DEMO[theme] ?? CLIENT_DEMO.daily).slice(0, n), demo: true, needsReview: true }
 }
 
+const THEME_DESC: Record<Theme, string> = {
+  daily: '日常生活情境（買東西、問路、打招呼、點餐）',
+  ninja: '熱血忍者冒險（修行、夥伴、成長、不放棄）',
+  quest: '奇幻魔法旅途（旅行、回憶、時間、溫柔的告別）',
+}
+
 /**
- * 生成候選句。優先呼叫 sidecar（LLM／示範）；
- * 未設定 sidecar 位址時直接回離線示範候選（降級不中斷，Android 無 sidecar 也能用）；
- * 已設定但連不上／回應非 JSON（例如相對路徑被 WebView 導回 index.html）→ 丟乾淨錯誤讓 UI 提示。
+ * 生成候選句。設定 Gemini 金鑰 → 直接呼叫 Gemini（App 內、免 sidecar）；
+ * 未設金鑰 → 離線示範候選（降級不中斷）；呼叫失敗 → 丟乾淨錯誤讓 UI 提示。
+ * 產物一律 needs_review，經前端審核佇列人工採用後才入庫。
  */
 export async function generate(theme: Theme, n = 5): Promise<ContentResult> {
-  const base = getSidecarBase()
-  if (!base) return clientDemo(theme, n) // 沒設定 sidecar：離線示範
-  const knownWords = VOCAB.map((v) => v.jp)
-  let r: Response
-  try {
-    r = await fetch(apiUrl('/api/content'), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ theme, known_words: knownWords, n }),
-      signal: AbortSignal.timeout(90000),
-    })
-  } catch {
-    throw new Error('sidecar-unreachable')
-  }
-  if (!r.ok) throw new Error('content-http-' + r.status)
-  // WebView 下相對路徑會被導回 SPA 的 index.html（200 但 HTML）——用 content-type 擋掉
-  const ct = r.headers.get('content-type') || ''
-  if (!ct.includes('application/json')) throw new Error('sidecar-unreachable')
-  const j = await r.json()
+  if (!hasLLM()) return clientDemo(theme, n) // 沒設金鑰：離線示範
+  const known = VOCAB.map((v) => v.jp).slice(0, 120).join('、')
+  const system =
+    '你是日語初級教學內容設計者，服務對象是中文母語、剛學完五十音的成人。' +
+    '嚴格遵守：(1) 主要使用提供的「已知詞彙」；(2) 每句最多引入 1 個新詞，' +
+    '新詞在 new_words 標出中文；(3) 句子以平假名為主、簡短、實用；' +
+    '(4) 只輸出 JSON，不要任何解說或 markdown。'
+  const user =
+    `主題：${THEME_DESC[theme] ?? theme}\n已知詞彙：${known}\n` +
+    `請產出 ${n} 個句子。JSON 格式：\n` +
+    '{"candidates":[{"jp":"平假名句子","zh":"中文","read":"純假名讀音",' +
+    '"new_words":[{"jp":"新詞","zh":"中文"}]}]}'
+  const j = (await generateJSON(system, user)) as { candidates?: Candidate[] }
   return {
-    candidates: (j.candidates ?? []) as Candidate[],
-    demo: Boolean(j.demo),
-    needsReview: Boolean(j.needs_review),
+    candidates: (j.candidates ?? []).slice(0, n),
+    demo: false,
+    needsReview: true,
   }
 }
 

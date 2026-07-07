@@ -55,10 +55,10 @@ export function ReviewView({ onDone }: { onDone: () => void }) {
       }
     } catch (e) {
       const err = (e as Error).message
-      const msg =
-        err === 'sidecar-unreachable' || err.startsWith('content-http')
-          ? '連不上 sidecar — 請到設定確認位址，或清空位址改用離線示範句'
-          : '生成失敗：' + err
+      let msg = '生成失敗：' + err
+      if (err.startsWith('gemini-http-4')) msg = 'Gemini 金鑰無效或額度用盡 — 請到設定確認'
+      else if (err.startsWith('gemini-http') || err === 'gemini-empty') msg = 'Gemini 連線失敗，請稍後再試'
+      else if (err === 'gemini-bad-json') msg = 'Gemini 回應格式異常，請再試一次'
       toast(msg)
     } finally {
       setLoading(false)
@@ -101,7 +101,7 @@ export function ReviewView({ onDone }: { onDone: () => void }) {
         </button>
         {demo && (
           <div className="hint">
-            目前是示範候選（sidecar 未設 ANTHROPIC_API_KEY）。設定後改由 LLM 依主題生成。
+            目前是離線示範候選（未設定 Gemini 金鑰）。到設定填入金鑰後，改由 Gemini 依主題即時生成。
           </div>
         )}
       </div>

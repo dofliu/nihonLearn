@@ -61,7 +61,7 @@ test.describe('話す：跟讀與評分降級', () => {
     await expect(taskRow(page, '口の修行')).toContainText('3 / 3')
   })
 
-  test('生成句審核佇列：未設 sidecar 時走離線示範（不再噴 JSON 錯誤）', async ({ page }) => {
+  test('生成句審核佇列：未設 Gemini 金鑰時走離線示範（不噴 JSON 錯誤）', async ({ page }) => {
     await disableSpeechRecognition(page)
     await gotoApp(page)
     await navTo(page, '話す')

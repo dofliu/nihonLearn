@@ -5,6 +5,7 @@
  */
 import { db, type UserPassage } from '../db/schema'
 import { apiUrl } from './sidecar'
+import { hasLLM, generateJSON } from './llm'
 
 export interface ArticleMeta {
   id: string
@@ -46,19 +47,50 @@ export async function fetchArticle(id: string): Promise<FetchedArticle> {
   return (await r.json()) as FetchedArticle
 }
 
+/**
+ * 補中文對照與生詞解說。注音已由 NHK 標註（不動），這裡只做翻譯。
+ * 設定 Gemini 金鑰 → 直接呼叫 Gemini；未設金鑰 → 回空翻譯（文章本體＋注音仍可讀）。
+ */
 export async function annotateArticle(a: FetchedArticle, knownWords: string[]): Promise<Annotation> {
-  const r = await fetch(apiUrl('/api/article/annotate'), {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      title_read: a.title_read,
-      lines: a.lines.map((l) => l.read),
-      known_words: knownWords,
-    }),
-    signal: AbortSignal.timeout(120000),
-  })
-  if (!r.ok) throw new Error('annotate-http-' + r.status)
-  return (await r.json()) as Annotation
+  const n = a.lines.length
+  const empty: Annotation = {
+    title_zh: '',
+    zh: a.lines.map(() => ''),
+    new_words: [],
+    demo: true,
+    note: '未設 Gemini 金鑰——僅原文＋注音，無中文對照。',
+  }
+  if (!hasLLM()) return empty
+
+  const numbered = a.lines.map((l, i) => `${i + 1}. ${l.read}`).join('\n')
+  const known = knownWords.slice(0, 120).join('、')
+  const system =
+    '你是日語教學助理，服務對象是中文母語的日語初學者。' +
+    '對 NHK やさしいニュース 的句子提供繁體中文翻譯，並挑出對初學者重要的生詞。' +
+    '生詞的假名讀音必須取自句子本身既有的讀音，不得自行標音。' +
+    '只輸出 JSON，不要任何解說或 markdown。'
+  const user =
+    `標題（讀音）：${a.title_read}\n句子：\n${numbered}\n學習者已知詞彙：${known}\n` +
+    `輸出 JSON：{"title_zh":"標題中文","zh":[依序 ${n} 句的繁體中文],` +
+    '"new_words":[{"jp":"生詞（句中原形）","read":"讀音（取自句子）","zh":"中文"}]}' +
+    '（new_words 最多 8 個，選最影響理解的）'
+  try {
+    const j = (await generateJSON(system, user)) as {
+      title_zh?: string
+      zh?: string[]
+      new_words?: { jp: string; read?: string; zh: string }[]
+    }
+    const zh = (j.zh ?? []).slice(0, n)
+    while (zh.length < n) zh.push('')
+    return {
+      title_zh: j.title_zh ?? '',
+      zh: zh.map((s) => String(s ?? '')),
+      new_words: (j.new_words ?? []).slice(0, 8),
+    }
+  } catch {
+    // 生成失敗不擋導入：仍可讀原文＋注音
+    return { ...empty, note: 'Gemini 生成失敗——僅原文＋注音，無中文對照。' }
+  }
 }
 
 /** 審核通過 → 寫入閱讀庫。同一篇（origId）重複採用會覆蓋舊版。 */
