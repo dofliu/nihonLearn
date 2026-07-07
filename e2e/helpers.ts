@@ -51,6 +51,47 @@ export async function completeKanaRound(page: Page) {
   throw new Error('kana round did not finish within 40 cards')
 }
 
+/**
+ * 預埋「已學假名」卡片（詞彙解鎖用）。需在 gotoApp 之後呼叫（DB 已建立），
+ * 之後 reload 讓 VocabCard 重讀。fsrs 用最小合法值，只有 refId 影響解鎖。
+ */
+export async function seedKanaLearned(page: Page, refIds: string[]) {
+  await page.evaluate(async (ids) => {
+    await new Promise<void>((resolve, reject) => {
+      const req = indexedDB.open('nihongo-michi')
+      req.onsuccess = () => {
+        const db = req.result
+        const tx = db.transaction('cards', 'readwrite')
+        const store = tx.objectStore('cards')
+        for (const id of ids) {
+          store.put({
+            id: 'kana:' + id,
+            type: 'kana',
+            refId: id,
+            fsrs: {
+              due: new Date(Date.now() + 3 * 86400000),
+              stability: 5,
+              difficulty: 5,
+              elapsed_days: 0,
+              scheduled_days: 3,
+              reps: 2,
+              lapses: 0,
+              state: 2,
+              last_review: new Date(),
+            },
+          })
+        }
+        tx.oncomplete = () => {
+          db.close()
+          resolve()
+        }
+        tx.onerror = () => reject(tx.error)
+      }
+      req.onerror = () => reject(req.error)
+    })
+  }, refIds)
+}
+
 /** 完成一整輪詞彙 FSRS（全部按「記得」） */
 export async function completeVocabRound(page: Page) {
   await navTo(page, '読む')

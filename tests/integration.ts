@@ -10,6 +10,7 @@ import { computeStreak, todayStr, lastNDays } from '../src/lib/date.ts'
 import { newCard, review, isDue, isMastered } from '../src/srs/scheduler.ts'
 import { analyzeCoverage } from '../src/lib/coverage.ts'
 import { normalizeBase, joinApi, ttsCacheKey } from '../src/lib/sidecar.ts'
+import { gatingChars, isVocabUnlocked } from '../src/lib/vocabGate.ts'
 
 let pass = 0
 let fail = 0
@@ -100,6 +101,22 @@ console.log('=== 5b. Sidecar 位址與 TTS 快取 key ===')
   ok('cache key 含 speaker/rate/text', ttsCacheKey('こんにちは', 3, 0.85) === '3|0.85|こんにちは')
   ok('無 speaker 用 default', ttsCacheKey('ねこ', null, 1) === 'default|1|ねこ')
   ok('不同 rate 不同 key', ttsCacheKey('ねこ', 3, 0.85) !== ttsCacheKey('ねこ', 3, 1))
+}
+
+console.log('=== 5c. 詞彙解鎖閘門（隨假名進度） ===')
+{
+  // gatingChars 只取「可當卡片的假名」，忽略小書き/長音/標點
+  ok('gatingChars 取基本假名', JSON.stringify(gatingChars('みず')) === JSON.stringify(['み', 'ず']))
+  ok('小書き ゃゅょっ 不計入', gatingChars('しゅぎょう').every((c) => !'ゃゅょっぁぃぅぇぉ'.includes(c)))
+  ok('長音ー 不計入', !gatingChars('コーヒー').includes('ー'))
+  ok('標點不計入', gatingChars('みずを、ください。').every((c) => !'、。'.includes(c)))
+
+  // isVocabUnlocked：假名全學過才解鎖
+  const known = new Set(['あ', 'い', 'う', 'え', 'お', 'か', 'き', 'く', 'け', 'こ'])
+  ok('假名全會 → 解鎖', isVocabUnlocked('えき', known))
+  ok('含未學假名 → 未解鎖', !isVocabUnlocked('これ', known)) // れ 未學
+  ok('小書き詞：主音會了即解鎖', isVocabUnlocked('きゃく', new Set(['き', 'く']))) // ゃ 不 gating
+  ok('空集合下多數詞未解鎖', VOCAB.filter((v) => isVocabUnlocked(v.jp, new Set())).length < VOCAB.length)
 }
 
 console.log('=== 6. 資料完整性 ===')

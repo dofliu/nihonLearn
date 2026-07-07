@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { VOCAB, type Vocab } from '../data/vocab'
+import { KANA_BY_ID } from '../data/kana'
 import { db } from '../db/schema'
 import {
   ensureCard,
@@ -9,9 +10,21 @@ import {
   DAILY_VOCAB_NEW_LIMIT,
 } from '../db/repo'
 import { isDue, isMastered, type GradeKey } from '../srs/scheduler'
+import { isVocabUnlocked } from '../lib/vocabGate'
 import { speak } from '../audio/tts'
 import { useApp } from '../state/store'
 import { toast } from '../components/ui'
+
+/** 已學假名的字元集合（詞彙解鎖用）。 */
+async function learnedKanaChars(): Promise<Set<string>> {
+  const kanaCards = await db.cards.where('type').equals('kana').toArray()
+  const chars = new Set<string>()
+  for (const c of kanaCards) {
+    const ch = KANA_BY_ID[c.refId]?.ch
+    if (ch) chars.add(ch)
+  }
+  return chars
+}
 
 export function VocabCard() {
   const bump = useApp((s) => s.bump)
@@ -23,17 +36,22 @@ export function VocabCard() {
   const [learned, setLearned] = useState(0)
   const [mastered, setMastered] = useState(0)
   const [due, setDue] = useState(0)
+  const [locked, setLocked] = useState(0) // 尚待假名解鎖的詞數
 
   const refresh = useCallback(async () => {
     const cards = await db.cards.where('type').equals('vocab').toArray()
     const learnedSet = new Set(cards.map((c) => c.refId))
     setLearned(learnedSet.size)
     setMastered(cards.filter((c) => isMastered(c.fsrs)).length)
+    const kanaChars = await learnedKanaChars()
     const day = await getToday()
     const newLeft = Math.max(0, DAILY_VOCAB_NEW_LIMIT - (day.newVocab || 0))
     const dueCards = cards.filter((c) => isDue(c.fsrs)).length
-    const newAvail = VOCAB.filter((v) => !learnedSet.has(v.jp)).length
-    setDue(dueCards + Math.min(newLeft, newAvail))
+    // 新詞只算「假名已全學過」的（解鎖）
+    const notLearned = VOCAB.filter((v) => !learnedSet.has(v.jp))
+    const unlockedNew = notLearned.filter((v) => isVocabUnlocked(v.jp, kanaChars)).length
+    setLocked(notLearned.length - unlockedNew)
+    setDue(dueCards + Math.min(newLeft, unlockedNew))
   }, [])
 
   useEffect(() => {
@@ -46,16 +64,21 @@ export function VocabCard() {
     const dueRefs = cards.filter((c) => isDue(c.fsrs)).map((c) => c.refId)
     const byJp = Object.fromEntries(VOCAB.map((v) => [v.jp, v]))
     const dueVocab = dueRefs.map((r) => byJp[r]).filter(Boolean)
+    const kanaChars = await learnedKanaChars()
     const day = await getToday()
     const newLeft = Math.max(0, DAILY_VOCAB_NEW_LIMIT - (day.newVocab || 0))
-    const news = VOCAB.filter((v) => !learnedSet.has(v.jp)).slice(0, newLeft)
+    // 新詞只引入「假名已全學過」的（隨五十音進度解鎖）
+    const news = VOCAB.filter(
+      (v) => !learnedSet.has(v.jp) && isVocabUnlocked(v.jp, kanaChars),
+    ).slice(0, newLeft)
     return [...dueVocab, ...news]
   }
 
   async function start() {
     const q = await buildQueue()
     if (q.length === 0) {
-      toast('今日の語彙は完了！明日また来てください')
+      // 沒有到期複習、也沒有可解鎖的新詞 → 當日自動達標（不卡蓋章），並提示
+      toast(locked > 0 ? '先多學幾個假名，詞彙會隨之解鎖 ✦' : '今日の語彙は完了！明日また来てください')
       await bump('vocab', 5)
       return
     }
@@ -158,7 +181,8 @@ export function VocabCard() {
       <h2>今日の語彙</h2>
       <p className="sub">
         看日文、聽發音 → 心中回想意思 → 翻面自評。詞彙與假名同樣走 FSRS 排程，
-        每日引入至多 {DAILY_VOCAB_NEW_LIMIT} 個新詞，其餘按記憶曲線複習。
+        每日引入至多 {DAILY_VOCAB_NEW_LIMIT} 個新詞——
+        <b>只出你假名已學過的詞</b>，隨五十音進度解鎖，不會冒出還沒學到的字。
       </p>
       <div className="spacer" />
       <button className="btn" onClick={() => void start()}>
@@ -174,6 +198,11 @@ export function VocabCard() {
         <span className="chip">
           已定著 <b>{mastered}</b>
         </span>
+        {locked > 0 && (
+          <span className="chip">
+            待假名解鎖 <b>{locked}</b>
+          </span>
+        )}
       </div>
     </div>
   )

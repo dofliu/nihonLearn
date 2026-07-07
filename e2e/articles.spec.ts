@@ -103,6 +103,10 @@ test.describe('生成句審核佇列持久化', () => {
       }),
     )
     await gotoApp(page)
+    // 設 sidecar 位址，讓 generate() 走網路（命中上面的 route stub），而非離線示範
+    await page.evaluate(() =>
+      localStorage.setItem('nihongo-michi:sidecarBase', 'https://sidecar.test'),
+    )
     await navTo(page, '話す')
     await page.getByRole('button', { name: /生成新練習句/ }).click()
 

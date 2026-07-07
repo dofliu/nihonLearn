@@ -61,12 +61,18 @@ test.describe('話す：跟讀與評分降級', () => {
     await expect(taskRow(page, '口の修行')).toContainText('3 / 3')
   })
 
-  test('生成句審核佇列入口（sidecar 離線時顯示離線提示）', async ({ page }) => {
+  test('生成句審核佇列：未設 sidecar 時走離線示範（不再噴 JSON 錯誤）', async ({ page }) => {
     await disableSpeechRecognition(page)
     await gotoApp(page)
     await navTo(page, '話す')
     await page.getByRole('button', { name: /生成新練習句/ }).click()
-    // ReviewView overlay 開啟（sidecar 不在線也不中斷，只是不能生成）
     await expect(page.locator('main')).toContainText('練習句審核佇列')
+
+    // 未設定 sidecar → 直接回離線示範候選（降級不中斷），並標示示範
+    await page.getByRole('button', { name: /生成 5 句候選/ }).click()
+    await expect(page.locator('main')).toContainText('佇列中 5 句待審')
+    await expect(page.locator('main')).toContainText('示範候選')
+    // 不應出現原本的 JSON 解析錯誤
+    await expect(page.locator('.toast')).not.toContainText('is not valid json')
   })
 })
