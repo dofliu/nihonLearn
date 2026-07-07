@@ -562,6 +562,10 @@ h2 {
 .rline.open .zh {
   display: block;
 }
+/* 整篇中文對照模式（初學者跟讀）：所有句子的中文一起顯示 */
+.reader-parallel .rline .zh {
+  display: block;
+}
 ruby rt {
   font-size: 10px;
   color: var(--ai);

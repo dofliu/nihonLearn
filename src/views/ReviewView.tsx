@@ -55,11 +55,11 @@ export function ReviewView({ onDone }: { onDone: () => void }) {
       }
     } catch (e) {
       const err = (e as Error).message
-      toast(
-        err.startsWith('content-http')
-          ? 'sidecar 未在線或未設定 — 請先啟動 sidecar'
-          : '生成失敗：' + err,
-      )
+      const msg =
+        err === 'sidecar-unreachable' || err.startsWith('content-http')
+          ? '連不上 sidecar — 請到設定確認位址，或清空位址改用離線示範句'
+          : '生成失敗：' + err
+      toast(msg)
     } finally {
       setLoading(false)
     }

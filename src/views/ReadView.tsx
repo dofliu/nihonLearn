@@ -34,6 +34,7 @@ export function ReadView() {
   const showKanji = useApp((s) => s.showKanji)
   const [doc, setDoc] = useState<ReaderDoc | null>(null)
   const [openLines, setOpenLines] = useState<Set<number>>(new Set())
+  const [showAllZh, setShowAllZh] = useState(true) // 初學者預設整篇中文對照
 
   // NHK 導入流程狀態
   const [articles, setArticles] = useState<ArticleMeta[]>([])
@@ -52,6 +53,7 @@ export function ReadView() {
   function openDoc(d: ReaderDoc) {
     setDoc(d)
     setOpenLines(new Set())
+    setShowAllZh(true)
   }
   function openPassage(p: Passage) {
     openDoc({ title: p.title, lines: p.lines })
@@ -257,7 +259,18 @@ export function ReadView() {
             )}
           </div>
           {doc.titleZh && <p className="sub">{doc.titleZh}</p>}
-          <div>
+          <div className="row" style={{ marginBottom: 6 }}>
+            <button
+              className={'btn small' + (showAllZh ? '' : ' ghost')}
+              onClick={() => setShowAllZh((v) => !v)}
+            >
+              {showAllZh ? '中文對照：開' : '中文對照：關'}
+            </button>
+            <span className="sub" style={{ alignSelf: 'center' }}>
+              點任一句可單獨朗讀
+            </span>
+          </div>
+          <div className={showAllZh ? 'reader-parallel' : ''}>
             {doc.lines.map((l, i) => (
               <div
                 key={i}
