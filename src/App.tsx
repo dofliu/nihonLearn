@@ -20,6 +20,14 @@ import {
 } from './audio/tts'
 import { getSetting, setSetting } from './db/repo'
 import { getSidecarBase, setSidecarBase, probeHealth } from './lib/sidecar'
+import {
+  getGeminiKey,
+  setGeminiKey,
+  getGeminiModel,
+  setGeminiModel,
+  probeGemini,
+  DEFAULT_GEMINI_MODEL,
+} from './lib/llm'
 
 export default function App() {
   const [tab, setTab] = useState<Tab>('today')
@@ -102,6 +110,9 @@ function SettingsPanel({ onDone }: { onDone: () => void }) {
   const [probing, setProbing] = useState(false)
   const [baseInput, setBaseInput] = useState(getSidecarBase())
   const [testing, setTesting] = useState(false)
+  const [keyInput, setKeyInput] = useState(getGeminiKey())
+  const [modelInput, setModelInput] = useState(getGeminiModel())
+  const [geminiTesting, setGeminiTesting] = useState(false)
 
   const isVoicevox = ttsName === 'voicevox'
 
@@ -142,6 +153,27 @@ function SettingsPanel({ onDone }: { onDone: () => void }) {
       await reprobe()
     }
     setTesting(false)
+  }
+
+  async function saveAndTestGemini() {
+    setGeminiTesting(true)
+    setGeminiKey(keyInput)
+    setGeminiModel(modelInput)
+    setModelInput(getGeminiModel())
+    if (!getGeminiKey()) {
+      toast('已清除金鑰 — 生成改用離線示範句')
+      setGeminiTesting(false)
+      return
+    }
+    const res = await probeGemini()
+    toast(
+      res.ok
+        ? 'Gemini 連線成功 — 生成句與文章對照改由 Gemini 即時生成'
+        : res.error?.startsWith('gemini-http-4')
+          ? '金鑰無效或額度用盡，請確認'
+          : 'Gemini 連線失敗，請稍後再試',
+    )
+    setGeminiTesting(false)
   }
 
   async function redetect() {
@@ -254,6 +286,67 @@ function SettingsPanel({ onDone }: { onDone: () => void }) {
           >
             {testing ? '測試中…' : '儲存並測試連線'}
           </button>
+        </div>
+        <div className="hint">
+          NHK 時事文章的「導入（抓取＋注音）」仍需要 sidecar；中文對照與生成句已改由下方 Gemini 產生。
+        </div>
+      </div>
+
+      <div className="card">
+        <div className="eyebrow">AI 生成（Gemini）</div>
+        <p className="sub">
+          生成練習句與文章中文對照直接由 App 呼叫 Gemini，<b>手機免 sidecar</b>。
+          金鑰只存在本機、不上傳。到 <code>aistudio.google.com/apikey</code> 免費取得。
+        </p>
+        <input
+          type="password"
+          value={keyInput}
+          onChange={(e) => setKeyInput(e.target.value)}
+          placeholder="Gemini API Key（AIza…）"
+          autoCapitalize="off"
+          autoCorrect="off"
+          spellCheck={false}
+          style={{
+            width: '100%',
+            marginTop: 8,
+            fontFamily: 'monospace',
+            fontSize: 13,
+            borderRadius: 8,
+            border: '1px solid var(--washi2)',
+            padding: 8,
+          }}
+        />
+        <div className="rateRow" style={{ marginTop: 8 }}>
+          模型：
+          <input
+            type="text"
+            value={modelInput}
+            onChange={(e) => setModelInput(e.target.value)}
+            placeholder={DEFAULT_GEMINI_MODEL}
+            autoCapitalize="off"
+            autoCorrect="off"
+            spellCheck={false}
+            style={{
+              flex: 1,
+              fontFamily: 'monospace',
+              fontSize: 13,
+              borderRadius: 8,
+              border: '1px solid var(--washi2)',
+              padding: '6px 8px',
+            }}
+          />
+        </div>
+        <div className="row" style={{ marginTop: 10 }}>
+          <button
+            className="btn small"
+            onClick={() => void saveAndTestGemini()}
+            disabled={geminiTesting}
+          >
+            {geminiTesting ? '測試中…' : '儲存並測試 Gemini'}
+          </button>
+        </div>
+        <div className="hint">
+          清空金鑰＝改用內建離線示範句（不需網路）。生成內容一律需你在審核佇列採用後才入庫。
         </div>
       </div>
 

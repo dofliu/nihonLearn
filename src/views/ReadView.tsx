@@ -189,7 +189,7 @@ export function ReadView() {
           </div>
           {preview.ann.demo && (
             <div className="hint">
-              sidecar 未設 ANTHROPIC_API_KEY——本篇僅原文＋注音，沒有中文對照。
+              未設定 Gemini 金鑰——本篇僅原文＋注音，沒有中文對照。到設定填入金鑰即可。
             </div>
           )}
           {preview.ann.new_words.length > 0 && (

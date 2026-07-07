@@ -11,6 +11,7 @@ import { newCard, review, isDue, isMastered } from '../src/srs/scheduler.ts'
 import { analyzeCoverage } from '../src/lib/coverage.ts'
 import { normalizeBase, joinApi, ttsCacheKey } from '../src/lib/sidecar.ts'
 import { gatingChars, isVocabUnlocked } from '../src/lib/vocabGate.ts'
+import { stripJsonFences, extractText } from '../src/lib/llmParse.ts'
 
 let pass = 0
 let fail = 0
@@ -117,6 +118,16 @@ console.log('=== 5c. 詞彙解鎖閘門（隨假名進度） ===')
   ok('含未學假名 → 未解鎖', !isVocabUnlocked('これ', known)) // れ 未學
   ok('小書き詞：主音會了即解鎖', isVocabUnlocked('きゃく', new Set(['き', 'く']))) // ゃ 不 gating
   ok('空集合下多數詞未解鎖', VOCAB.filter((v) => isVocabUnlocked(v.jp, new Set())).length < VOCAB.length)
+}
+
+console.log('=== 5d. Gemini 回應解析 ===')
+{
+  ok('去 ```json 圍欄', stripJsonFences('```json\n{"a":1}\n```') === '{"a":1}')
+  ok('去無語言標記圍欄', stripJsonFences('```\n{"a":1}```') === '{"a":1}')
+  ok('無圍欄原樣', stripJsonFences('{"a":1}') === '{"a":1}')
+  const resp = { candidates: [{ content: { parts: [{ text: '{"ok":' }, { text: 'true}' }] } }] }
+  ok('抽出並串接 parts 文字', extractText(resp) === '{"ok":true}')
+  ok('空回應回空字串', extractText({}) === '' && extractText({ candidates: [] }) === '')
 }
 
 console.log('=== 6. 資料完整性 ===')

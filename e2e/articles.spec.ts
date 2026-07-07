@@ -20,7 +20,20 @@ const ART = {
   ],
 }
 
+/** 包裝成 Gemini generateContent 的回應（candidates[0].content.parts[].text = JSON 字串） */
+function geminiJson(payload: unknown) {
+  return {
+    candidates: [{ content: { parts: [{ text: JSON.stringify(payload) }] } }],
+  }
+}
+
+/** 設定 Gemini 金鑰（讓 hasLLM()=true，走 Gemini 直連而非離線示範） */
+async function setGeminiKey(page: Page) {
+  await page.evaluate(() => localStorage.setItem('nihongo-michi:geminiKey', 'test-key'))
+}
+
 async function stubArticleApis(page: Page) {
+  // NHK 抓取＋注音仍走 sidecar
   await page.route('**/api/article/list', (route) =>
     route.fulfill({
       json: { articles: [{ id: ART.id, title: '台風が来る', date: '2026-07-04' }] },
@@ -29,14 +42,14 @@ async function stubArticleApis(page: Page) {
   await page.route('**/api/article/get*', (route) =>
     route.fulfill({ json: { source: 'nhk', needs_review: true, ...ART } }),
   )
-  await page.route('**/api/article/annotate', (route) =>
+  // 中文對照改由 Gemini 直連
+  await page.route('**/generativelanguage.googleapis.com/**', (route) =>
     route.fulfill({
-      json: {
-        needs_review: true,
+      json: geminiJson({
         title_zh: '颱風要來了',
         zh: ['颱風要來日本了。', '大家請小心。', '會下很多雨。', '風也會變強。'],
         new_words: [{ jp: '台風', read: 'たいふう', zh: '颱風' }],
-      },
+      }),
     }),
   )
 }
@@ -45,6 +58,7 @@ test.describe('NHK 文章導入', () => {
   test('列表 → 審核預覽 → 採用 → 持久化 → 閱讀 → 刪除', async ({ page }) => {
     await stubArticleApis(page)
     await gotoApp(page)
+    await setGeminiKey(page)
     await navTo(page, '読む')
 
     // 取列表、挑一篇
@@ -89,24 +103,19 @@ test.describe('NHK 文章導入', () => {
 
 test.describe('生成句審核佇列持久化', () => {
   test('候選入佇列、離開再回來仍在、採用/退回出佇列', async ({ page }) => {
-    await page.route('**/api/content', (route) =>
+    // 生成句改由 Gemini 直連——stub Gemini 端點回 2 句候選
+    await page.route('**/generativelanguage.googleapis.com/**', (route) =>
       route.fulfill({
-        json: {
-          generated: true,
-          needs_review: true,
-          theme: 'daily',
+        json: geminiJson({
           candidates: [
             { jp: 'みずを ください。', zh: '請給我水。', read: 'みずをください', new_words: [] },
             { jp: 'えきは どこですか。', zh: '車站在哪裡？', read: 'えきはどこですか', new_words: [] },
           ],
-        },
+        }),
       }),
     )
     await gotoApp(page)
-    // 設 sidecar 位址，讓 generate() 走網路（命中上面的 route stub），而非離線示範
-    await page.evaluate(() =>
-      localStorage.setItem('nihongo-michi:sidecarBase', 'https://sidecar.test'),
-    )
+    await setGeminiKey(page) // 有金鑰 → 走 Gemini（命中上面的 stub）而非離線示範
     await navTo(page, '話す')
     await page.getByRole('button', { name: /生成新練習句/ }).click()
 

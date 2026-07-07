@@ -101,6 +101,33 @@ test.describe('基本載入與導覽', () => {
     await expect(page.locator('.toast')).toContainText('同源 /api')
   })
 
+  test('Gemini 金鑰：儲存、測試連線成功、持久化、清除', async ({ page }) => {
+    await page.route('**/generativelanguage.googleapis.com/**', (route) =>
+      route.fulfill({ json: { candidates: [{ content: { parts: [{ text: 'ok' }] } }] } }),
+    )
+    await gotoApp(page)
+    await page.locator('.appHeader h1').click()
+
+    const card = page.locator('.card', { hasText: 'AI 生成（Gemini）' })
+    const keyInput = card.locator('input[type="password"]')
+    await expect(keyInput).toHaveValue('')
+
+    await keyInput.fill('AIzaTESTKEY')
+    await card.getByRole('button', { name: /儲存並測試 Gemini/ }).click()
+    await expect(page.locator('.toast')).toContainText('Gemini 連線成功')
+
+    // 持久化：重整後金鑰仍在（localStorage）
+    await page.reload()
+    await expect(page.locator('main')).not.toContainText('読み込み中', { timeout: 15_000 })
+    await page.locator('.appHeader h1').click()
+    await expect(card.locator('input[type="password"]')).toHaveValue('AIzaTESTKEY')
+
+    // 清空 → 改用離線示範
+    await card.locator('input[type="password"]').fill('')
+    await card.getByRole('button', { name: /儲存並測試 Gemini/ }).click()
+    await expect(page.locator('.toast')).toContainText('已清除金鑰')
+  })
+
   test('匯出 v2 備份會下載合法 JSON', async ({ page }) => {
     await gotoApp(page)
     await page.locator('.appHeader h1').click()
