@@ -59,6 +59,29 @@ export interface UserSentence {
   createdAt: number
 }
 
+/** 採用入庫的閱讀文章（NHK Easy 導入等）。lines 形狀與 data/passages 相容 */
+export interface UserPassage {
+  id?: number
+  title: string // 含 ruby 的安全 HTML（sidecar token 重建）
+  titleZh: string
+  lines: { jp: string; zh: string; read?: string }[]
+  source: 'nhk' // 來源標記（未來可擴充 'ai' 等層級）
+  origId: string // NHK news_id（去重用）
+  newWords: { jp: string; read?: string; zh: string }[]
+  createdAt: number
+}
+
+/** 待審核的生成候選（持久化審核佇列：退回前不消失、可稍後再審） */
+export interface GenCandidate {
+  id?: number
+  theme: string
+  jp: string
+  zh: string
+  read: string
+  newWords: { jp: string; zh: string }[]
+  createdAt: number
+}
+
 export class MichiDB extends Dexie {
   cards!: Table<Card, string>
   days!: Table<DaySession, string>
@@ -67,6 +90,8 @@ export class MichiDB extends Dexie {
   settings!: Table<Setting, string>
   userSentences!: Table<UserSentence, number>
   ttsCache!: Table<TTSCacheEntry, string>
+  userPassages!: Table<UserPassage, number>
+  genQueue!: Table<GenCandidate, number>
 
   constructor() {
     super('nihongo-michi')
@@ -82,6 +107,10 @@ export class MichiDB extends Dexie {
     })
     this.version(3).stores({
       ttsCache: 'key, lastUsed',
+    })
+    this.version(4).stores({
+      userPassages: '++id, origId, createdAt',
+      genQueue: '++id, createdAt',
     })
   }
 }
