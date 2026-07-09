@@ -149,6 +149,27 @@ export async function perSentenceBest() {
   return map
 }
 
+// ---------- N5 模擬測驗 ----------
+export async function saveQuizResult(total: number, correct: number, weakRefs: string[]) {
+  await db.quizResults.add({ ts: Date.now(), total, correct, weakRefs })
+}
+
+/** 依時間新到舊的測驗紀錄。 */
+export async function listQuizResults() {
+  const rows = await db.quizResults.toArray()
+  return rows.sort((a, b) => b.ts - a.ts)
+}
+
+/** 跨紀錄聚合最常答錯的詞（refId → 次數），多到少。 */
+export async function weakWordCounts(): Promise<{ refId: string; count: number }[]> {
+  const rows = await db.quizResults.toArray()
+  const map = new Map<string, number>()
+  for (const r of rows) for (const ref of r.weakRefs) map.set(ref, (map.get(ref) || 0) + 1)
+  return [...map.entries()]
+    .map(([refId, count]) => ({ refId, count }))
+    .sort((a, b) => b.count - a.count)
+}
+
 // ---------- 設定 ----------
 export async function getSetting<T>(key: string, fallback: T): Promise<T> {
   const row = await db.settings.get(key)

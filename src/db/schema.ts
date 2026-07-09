@@ -82,6 +82,15 @@ export interface GenCandidate {
   createdAt: number
 }
 
+/** N5 模擬測驗一次作答的結果（計分與弱項分析） */
+export interface QuizResult {
+  id?: number
+  ts: number
+  total: number
+  correct: number
+  weakRefs: string[] // 答錯的 vocab.jp（弱項聚合用）
+}
+
 export class MichiDB extends Dexie {
   cards!: Table<Card, string>
   days!: Table<DaySession, string>
@@ -92,6 +101,7 @@ export class MichiDB extends Dexie {
   ttsCache!: Table<TTSCacheEntry, string>
   userPassages!: Table<UserPassage, number>
   genQueue!: Table<GenCandidate, number>
+  quizResults!: Table<QuizResult, number>
 
   constructor() {
     super('nihongo-michi')
@@ -111,6 +121,9 @@ export class MichiDB extends Dexie {
     this.version(4).stores({
       userPassages: '++id, origId, createdAt',
       genQueue: '++id, createdAt',
+    })
+    this.version(5).stores({
+      quizResults: '++id, ts',
     })
   }
 }

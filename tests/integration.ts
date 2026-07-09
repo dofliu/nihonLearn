@@ -12,6 +12,7 @@ import { analyzeCoverage } from '../src/lib/coverage.ts'
 import { normalizeBase, joinApi, ttsCacheKey } from '../src/lib/sidecar.ts'
 import { gatingChars, isVocabUnlocked } from '../src/lib/vocabGate.ts'
 import { stripJsonFences, extractText } from '../src/lib/llmParse.ts'
+import { generateQuiz, seededRng, MIN_POOL } from '../src/lib/quiz.ts'
 
 let pass = 0
 let fail = 0
@@ -128,6 +129,30 @@ console.log('=== 5d. Gemini 回應解析 ===')
   const resp = { candidates: [{ content: { parts: [{ text: '{"ok":' }, { text: 'true}' }] } }] }
   ok('抽出並串接 parts 文字', extractText(resp) === '{"ok":true}')
   ok('空回應回空字串', extractText({}) === '' && extractText({ candidates: [] }) === '')
+}
+
+console.log('=== 5e. N5 模擬測驗生成 ===')
+{
+  const pool = VOCAB.slice(0, 30)
+  ok('已學不足 4 詞 → 空', generateQuiz(VOCAB.slice(0, 3), 10, seededRng(1)).length === 0)
+  ok('MIN_POOL 常數為 4', MIN_POOL === 4)
+  const q = generateQuiz(pool, 10, seededRng(42))
+  ok('產出 10 題', q.length === 10)
+  ok('每題 refId 在詞庫內', q.every((x) => pool.some((v) => v.jp === x.refId)))
+  ok('四種題型都出現', new Set(q.map((x) => x.kind)).size === 4)
+
+  const choice = q.filter((x) => x.kind !== 'arrange')
+  ok('選擇題四選項', choice.every((x) => x.options!.length === 4))
+  ok('正解在選項內', choice.every((x) => x.options!.includes(x.answer)))
+  ok('選項互異', choice.every((x) => new Set(x.options).size === x.options!.length))
+  ok('listen 題有讀音、prompt 空', q.filter((x) => x.kind === 'listen').every((x) => x.promptRead && !x.prompt))
+
+  const arr = q.filter((x) => x.kind === 'arrange')
+  ok(
+    'arrange tiles 為答案字元的排列',
+    arr.every((x) => [...x.answer].slice().sort().join('') === x.tiles!.slice().sort().join('')),
+  )
+  ok('seed 相同 → 結果可重現', JSON.stringify(generateQuiz(pool, 6, seededRng(7))) === JSON.stringify(generateQuiz(pool, 6, seededRng(7))))
 }
 
 console.log('=== 6. 資料完整性 ===')
