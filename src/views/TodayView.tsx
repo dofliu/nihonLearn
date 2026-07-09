@@ -23,9 +23,11 @@ function dailySentence() {
 export function TodayView({
   onNav,
   onOpenProgress,
+  onOpenQuiz,
 }: {
   onNav: (t: Tab) => void
   onOpenProgress: () => void
+  onOpenQuiz: () => void
 }) {
   const { counts, streak, rate, asrAvg, setRate } = useApp()
   const [stampDates, setStampDates] = useState<Set<string>>(new Set())
@@ -152,9 +154,14 @@ export function TodayView({
           </select>
         </div>
         <div className="spacer" />
-        <button className="btn small ghost" onClick={onOpenProgress}>
-          📈 發音の成長曲線 →
-        </button>
+        <div className="row">
+          <button className="btn small ghost" onClick={onOpenProgress}>
+            📈 發音の成長曲線 →
+          </button>
+          <button className="btn small ghost" onClick={onOpenQuiz}>
+            📝 N5 模擬測驗 →
+          </button>
+        </div>
       </div>
     </>
   )

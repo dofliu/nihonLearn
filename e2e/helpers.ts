@@ -92,6 +92,44 @@ export async function seedKanaLearned(page: Page, refIds: string[]) {
   }, refIds)
 }
 
+/** 預埋「已學詞彙」卡片（refId = vocab.jp）。需在 gotoApp 之後呼叫，之後 reload。 */
+export async function seedVocabLearned(page: Page, refIds: string[]) {
+  await page.evaluate(async (ids) => {
+    await new Promise<void>((resolve, reject) => {
+      const req = indexedDB.open('nihongo-michi')
+      req.onsuccess = () => {
+        const db = req.result
+        const tx = db.transaction('cards', 'readwrite')
+        const store = tx.objectStore('cards')
+        for (const id of ids) {
+          store.put({
+            id: 'vocab:' + id,
+            type: 'vocab',
+            refId: id,
+            fsrs: {
+              due: new Date(Date.now() + 3 * 86400000),
+              stability: 5,
+              difficulty: 5,
+              elapsed_days: 0,
+              scheduled_days: 3,
+              reps: 2,
+              lapses: 0,
+              state: 2,
+              last_review: new Date(),
+            },
+          })
+        }
+        tx.oncomplete = () => {
+          db.close()
+          resolve()
+        }
+        tx.onerror = () => reject(tx.error)
+      }
+      req.onerror = () => reject(req.error)
+    })
+  }, refIds)
+}
+
 /** 完成一整輪詞彙 FSRS（全部按「記得」） */
 export async function completeVocabRound(page: Page) {
   await navTo(page, '読む')

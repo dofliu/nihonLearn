@@ -16,6 +16,7 @@
 | **v3.1** | 內容彈性化：NHK やさしいニュース 文章導入、生成句審核佇列持久化 |
 | **v3.2** | 初學者體驗：短文中文對照整篇切換、詞彙隨假名進度解鎖、離線降級 |
 | **v3.3** | **AI 生成改 Gemini 直連**：App 內設金鑰，手機免 sidecar 即可生成 |
+| **v3.4** | **N5 模擬測驗**：從已學詞卡自動出題（意味/語彙/聽力/重組），計分＋弱項分析 |
 
 連續天數與已學假名可從 v1 一鍵匯入，不歸零。
 
@@ -75,7 +76,7 @@ src/
   srs/         FSRS 排程封裝（新卡 / 評級 / 到期 / 定著判定）
   audio/       tts（VOICEVOX ▸ 原生 ▸ Web Speech 門面 + Dexie 快取）、scorer（whisper ▸ 原生/Web ASR ▸ 自評）
   lib/         sidecar（base URL 抽象）、llm（Gemini 直連）、llmParse（純解析）、content（生成 client）、
-               articles（NHK 導入）、vocabGate（詞彙隨假名解鎖）、coverage（覆蓋率檢核）、
+               articles（NHK 導入）、vocabGate（詞彙隨假名解鎖）、quiz（N5 模擬測驗出題）、coverage（覆蓋率檢核）、
                pitch、date、importV1
   views/       Today / Kana / Listen(含 Pitch) / Speak / Read / Progress / Review
   components/  Nav、ui（toast、蓋章大印）、VocabCard
@@ -94,6 +95,7 @@ docs/          ANDROID_RELEASE_PLAN、PRIVACY_POLICY、PLAY_LISTING
 - **跟讀三段式評分**：whisper（5090）→ 原生/瀏覽器 ASR → 自評，附 mora 級逐拍診斷（促音漏發、濁音清化上色）。
 - **分級閱讀 + 時事**：靜態短文＋**NHK やさしいニュース 導入**（注音繼承 NHK 人工標註，LLM 只補中文對照），中文對照可整篇切換。
 - **AI 內容生成 + 審核佇列**：Gemini 依已學詞彙生成候選（每句 ≤1 新詞）＋程式覆蓋率檢核；持久化佇列，退回前不消失；採用才入庫。
+- **N5 模擬測驗**：從已學詞卡自動出題（意味/語彙/聽力/重組四型），計分＋跨測驗弱項分析。素材全來自已驗證資料、不經 LLM。
 - **發音成長曲線、漢字模式、PWA、VOICEVOX 語音、v1 匯入**。
 
 ## 測試
@@ -101,8 +103,8 @@ docs/          ANDROID_RELEASE_PLAN、PRIVACY_POLICY、PLAY_LISTING
 | 層級 | 指令 | 結果 |
 |--|--|--|
 | 建置（strict） | `npm run build` | ✅ 綠燈，PWA SW 生成 |
-| 前端邏輯 | `npm test` | ✅ 53 / 53 |
-| 瀏覽器 E2E | `npm run test:e2e` | ✅ 28 / 28 |
+| 前端邏輯 | `npm test` | ✅ 64 / 64 |
+| 瀏覽器 E2E | `npm run test:e2e` | ✅ 30 / 30 |
 | 後端評分 | `python sidecar/test_score.py` | ✅ 4 / 4 |
 | 後端文章解析 | `python sidecar/test_article.py` | ✅ 13 / 13 |
 | Android 殼可編譯 | GitHub Actions `android` job（`gradlew assembleDebug`） | ✅ |
@@ -120,5 +122,5 @@ docs/          ANDROID_RELEASE_PLAN、PRIVACY_POLICY、PLAY_LISTING
 1. 真聲學 GOP（wav2vec2-CTC 音素模型 + 強制對齊，逐音素評分）— 發音評分天花板。
 2. vocab i+1 個人化 known_words（傳「已 FSRS 學過」的詞）。
 3. pitch accent 擴充（接 OJAD／字典來源）。
-4. 測驗模組（從已學卡片自動組 N5 模擬題）。
-5. AI 助教（grounding 在已學詞彙、回答標明僅供參考、不寫入學習庫）。
+4. AI 助教（grounding 在已學詞彙、回答標明僅供參考、不寫入學習庫）。
+5. ~~測驗模組~~（v3.4 完成）。
