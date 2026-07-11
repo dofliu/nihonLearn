@@ -11,7 +11,7 @@ import { newCard, review, isDue, isMastered } from '../src/srs/scheduler.ts'
 import { analyzeCoverage } from '../src/lib/coverage.ts'
 import { normalizeBase, joinApi, ttsCacheKey } from '../src/lib/sidecar.ts'
 import { gatingChars, isVocabUnlocked } from '../src/lib/vocabGate.ts'
-import { stripJsonFences, extractText } from '../src/lib/llmParse.ts'
+import { stripJsonFences, extractText, chatContents } from '../src/lib/llmParse.ts'
 import { generateQuiz, seededRng, MIN_POOL } from '../src/lib/quiz.ts'
 import { karaokeChars, activeCharIndices } from '../src/lib/karaoke.ts'
 
@@ -130,6 +130,14 @@ console.log('=== 5d. Gemini 回應解析 ===')
   const resp = { candidates: [{ content: { parts: [{ text: '{"ok":' }, { text: 'true}' }] } }] }
   ok('抽出並串接 parts 文字', extractText(resp) === '{"ok":true}')
   ok('空回應回空字串', extractText({}) === '' && extractText({ candidates: [] }) === '')
+
+  // 對話歷史 → Gemini contents（role 對映）
+  const cc = chatContents([
+    { role: 'user', text: 'こんにちは' },
+    { role: 'model', text: 'はい' },
+  ])
+  ok('user role 保留、text 進 parts', cc[0].role === 'user' && cc[0].parts[0].text === 'こんにちは')
+  ok('model role 對映', cc[1].role === 'model')
 }
 
 console.log('=== 5e. N5 模擬測驗生成 ===')

@@ -25,10 +25,12 @@ export function TodayView({
   onNav,
   onOpenProgress,
   onOpenQuiz,
+  onOpenTutor,
 }: {
   onNav: (t: Tab) => void
   onOpenProgress: () => void
   onOpenQuiz: () => void
+  onOpenTutor: () => void
 }) {
   const { counts, streak, rate, asrAvg, setRate } = useApp()
   const [stampDates, setStampDates] = useState<Set<string>>(new Set())
@@ -168,6 +170,9 @@ export function TodayView({
           </button>
           <button className="btn small ghost" onClick={onOpenQuiz}>
             📝 N5 模擬測驗 →
+          </button>
+          <button className="btn small ghost" onClick={onOpenTutor}>
+            🤖 AI 助教 →
           </button>
         </div>
       </div>

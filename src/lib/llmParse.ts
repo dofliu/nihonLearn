@@ -12,6 +12,19 @@ export function stripJsonFences(s: string): string {
   return t.trim()
 }
 
+export interface ChatMsg {
+  role: 'user' | 'model'
+  text: string
+}
+
+/** 對話歷史 → Gemini contents 陣列（role 對映 user/model）。 */
+export function chatContents(history: ChatMsg[]): { role: string; parts: { text: string }[] }[] {
+  return history.map((m) => ({
+    role: m.role === 'user' ? 'user' : 'model',
+    parts: [{ text: m.text }],
+  }))
+}
+
 /** 從 Gemini 回應抽出文字（candidates[0].content.parts[].text）。 */
 export function extractText(data: unknown): string {
   const d = data as {

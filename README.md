@@ -18,6 +18,7 @@
 | **v3.3** | **AI 生成改 Gemini 直連**：App 內設金鑰，手機免 sidecar 即可生成 |
 | **v3.4** | **N5 模擬測驗**：從已學詞卡自動出題（意味/語彙/聽力/重組），計分＋弱項分析 |
 | **v3.5** | **朗讀逐字上色**：朗讀時日文逐字卡拉OK上色（真實 timing：Web Speech boundary／原生 onRangeStart） |
+| **v3.6** | **AI 助教**（Gemini 對話、grounding 已學詞、僅供參考、不寫入學習庫）＋ **vocab i+1 個人化** |
 
 連續天數與已學假名可從 v1 一鍵匯入，不歸零。
 
@@ -76,10 +77,10 @@ src/
   db/          Dexie schema(v5) + repo（任務計數、蓋章、卡片、發音紀錄、生成句、文章、TTS 快取、測驗結果）
   srs/         FSRS 排程封裝（新卡 / 評級 / 到期 / 定著判定）
   audio/       tts（VOICEVOX ▸ 原生 ▸ Web Speech 門面 + Dexie 快取）、scorer（whisper ▸ 原生/Web ASR ▸ 自評）
-  lib/         sidecar（base URL 抽象）、llm（Gemini 直連）、llmParse（純解析）、content（生成 client）、
+  lib/         sidecar（base URL 抽象）、llm（Gemini 直連 + 對話）、llmParse（純解析）、content（生成 client + i+1 已學詞）、
                articles（NHK 導入）、vocabGate（詞彙隨假名解鎖）、quiz（N5 模擬測驗出題）、karaoke（朗讀逐字上色）、coverage（覆蓋率檢核）、
                pitch、date、importV1
-  views/       Today / Kana / Listen(含 Pitch) / Speak / Read / Progress / Review
+  views/       Today / Kana / Listen(含 Pitch) / Speak / Read / Progress / Review / Quiz / Tutor
   components/  Nav、ui（toast、蓋章大印）、VocabCard
 sidecar/       FastAPI（5090）：/health /tts /speakers /score /content /article/*
 android/       Capacitor Android 專案（appId com.dof.nihongomichi）
@@ -98,6 +99,7 @@ docs/          ANDROID_RELEASE_PLAN、PRIVACY_POLICY、PLAY_LISTING
 - **AI 內容生成 + 審核佇列**：Gemini 依已學詞彙生成候選（每句 ≤1 新詞）＋程式覆蓋率檢核；持久化佇列，退回前不消失；採用才入庫。
 - **N5 模擬測驗**：從已學詞卡自動出題（意味/語彙/聽力/重組四型），計分＋跨測驗弱項分析。素材全來自已驗證資料、不經 LLM。
 - **朗讀逐字上色**：口說・今日ひとこと・短文純假名行，朗讀時日文逐字高亮（真實 timing：Web Speech boundary／Android onRangeStart）。
+- **AI 助教**（今日頁「🤖 AI 助教」）：Gemini 對話，grounding 在你已學過的詞、盡量用學過的詞舉例；回答標明僅供參考、**永不寫入學習資料庫**；需 Gemini 金鑰。
 - **發音成長曲線、漢字模式、PWA、VOICEVOX 語音、v1 匯入**。
 
 ## 測試
@@ -105,8 +107,8 @@ docs/          ANDROID_RELEASE_PLAN、PRIVACY_POLICY、PLAY_LISTING
 | 層級 | 指令 | 結果 |
 |--|--|--|
 | 建置（strict） | `npm run build` | ✅ 綠燈，PWA SW 生成 |
-| 前端邏輯 | `npm test` | ✅ 70 / 70 |
-| 瀏覽器 E2E | `npm run test:e2e` | ✅ 31 / 31 |
+| 前端邏輯 | `npm test` | ✅ 72 / 72 |
+| 瀏覽器 E2E | `npm run test:e2e` | ✅ 33 / 33 |
 | 後端評分 | `python sidecar/test_score.py` | ✅ 4 / 4 |
 | 後端文章解析 | `python sidecar/test_article.py` | ✅ 13 / 13 |
 | Android 殼可編譯 | GitHub Actions `android` job（`gradlew assembleDebug`） | ✅ |
@@ -122,7 +124,6 @@ docs/          ANDROID_RELEASE_PLAN、PRIVACY_POLICY、PLAY_LISTING
 ## Roadmap
 
 1. 真聲學 GOP（wav2vec2-CTC 音素模型 + 強制對齊，逐音素評分）— 發音評分天花板。
-2. vocab i+1 個人化 known_words（傳「已 FSRS 學過」的詞）。
-3. pitch accent 擴充（接 OJAD／字典來源）。
-4. AI 助教（grounding 在已學詞彙、回答標明僅供參考、不寫入學習庫）。
-5. ~~測驗模組~~（v3.4 完成）。
+2. pitch accent 擴充（接 OJAD／字典來源）。
+3. 漢字模式深化（短文漢字/假名雙版、vocab 書寫練習）。
+4. ~~測驗模組~~（v3.4）、~~AI 助教~~（v3.6）、~~vocab i+1~~（v3.6）完成。

@@ -11,8 +11,8 @@
  * 純函式（stripJsonFences / extractText）供 Node 測試 import；模組層不碰 window。
  */
 import { Capacitor, CapacitorHttp } from '@capacitor/core'
-import { stripJsonFences, extractText } from './llmParse'
-export { stripJsonFences, extractText } from './llmParse'
+import { stripJsonFences, extractText, chatContents, type ChatMsg } from './llmParse'
+export { stripJsonFences, extractText, chatContents, type ChatMsg } from './llmParse'
 
 const LS_KEY = 'nihongo-michi:geminiKey'
 const LS_MODEL = 'nihongo-michi:geminiModel'
@@ -58,10 +58,12 @@ function endpoint(model: string, key: string): string {
   )}:generateContent?key=${encodeURIComponent(key)}`
 }
 
-function buildBody(system: string, user: string, asJson: boolean) {
+type GeminiContent = { role: string; parts: { text: string }[] }
+
+function buildBody(system: string, contents: GeminiContent[], asJson: boolean) {
   return {
     systemInstruction: { parts: [{ text: system }] },
-    contents: [{ role: 'user', parts: [{ text: user }] }],
+    contents,
     generationConfig: {
       temperature: 0.7,
       maxOutputTokens: 2048,
@@ -70,11 +72,15 @@ function buildBody(system: string, user: string, asJson: boolean) {
   }
 }
 
-async function callGemini(system: string, user: string, asJson: boolean): Promise<string> {
+async function callGemini(
+  system: string,
+  contents: GeminiContent[],
+  asJson: boolean,
+): Promise<string> {
   const key = getGeminiKey()
   if (!key) throw new Error('no-key')
   const url = endpoint(getGeminiModel(), key)
-  const body = buildBody(system, user, asJson)
+  const body = buildBody(system, contents, asJson)
 
   if (Capacitor.isNativePlatform()) {
     // 原生 HTTP：繞過 WebView 的 CORS
@@ -102,7 +108,7 @@ async function callGemini(system: string, user: string, asJson: boolean): Promis
 
 /** 呼叫 Gemini 並解析 JSON 物件。無金鑰 → 'no-key'；解析失敗 → 'gemini-bad-json'。 */
 export async function generateJSON(system: string, user: string): Promise<unknown> {
-  const text = await callGemini(system, user, true)
+  const text = await callGemini(system, [{ role: 'user', parts: [{ text: user }] }], true)
   if (!text) throw new Error('gemini-empty')
   try {
     return JSON.parse(stripJsonFences(text))
@@ -111,12 +117,19 @@ export async function generateJSON(system: string, user: string): Promise<unknow
   }
 }
 
+/** 多輪對話（AI 助教）。回純文字；無金鑰 → 'no-key'。 */
+export async function chatGemini(system: string, history: ChatMsg[]): Promise<string> {
+  const text = await callGemini(system, chatContents(history), false)
+  if (!text) throw new Error('gemini-empty')
+  return text
+}
+
 /** 設定頁「測試」用：小請求驗證金鑰可用。 */
 export async function probeGemini(): Promise<{ ok: boolean; error?: string }> {
   try {
     const text = await callGemini(
       '只回覆一個字。',
-      '請只回覆：ok',
+      [{ role: 'user', parts: [{ text: '請只回覆：ok' }] }],
       false,
     )
     return { ok: Boolean(text) }
