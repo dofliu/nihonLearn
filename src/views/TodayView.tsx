@@ -8,6 +8,7 @@ import { SENTS } from '../data/sentences'
 import { KANA } from '../data/kana'
 import { VOCAB } from '../data/vocab'
 import { speak } from '../audio/tts'
+import { Karaoke } from '../components/Karaoke'
 import type { Tab } from '../components/Nav'
 
 function greeting() {
@@ -31,6 +32,7 @@ export function TodayView({
 }) {
   const { counts, streak, rate, asrAvg, setRate } = useApp()
   const [stampDates, setStampDates] = useState<Set<string>>(new Set())
+  const [hitokotoRange, setHitokotoRange] = useState<[number, number] | null>(null)
   const [learned, setLearned] = useState(0)
   const [mastered, setMastered] = useState(0)
   const [vocabLearned, setVocabLearned] = useState(0)
@@ -49,6 +51,12 @@ export function TodayView({
   const sent = dailySentence()
   const days = lastNDays(14)
   const today = todayStr()
+
+  async function playHitokoto(rate: number) {
+    setHitokotoRange([0, 0])
+    await speak(sent.jp, rate, { onBoundary: (s, e) => setHitokotoRange([s, e]) })
+    setHitokotoRange(null)
+  }
 
   return (
     <>
@@ -112,13 +120,13 @@ export function TodayView({
 
       <div className="card">
         <div className="eyebrow">今日のひとこと</div>
-        <div className="sent">{sent.jp}</div>
+        <Karaoke text={sent.jp} range={hitokotoRange} className="sent" />
         <div className="sentZh">{sent.zh}</div>
         <div className="row center">
-          <button className="btn small ghost" onClick={() => speak(sent.alt || sent.jp, 0.75)}>
+          <button className="btn small ghost" onClick={() => void playHitokoto(0.75)}>
             🔊 慢速
           </button>
-          <button className="btn small ghost" onClick={() => speak(sent.alt || sent.jp, 1.0)}>
+          <button className="btn small ghost" onClick={() => void playHitokoto(1.0)}>
             🔊 常速
           </button>
         </div>

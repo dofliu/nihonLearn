@@ -17,6 +17,7 @@
 | **v3.2** | 初學者體驗：短文中文對照整篇切換、詞彙隨假名進度解鎖、離線降級 |
 | **v3.3** | **AI 生成改 Gemini 直連**：App 內設金鑰，手機免 sidecar 即可生成 |
 | **v3.4** | **N5 模擬測驗**：從已學詞卡自動出題（意味/語彙/聽力/重組），計分＋弱項分析 |
+| **v3.5** | **朗讀逐字上色**：朗讀時日文逐字卡拉OK上色（真實 timing：Web Speech boundary／原生 onRangeStart） |
 
 連續天數與已學假名可從 v1 一鍵匯入，不歸零。
 
@@ -72,11 +73,11 @@ python test_article.py   # NHK 文章解析（fixture HTML）
 ```
 src/
   data/        內容（kana 142・vocab ~190 N5・sentences・pairs・pitch・passages）— 唯一事實來源
-  db/          Dexie schema(v4) + repo（任務計數、蓋章、卡片、發音紀錄、生成句、文章、TTS 快取）
+  db/          Dexie schema(v5) + repo（任務計數、蓋章、卡片、發音紀錄、生成句、文章、TTS 快取、測驗結果）
   srs/         FSRS 排程封裝（新卡 / 評級 / 到期 / 定著判定）
   audio/       tts（VOICEVOX ▸ 原生 ▸ Web Speech 門面 + Dexie 快取）、scorer（whisper ▸ 原生/Web ASR ▸ 自評）
   lib/         sidecar（base URL 抽象）、llm（Gemini 直連）、llmParse（純解析）、content（生成 client）、
-               articles（NHK 導入）、vocabGate（詞彙隨假名解鎖）、quiz（N5 模擬測驗出題）、coverage（覆蓋率檢核）、
+               articles（NHK 導入）、vocabGate（詞彙隨假名解鎖）、quiz（N5 模擬測驗出題）、karaoke（朗讀逐字上色）、coverage（覆蓋率檢核）、
                pitch、date、importV1
   views/       Today / Kana / Listen(含 Pitch) / Speak / Read / Progress / Review
   components/  Nav、ui（toast、蓋章大印）、VocabCard
@@ -96,6 +97,7 @@ docs/          ANDROID_RELEASE_PLAN、PRIVACY_POLICY、PLAY_LISTING
 - **分級閱讀 + 時事**：靜態短文＋**NHK やさしいニュース 導入**（注音繼承 NHK 人工標註，LLM 只補中文對照），中文對照可整篇切換。
 - **AI 內容生成 + 審核佇列**：Gemini 依已學詞彙生成候選（每句 ≤1 新詞）＋程式覆蓋率檢核；持久化佇列，退回前不消失；採用才入庫。
 - **N5 模擬測驗**：從已學詞卡自動出題（意味/語彙/聽力/重組四型），計分＋跨測驗弱項分析。素材全來自已驗證資料、不經 LLM。
+- **朗讀逐字上色**：口說・今日ひとこと・短文純假名行，朗讀時日文逐字高亮（真實 timing：Web Speech boundary／Android onRangeStart）。
 - **發音成長曲線、漢字模式、PWA、VOICEVOX 語音、v1 匯入**。
 
 ## 測試
@@ -103,8 +105,8 @@ docs/          ANDROID_RELEASE_PLAN、PRIVACY_POLICY、PLAY_LISTING
 | 層級 | 指令 | 結果 |
 |--|--|--|
 | 建置（strict） | `npm run build` | ✅ 綠燈，PWA SW 生成 |
-| 前端邏輯 | `npm test` | ✅ 64 / 64 |
-| 瀏覽器 E2E | `npm run test:e2e` | ✅ 30 / 30 |
+| 前端邏輯 | `npm test` | ✅ 70 / 70 |
+| 瀏覽器 E2E | `npm run test:e2e` | ✅ 31 / 31 |
 | 後端評分 | `python sidecar/test_score.py` | ✅ 4 / 4 |
 | 後端文章解析 | `python sidecar/test_article.py` | ✅ 13 / 13 |
 | Android 殼可編譯 | GitHub Actions `android` job（`gradlew assembleDebug`） | ✅ |

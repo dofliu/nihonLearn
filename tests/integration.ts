@@ -13,6 +13,7 @@ import { normalizeBase, joinApi, ttsCacheKey } from '../src/lib/sidecar.ts'
 import { gatingChars, isVocabUnlocked } from '../src/lib/vocabGate.ts'
 import { stripJsonFences, extractText } from '../src/lib/llmParse.ts'
 import { generateQuiz, seededRng, MIN_POOL } from '../src/lib/quiz.ts'
+import { karaokeChars, activeCharIndices } from '../src/lib/karaoke.ts'
 
 let pass = 0
 let fail = 0
@@ -153,6 +154,26 @@ console.log('=== 5e. N5 模擬測驗生成 ===')
     arr.every((x) => [...x.answer].slice().sort().join('') === x.tiles!.slice().sort().join('')),
   )
   ok('seed 相同 → 結果可重現', JSON.stringify(generateQuiz(pool, 6, seededRng(7))) === JSON.stringify(generateQuiz(pool, 6, seededRng(7))))
+}
+
+console.log('=== 5f. 朗讀逐字上色對齊 ===')
+{
+  // 空白不計入 cleaned 索引（與 tts clean() 一致）
+  const c = karaokeChars('きょうは いい')
+  ok('非空白字元 ci 連續遞增', c.filter((x) => x.ci >= 0).map((x) => x.ci).join(',') === '0,1,2,3,4,5')
+  ok('空白 ci = -1', c.find((x) => x.ch === ' ')!.ci === -1)
+  // 去標籤
+  ok('ruby 標籤剝除', karaokeChars('<ruby>山<rt>やま</rt></ruby>').every((x) => x.ch !== '<'))
+
+  // 範圍高亮
+  const chars = karaokeChars('みずをください')
+  const set = activeCharIndices(chars, 0, 2)
+  ok('range [0,2) 高亮前兩字', set.has(0) && set.has(1) && !set.has(2))
+  // 未知長度（end<=start）→ 高亮整個「詞」（此處無空白＝整句）
+  const spaced = karaokeChars('きょう は')
+  const w = activeCharIndices(spaced, 0, 0)
+  ok('未知長度：高亮 start 所在的詞', w.has(0) && w.has(1) && w.has(2) && !w.has(3))
+  ok('空白不被高亮', !activeCharIndices(spaced, 0, 3).has(3))
 }
 
 console.log('=== 6. 資料完整性 ===')
