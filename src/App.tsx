@@ -9,6 +9,7 @@ import { ReadView } from './views/ReadView'
 import { ProgressView } from './views/ProgressView'
 import { ReviewView } from './views/ReviewView'
 import { QuizView } from './views/QuizView'
+import { TutorView } from './views/TutorView'
 import { useApp, bootstrap } from './state/store'
 import { importV1, exportV2, type V1Save } from './lib/importV1'
 import {
@@ -35,7 +36,9 @@ export default function App() {
   const ready = useApp((s) => s.ready)
   const refresh = useApp((s) => s.refresh)
   const showKanji = useApp((s) => s.showKanji)
-  const [overlay, setOverlay] = useState<null | 'settings' | 'progress' | 'review' | 'quiz'>(null)
+  const [overlay, setOverlay] = useState<
+    null | 'settings' | 'progress' | 'review' | 'quiz' | 'tutor'
+  >(null)
 
   useEffect(() => {
     void bootstrap()
@@ -73,6 +76,9 @@ export default function App() {
         {ready && overlay === 'quiz' && (
           <QuizView onDone={() => setOverlay(null)} />
         )}
+        {ready && overlay === 'tutor' && (
+          <TutorView onDone={() => setOverlay(null)} />
+        )}
         {ready && overlay === null && (
           <>
             {tab === 'today' && (
@@ -80,6 +86,7 @@ export default function App() {
                 onNav={nav}
                 onOpenProgress={() => setOverlay('progress')}
                 onOpenQuiz={() => setOverlay('quiz')}
+                onOpenTutor={() => setOverlay('tutor')}
               />
             )}
             {tab === 'kana' && <KanaView />}

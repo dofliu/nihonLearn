@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import {
   generate,
+  personalKnownWords,
   enqueueCandidates,
   listQueue,
   removeFromQueue,
@@ -44,7 +45,7 @@ export function ReviewView({ onDone }: { onDone: () => void }) {
   async function run() {
     setLoading(true)
     try {
-      const res = await generate(theme, 5)
+      const res = await generate(theme, 5, await personalKnownWords())
       setDemo(res.demo)
       if (res.candidates.length === 0) {
         toast('沒有產生候選句')

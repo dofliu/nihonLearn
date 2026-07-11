@@ -61,13 +61,28 @@ const THEME_DESC: Record<Theme, string> = {
 }
 
 /**
+ * i+1 個人化的「已知詞彙」：使用者實際 FSRS 學過的詞（vocab 卡）。
+ * 太少（<8）時補一小批基礎詞，讓生成有依據。傳給 Gemini 當 known_words，
+ * 讓「每句最多 1 新詞」真正貼合個人進度。
+ */
+export async function personalKnownWords(): Promise<string[]> {
+  const cards = await db.cards.where('type').equals('vocab').toArray()
+  const learned = cards.map((c) => c.refId)
+  if (learned.length >= 8) return learned
+  const base = VOCAB.slice(0, 40).map((v) => v.jp)
+  return Array.from(new Set([...learned, ...base]))
+}
+
+/**
  * 生成候選句。設定 Gemini 金鑰 → 直接呼叫 Gemini（App 內、免 sidecar）；
  * 未設金鑰 → 離線示範候選（降級不中斷）；呼叫失敗 → 丟乾淨錯誤讓 UI 提示。
+ * knownWords 未給時退回整個 N5 詞庫；給了則做 i+1 個人化（見 personalKnownWords）。
  * 產物一律 needs_review，經前端審核佇列人工採用後才入庫。
  */
-export async function generate(theme: Theme, n = 5): Promise<ContentResult> {
+export async function generate(theme: Theme, n = 5, knownWords?: string[]): Promise<ContentResult> {
   if (!hasLLM()) return clientDemo(theme, n) // 沒設金鑰：離線示範
-  const known = VOCAB.map((v) => v.jp).slice(0, 120).join('、')
+  const words = knownWords && knownWords.length ? knownWords : VOCAB.map((v) => v.jp)
+  const known = words.slice(0, 120).join('、')
   const system =
     '你是日語初級教學內容設計者，服務對象是中文母語、剛學完五十音的成人。' +
     '嚴格遵守：(1) 主要使用提供的「已知詞彙」；(2) 每句最多引入 1 個新詞，' +
