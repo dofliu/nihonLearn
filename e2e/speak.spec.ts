@@ -27,6 +27,16 @@ test.describe('話す：跟讀與評分降級', () => {
     await expect(taskRow(page, '口の修行')).toContainText('1 / 3')
   })
 
+  test('句子以逐字 span 呈現（朗讀逐字上色的結構）', async ({ page }) => {
+    await gotoApp(page)
+    await navTo(page, '話す')
+    // 目標句渲染成逐字 .kw span（Karaoke 元件）
+    const kw = page.locator('.card .sent .kw')
+    expect(await kw.count()).toBeGreaterThan(1)
+    // 慢速朗讀不報錯（headless 無語音時不驗上色時序，只驗不崩）
+    await page.getByRole('button', { name: /慢速/ }).click()
+  })
+
   test('句子導覽與層級切換', async ({ page }) => {
     await disableSpeechRecognition(page)
     await gotoApp(page)

@@ -12,6 +12,7 @@ import { logAttempt } from '../db/repo'
 import { getUserSentences } from '../lib/content'
 import { useApp } from '../state/store'
 import { toast } from '../components/ui'
+import { Karaoke } from '../components/Karaoke'
 
 function mark(score: number) {
   return score >= 80 ? '◎' : score >= 55 ? '○' : '△'
@@ -32,6 +33,7 @@ export function SpeakView({ onOpenReview }: { onOpenReview: () => void }) {
   const [engine, setEngine] = useState<ScoreEngine>('none')
   const [moraDiff, setMoraDiff] = useState<MoraDiff[] | null>(null)
   const [userSents, setUserSents] = useState<Sentence[]>([])
+  const [range, setRange] = useState<[number, number] | null>(null)
   const recorderRef = useRef<SidecarRecorder | null>(null)
 
   useEffect(() => {
@@ -63,6 +65,14 @@ export function SpeakView({ onOpenReview }: { onOpenReview: () => void }) {
     setRecTxt('')
     setSelfMode(false)
     setMoraDiff(null)
+    setRange(null)
+  }
+
+  // 卡拉OK朗讀：唸「顯示的假名句」（與逐字上色對齊），boundary 更新高亮範圍
+  async function play(rate: number) {
+    setRange([0, 0])
+    await speak(sent.jp, rate, { onBoundary: (s, e) => setRange([s, e]) })
+    setRange(null)
   }
   function pickLv(n: 1 | 2 | 3) {
     setLv(n)
@@ -185,13 +195,13 @@ export function SpeakView({ onOpenReview }: { onOpenReview: () => void }) {
         <div className="eyebrow">
           第 {idx + 1} / {list.length} 句
         </div>
-        <div className="sent">{sent.jp}</div>
+        <Karaoke text={sent.jp} range={range} className="sent" />
         <div className="sentZh">{sent.zh}</div>
         <div className="row center" style={{ marginBottom: 14 }}>
-          <button className="btn small ghost" onClick={() => speak(sent.alt || sent.jp, 0.7)}>
+          <button className="btn small ghost" onClick={() => void play(0.7)}>
             🔊 慢速
           </button>
-          <button className="btn small ghost" onClick={() => speak(sent.alt || sent.jp, 1.0)}>
+          <button className="btn small ghost" onClick={() => void play(1.0)}>
             🔊 常速
           </button>
         </div>

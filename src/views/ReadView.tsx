@@ -5,6 +5,7 @@ import { speak } from '../audio/tts'
 import { useApp } from '../state/store'
 import { toast } from '../components/ui'
 import { VocabCard } from '../components/VocabCard'
+import { Karaoke } from '../components/Karaoke'
 import { analyzeCoverage } from '../lib/coverage'
 import {
   fetchArticleList,
@@ -35,6 +36,8 @@ export function ReadView() {
   const [doc, setDoc] = useState<ReaderDoc | null>(null)
   const [openLines, setOpenLines] = useState<Set<number>>(new Set())
   const [showAllZh, setShowAllZh] = useState(true) // 初學者預設整篇中文對照
+  const [playLine, setPlayLine] = useState<number | null>(null) // 正在朗讀的行
+  const [lineRange, setLineRange] = useState<[number, number] | null>(null)
 
   // NHK 導入流程狀態
   const [articles, setArticles] = useState<ArticleMeta[]>([])
@@ -54,6 +57,8 @@ export function ReadView() {
     setDoc(d)
     setOpenLines(new Set())
     setShowAllZh(true)
+    setPlayLine(null)
+    setLineRange(null)
   }
   function openPassage(p: Passage) {
     openDoc({ title: p.title, lines: p.lines })
@@ -61,13 +66,26 @@ export function ReadView() {
   function openUserPassage(p: UserPassage) {
     openDoc({ title: p.title, titleIsHtml: true, titleZh: p.titleZh, lines: p.lines })
   }
-  function toggleLine(i: number, read: string) {
+  // 純假名行（無 ruby）才逐字上色——讀音與顯示對齊
+  function isPlainKana(l: PassageLine) {
+    return !l.jp.includes('<') && (!l.read || l.read.replace(/\s/g, '') === l.jp.replace(/\s/g, ''))
+  }
+  async function toggleLine(i: number, read: string) {
     setOpenLines((s) => {
       const next = new Set(s)
       next.has(i) ? next.delete(i) : next.add(i)
       return next
     })
-    speak(read, useApp.getState().rate)
+    const line = doc?.lines[i]
+    if (line && isPlainKana(line)) {
+      setPlayLine(i)
+      setLineRange([0, 0])
+      await speak(line.jp, useApp.getState().rate, { onBoundary: (s, e) => setLineRange([s, e]) })
+      setPlayLine(null)
+      setLineRange(null)
+    } else {
+      speak(read, useApp.getState().rate)
+    }
   }
   function playDoc() {
     if (!doc) return
@@ -275,9 +293,17 @@ export function ReadView() {
               <div
                 key={i}
                 className={'rline' + (openLines.has(i) ? ' open' : '')}
-                onClick={() => toggleLine(i, l.read || l.jp.replace(/<[^>]+>/g, ''))}
+                onClick={() => void toggleLine(i, l.read || l.jp.replace(/<[^>]+>/g, ''))}
               >
-                <div className="jp" dangerouslySetInnerHTML={{ __html: l.jp }} />
+                {isPlainKana(l) ? (
+                  <Karaoke
+                    text={l.jp}
+                    range={playLine === i ? lineRange : null}
+                    className="jp"
+                  />
+                ) : (
+                  <div className="jp" dangerouslySetInnerHTML={{ __html: l.jp }} />
+                )}
                 <div className="zh">{l.zh}</div>
               </div>
             ))}

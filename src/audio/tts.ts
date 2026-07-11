@@ -9,9 +9,14 @@ import { Capacitor } from '@capacitor/core'
 import { apiUrl, ttsCacheKey, probeHealth } from '../lib/sidecar'
 import { getCachedTTS, putCachedTTS } from './ttsCache'
 
+/** 朗讀選項：onBoundary 回報正在唸的字元範圍（cleaned 索引），供逐字上色。 */
+export interface SpeakOpts {
+  onBoundary?: (start: number, end: number) => void
+}
+
 export interface TTSProvider {
   name: string
-  speak(text: string, rate: number): Promise<void>
+  speak(text: string, rate: number, opts?: SpeakOpts): Promise<void>
   available(): Promise<boolean>
 }
 
@@ -40,7 +45,7 @@ class WebSpeechTTS implements TTSProvider {
   async available() {
     return 'speechSynthesis' in window
   }
-  speak(text: string, rate: number): Promise<void> {
+  speak(text: string, rate: number, opts?: SpeakOpts): Promise<void> {
     return new Promise((resolve) => {
       if (!('speechSynthesis' in window)) return resolve()
       speechSynthesis.cancel()
@@ -48,6 +53,12 @@ class WebSpeechTTS implements TTSProvider {
       u.lang = 'ja-JP'
       if (this.voice) u.voice = this.voice
       u.rate = rate
+      if (opts?.onBoundary) {
+        u.onboundary = (e) => {
+          const len = (e as SpeechSynthesisEvent & { charLength?: number }).charLength || 0
+          opts.onBoundary!(e.charIndex, len ? e.charIndex + len : e.charIndex)
+        }
+      }
       u.onend = () => resolve()
       u.onerror = () => resolve()
       speechSynthesis.speak(u)
@@ -68,14 +79,23 @@ class NativeTTS implements TTSProvider {
       return false
     }
   }
-  async speak(text: string, rate: number): Promise<void> {
+  async speak(text: string, rate: number, opts?: SpeakOpts): Promise<void> {
+    let handle: { remove: () => Promise<void> } | undefined
     try {
       const { TextToSpeech } = await import('@capacitor-community/text-to-speech')
       await TextToSpeech.stop().catch(() => {})
+      if (opts?.onBoundary) {
+        // Android UtteranceProgressListener.onRangeStart：逐詞回報字元範圍
+        handle = await TextToSpeech.addListener('onRangeStart', (info) =>
+          opts.onBoundary!(info.start, info.end),
+        )
+      }
       // rate 刻度與 Web Speech 未必等感，真機聽感校準見 tests/MANUAL_QA-ANDROID.md
       await TextToSpeech.speak({ text: clean(text), lang: 'ja-JP', rate, category: 'playback' })
     } catch {
       /* 與其他 provider 一致：播放失敗不拋錯 */
+    } finally {
+      await handle?.remove().catch(() => {})
     }
   }
 }
@@ -106,7 +126,9 @@ class VoicevoxTTS implements TTSProvider {
       return []
     }
   }
-  async speak(text: string, rate: number): Promise<void> {
+  async speak(text: string, rate: number, _opts?: SpeakOpts): Promise<void> {
+    // VOICEVOX 播放 WAV blob，無逐字邊界事件；卡拉OK上色在此 provider 下不移動。
+    void _opts
     const t = clean(text)
     const key = ttsCacheKey(t, this.speakerId, rate)
     let blob = await getCachedTTS(key)
@@ -181,6 +203,6 @@ export function getSpeaker(): number | null {
   return voicevox.speakerId
 }
 
-export async function speak(text: string, rate = 0.85) {
-  return active.speak(text, rate)
+export async function speak(text: string, rate = 0.85, opts?: SpeakOpts) {
+  return active.speak(text, rate, opts)
 }
