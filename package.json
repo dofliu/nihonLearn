@@ -5,6 +5,7 @@
   "type": "module",
   "description": "日本語の道 — 個人化日語學習 PWA（聽說讀三軌，local-first）",
   "scripts": {
+    "postinstall": "node scripts/patch-plugins.mjs",
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
