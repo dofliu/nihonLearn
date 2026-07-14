@@ -11,7 +11,7 @@ import { newCard, review, isDue, isMastered } from '../src/srs/scheduler.ts'
 import { analyzeCoverage } from '../src/lib/coverage.ts'
 import { normalizeBase, joinApi, ttsCacheKey } from '../src/lib/sidecar.ts'
 import { gatingChars, isVocabUnlocked } from '../src/lib/vocabGate.ts'
-import { stripJsonFences, extractText, chatContents } from '../src/lib/llmParse.ts'
+import { stripJsonFences, extractText, chatContents, parseListenQuestions } from '../src/lib/llmParse.ts'
 import { generateQuiz, seededRng, MIN_POOL } from '../src/lib/quiz.ts'
 import { karaokeChars, activeCharIndices } from '../src/lib/karaoke.ts'
 import { listeningQuestions, pickParagraphs, responseQuestions, expressionQuestions, LISTEN_MIN_POOL, type ListenItem } from '../src/lib/listening.ts'
@@ -252,6 +252,29 @@ console.log('=== 5i. JLPT 題型：即時応答・発話表現 ===')
   ok('発話表現選項互異', eq.every((x) => new Set(x.options).size === x.options.length))
   ok('発話表現帶情境中文', eq.every((x) => x.situationZh && x.answerZh))
   ok('n 大於題庫時不超量', expressionQuestions(EXPRESSIONS.slice(0, 3), 5, seededRng(1)).length === 3)
+}
+
+console.log('=== 5j. AI 段落理解題純解析（LLM 只生中文） ===')
+{
+  const good = parseListenQuestions({
+    questions: [
+      { q: '這段對話發生在哪裡？', options: ['機場', '餐廳', '醫院', '學校'], answer: '機場' },
+      { q: '說話者要做什麼？', options: ['辦入住', '問路', '點餐'], answer: '辦入住' },
+    ],
+  })
+  ok('解析出 2 題', good.length === 2)
+  ok('保留正解在選項', good.every((x) => x.options.includes(x.answer)))
+  ok('接受 3 選項題', good[1].options.length === 3)
+
+  // 容錯：頂層直接是陣列
+  ok('頂層陣列亦可', parseListenQuestions([{ q: 'a', options: ['甲', '乙', '丙'], answer: '甲' }]).length === 1)
+  // 丟棄：正解不在選項、選項太少、缺欄位
+  ok('正解不在選項→丟', parseListenQuestions([{ q: 'a', options: ['甲', '乙', '丙'], answer: '丁' }]).length === 0)
+  ok('選項不足 3→丟', parseListenQuestions([{ q: 'a', options: ['甲', '乙'], answer: '甲' }]).length === 0)
+  ok('缺問題→丟', parseListenQuestions([{ q: '', options: ['甲', '乙', '丙'], answer: '甲' }]).length === 0)
+  ok('選項超過 4→丟', parseListenQuestions([{ q: 'a', options: ['甲', '乙', '丙', '丁', '戊'], answer: '甲' }]).length === 0)
+  ok('重複選項去重後不足→丟', parseListenQuestions([{ q: 'a', options: ['甲', '甲', '乙'], answer: '甲' }]).length === 0)
+  ok('非物件輸入→空陣列', parseListenQuestions('nope').length === 0 && parseListenQuestions(null).length === 0)
 }
 
 console.log('=== 6. 資料完整性 ===')
