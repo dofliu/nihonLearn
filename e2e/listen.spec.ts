@@ -28,13 +28,13 @@ test.describe('聴く：辨音與重音', () => {
     await expect(taskRow(page, '耳の修行')).toContainText('5 / 5')
   })
 
-  test('聞き取り（聽力理解）：聽句 → 選中文 → 揭曉日文、任務達標', async ({ page }) => {
+  test('聞き取り（句子）：聽句 → 選中文 → 揭曉日文、任務達標', async ({ page }) => {
     await gotoApp(page)
     await navTo(page, '聴く')
 
     await page.locator('.lvTabs button', { hasText: '聞き取り' }).click()
-    await expect(page.locator('main')).toContainText('聽句選意思')
-    await page.getByRole('button', { name: '開始 5 題' }).click()
+    await expect(page.locator('main')).toContainText('聽日文，選意思')
+    await page.getByRole('button', { name: /句子/ }).click()
 
     await expect(page.locator('.card .eyebrow', { hasText: '第 1 / 5 題' })).toBeVisible()
     await expect(page.locator('button.qopt')).toHaveCount(4)
@@ -53,6 +53,30 @@ test.describe('聴く：辨音與重音', () => {
 
     await navTo(page, '今日')
     await expect(taskRow(page, '耳の修行')).toHaveClass(/done/)
+  })
+
+  test('聞き取り（段落）：聽整段對話 → 回答大意 → 揭曉內容', async ({ page }) => {
+    await gotoApp(page)
+    await navTo(page, '聴く')
+
+    await page.locator('.lvTabs button', { hasText: '聞き取り' }).click()
+    await page.getByRole('button', { name: /段落對話/ }).click()
+
+    await expect(page.locator('.card .eyebrow', { hasText: '段落聽解　第 1 / 3 題' })).toBeVisible()
+    await expect(page.getByRole('button', { name: /播放對話/ })).toBeVisible()
+    await expect(page.locator('button.qopt')).toHaveCount(4)
+
+    // 作答 → 揭曉對話內容
+    await page.locator('button.qopt').first().click()
+    await expect(page.locator('main')).toContainText('對話內容')
+
+    for (let n = 2; n <= 3; n++) {
+      await expect(
+        page.locator('.card .eyebrow', { hasText: `第 ${n} / 3 題` }),
+      ).toBeVisible({ timeout: 15_000 })
+      await page.locator('button.qopt').first().click()
+    }
+    await expect(page.locator('.toast')).toContainText('段落聽解 完成！', { timeout: 15_000 })
   })
 
   test('重音道場：高低型視覺化與型別測驗入口', async ({ page }) => {

@@ -14,7 +14,8 @@ import { gatingChars, isVocabUnlocked } from '../src/lib/vocabGate.ts'
 import { stripJsonFences, extractText, chatContents } from '../src/lib/llmParse.ts'
 import { generateQuiz, seededRng, MIN_POOL } from '../src/lib/quiz.ts'
 import { karaokeChars, activeCharIndices } from '../src/lib/karaoke.ts'
-import { listeningQuestions, LISTEN_MIN_POOL, type ListenItem } from '../src/lib/listening.ts'
+import { listeningQuestions, pickParagraphs, LISTEN_MIN_POOL, type ListenItem } from '../src/lib/listening.ts'
+import { PASSAGES, PASSAGE_CATS } from '../src/data/passages.ts'
 
 let pass = 0
 let fail = 0
@@ -201,6 +202,30 @@ console.log('=== 5g. 聽力理解出題 ===')
   ok('選項互異', qs.every((x) => new Set(x.options).size === 4))
   ok('answer 對得上某句 zh', qs.every((x) => pool.some((p) => p.zh === x.answer)))
   ok('seed 相同可重現', JSON.stringify(listeningQuestions(pool, 5, seededRng(9))) === JSON.stringify(listeningQuestions(pool, 5, seededRng(9))))
+
+  // 段落聽解選材
+  const paras = [
+    { id: 'a', options: ['甲', '乙', '丙', '丁'] },
+    { id: 'b', options: ['戊', '己', '庚', '辛'] },
+    { id: 'c', options: ['壬', '癸', '子', '丑'] },
+    { id: 'd', options: ['寅', '卯', '辰', '巳'] },
+  ]
+  const picked = pickParagraphs(paras, 3, seededRng(5))
+  ok('段落取 3 篇', picked.length === 3)
+  ok('段落選項洗牌後仍為原集合', picked.every((p) => {
+    const orig = paras.find((x) => x.id === p.id)!
+    return [...p.options].sort().join() === [...orig.options].sort().join()
+  }))
+  ok('段落 seed 可重現', JSON.stringify(pickParagraphs(paras, 3, seededRng(2))) === JSON.stringify(pickParagraphs(paras, 3, seededRng(2))))
+}
+
+console.log('=== 5h. 短文分類與段落理解題 ===')
+{
+  ok('每篇短文都有分類', PASSAGES.every((p) => PASSAGE_CATS.includes(p.cat)))
+  const withQuiz = PASSAGES.filter((p) => p.quiz)
+  ok('有理解題的短文 ≥ 8 篇', withQuiz.length >= 8)
+  ok('理解題四選項且含正解', withQuiz.every((p) => p.quiz!.options.length === 4 && p.quiz!.options.includes(p.quiz!.answer)))
+  ok('四個分類都有短文', PASSAGE_CATS.every((c) => PASSAGES.some((p) => p.cat === c)))
 }
 
 console.log('=== 6. 資料完整性 ===')

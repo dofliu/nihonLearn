@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { VOCAB } from '../data/vocab'
-import { PASSAGES, type Passage, type PassageLine } from '../data/passages'
+import { PASSAGES, PASSAGE_CATS, type Passage, type PassageLine } from '../data/passages'
 import { speak } from '../audio/tts'
 import { useApp } from '../state/store'
 import { toast } from '../components/ui'
@@ -148,14 +148,27 @@ export function ReadView() {
 
       <div className="card">
         <div className="eyebrow">読む修行 ─ 読み物</div>
-        <p className="sub">分級短文。點任一句可切換中文對照並朗讀；讀完按「読了」。</p>
-        <div className="row" style={{ marginTop: 10 }}>
-          {PASSAGES.map((p) => (
-            <button key={p.id} className="btn small ghost" onClick={() => openPassage(p)}>
-              {p.title.split(' ─ ')[0]}
-            </button>
-          ))}
-        </div>
+        <p className="sub">分級短文（依情境分類）。點任一句可切換中文對照並朗讀；讀完按「読了」。</p>
+        {PASSAGE_CATS.map((cat) => {
+          const list = PASSAGES.filter((p) => p.cat === cat)
+          if (list.length === 0) return null
+          return (
+            <div key={cat} style={{ marginTop: 10 }}>
+              <div className="catTag">{cat}</div>
+              <div className="row" style={{ flexWrap: 'wrap', gap: 6 }}>
+                {list.map((p) => (
+                  <button
+                    key={p.id}
+                    className="btn small ghost"
+                    onClick={() => openPassage(p)}
+                  >
+                    {p.title.split(' ─ ')[1]?.split('（')[0] ?? p.title}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )
+        })}
       </div>
 
       <div className="card">
