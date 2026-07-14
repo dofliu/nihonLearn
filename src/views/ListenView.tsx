@@ -13,6 +13,14 @@ import {
   type ExpressionQuestion,
 } from '../lib/listening'
 import { RESPONSES, EXPRESSIONS } from '../data/kaiwa'
+import {
+  generateListenQuestions,
+  adoptListenQ,
+  listUserListenQ,
+  type ListenQCandidate,
+  type PassageForGen,
+} from '../lib/content'
+import type { UserListenQ } from '../db/schema'
 import { speak } from '../audio/tts'
 import { useApp } from '../state/store'
 import { toast } from '../components/ui'
@@ -186,23 +194,39 @@ interface ParaItem {
   options: string[]
 }
 
-/** 段落聽解題庫：附理解題的短文（整段朗讀 → 回答大意/場景）。 */
-function buildParaPool(): ParaItem[] {
-  return PASSAGES.filter((p) => p.quiz).map((p) => {
+/**
+ * 段落聽解題庫：附理解題的短文（整段朗讀 → 回答大意/場景）。
+ * 每篇的內建 quiz 為一題；再併入該篇「已採用的 AI 中文理解題」（userQs），
+ * 同一段音檔可對應多題（音檔＋逐行揭曉相同，只有問題/選項不同）。
+ */
+function buildParaPool(userQs: UserListenQ[] = []): ParaItem[] {
+  const byPassage = new Map<string, UserListenQ[]>()
+  for (const u of userQs) {
+    const arr = byPassage.get(u.passageId) ?? []
+    arr.push(u)
+    byPassage.set(u.passageId, arr)
+  }
+  const out: ParaItem[] = []
+  for (const p of PASSAGES) {
+    const extra = byPassage.get(p.id) ?? []
+    if (!p.quiz && extra.length === 0) continue
     const readings = p.lines.map((l) => l.read || stripTags(l.jp))
-    return {
-      id: p.id,
+    const base = {
       title: p.title.split(' ─ ')[1]?.split('（')[0] ?? p.title,
       play: readings.join('。'),
       reveal: p.lines.map((l, i) => ({ read: readings[i], zh: l.zh })),
-      q: p.quiz!.q,
-      answer: p.quiz!.answer,
-      options: p.quiz!.options,
     }
-  })
+    if (p.quiz) {
+      out.push({ ...base, id: p.id, q: p.quiz.q, answer: p.quiz.answer, options: p.quiz.options })
+    }
+    extra.forEach((u, i) => {
+      out.push({ ...base, id: `${p.id}:u${u.id ?? i}`, q: u.q, answer: u.answer, options: u.options })
+    })
+  }
+  return out
 }
 
-type ListenSub = 'menu' | 'sentence' | 'para' | 'response' | 'expression'
+type ListenSub = 'menu' | 'sentence' | 'para' | 'response' | 'expression' | 'gen'
 
 const LISTEN_MENU: {
   key: ListenSub
@@ -224,6 +248,7 @@ function ListenComprehension() {
   if (sub === 'para') return <ParagraphQuiz onBack={back} />
   if (sub === 'response') return <ResponseQuiz onBack={back} />
   if (sub === 'expression') return <ExpressionQuiz onBack={back} />
+  if (sub === 'gen') return <ListenQGen onBack={back} />
   return (
     <div className="card">
       <div className="eyebrow">耳の修行 ─ 聞き取り（JLPT N5 題型）</div>
@@ -246,7 +271,130 @@ function ListenComprehension() {
           </button>
         ))}
       </div>
+      <div className="spacer" />
+      <button className="btn ghost small" onClick={() => setSub('gen')}>
+        🤖 用 AI 出更多段落理解題
+      </button>
+      <p className="hint" style={{ marginTop: 6 }}>
+        AI 只寫「中文問題與選項」、疊在既有短文上（日文不由 AI 生）；你採用後才併入「段落對話」。
+      </p>
     </div>
+  )
+}
+
+/** 段落可出題清單：帶內建 quiz 的短文（音檔＋逐行中文已驗證），供 AI 疊加中文理解題。 */
+const GEN_PASSAGES: PassageForGen[] = PASSAGES.filter((p) => p.quiz).map((p) => ({
+  id: p.id,
+  title: p.title.split(' ─ ')[1]?.split('（')[0] ?? p.title,
+  lines: p.lines.map((l) => ({ jp: l.read || stripTags(l.jp), zh: l.zh })),
+}))
+
+// AI 段落理解題生成＋審核：LLM 只生「中文問題/選項」疊在已驗證短文上，採用才入段落池。
+function ListenQGen({ onBack }: { onBack: () => void }) {
+  const [pid, setPid] = useState<string>(GEN_PASSAGES[0]?.id ?? '')
+  const [loading, setLoading] = useState(false)
+  const [cands, setCands] = useState<ListenQCandidate[]>([])
+  const [adopted, setAdopted] = useState(0)
+  const passage = GEN_PASSAGES.find((p) => p.id === pid)
+
+  async function run() {
+    if (!passage) return
+    setLoading(true)
+    try {
+      const qs = await generateListenQuestions(passage, 3)
+      if (qs.length === 0) toast('沒有產生可用的題目')
+      setCands(qs)
+    } catch (e) {
+      const err = (e as Error).message
+      let msg = '生成失敗：' + err
+      if (err === 'no-key') msg = '尚未設定 Gemini 金鑰——請到設定填入'
+      else if (err.startsWith('gemini-http-4')) msg = 'Gemini 金鑰無效或額度用盡 — 請到設定確認'
+      else if (err.startsWith('gemini-http') || err === 'gemini-empty') msg = 'Gemini 連線失敗，請稍後再試'
+      else if (err === 'gemini-bad-json') msg = 'Gemini 回應格式異常，請再試一次'
+      toast(msg)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function adopt(c: ListenQCandidate) {
+    if (!passage) return
+    await adoptListenQ(passage.id, c)
+    setCands((prev) => prev.filter((x) => x !== c))
+    setAdopted((n) => n + 1)
+    toast('已採用，加入「段落對話」題庫')
+  }
+  function reject(c: ListenQCandidate) {
+    setCands((prev) => prev.filter((x) => x !== c))
+  }
+
+  return (
+    <>
+      <div className="card">
+        <div className="row between">
+          <div className="eyebrow">聞き取り ─ AI 段落理解題</div>
+          <button className="btn small ghost" onClick={onBack}>
+            返回
+          </button>
+        </div>
+        <p className="sub">
+          選一篇短文，AI 依內容出「中文理解題」（<b>只生中文、日文不改</b>）。
+          <b>採用後才會併入</b>段落對話題庫——你是最後把關。
+        </p>
+        <select
+          value={pid}
+          onChange={(e) => {
+            setPid(e.target.value)
+            setCands([])
+          }}
+        >
+          {GEN_PASSAGES.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.title}
+            </option>
+          ))}
+        </select>
+        <div className="spacer" />
+        <button className="btn" onClick={() => void run()} disabled={loading}>
+          {loading ? '生成中…' : '✨ 生成 3 題候選'}
+        </button>
+      </div>
+
+      {cands.map((c, i) => (
+        <div className="card" key={i}>
+          <div className="sent" style={{ fontSize: 17 }}>
+            {c.q}
+          </div>
+          <div style={{ marginTop: 6 }}>
+            {c.options.map((o) => (
+              <div key={o} className={`rline ${o === c.answer ? 'open' : ''}`}>
+                <div className="jp" style={{ fontFamily: 'inherit', fontSize: 15 }}>
+                  {o === c.answer ? '✓ ' : '　'}
+                  {o}
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="spacer" />
+          <div className="row between">
+            <button className="btn small ghost" onClick={() => reject(c)}>
+              退回
+            </button>
+            <button className="btn small" onClick={() => void adopt(c)}>
+              採用 ✓
+            </button>
+          </div>
+        </div>
+      ))}
+
+      {adopted > 0 && (
+        <div className="card">
+          <p className="sub center">
+            本次已採用 <b>{adopted}</b> 題，已併入「段落對話」。回上一層開始練習。
+          </p>
+        </div>
+      )}
+    </>
   )
 }
 
@@ -479,10 +627,18 @@ function ParagraphQuiz({ onBack }: { onBack: () => void }) {
   const it = items[n - 1]
 
   useEffect(() => {
-    const chosen = pickParagraphs(buildParaPool(), 3)
-    setItems(chosen)
-    setN(1)
-    window.setTimeout(() => speak(chosen[0].play, rate), 400)
+    let cancelled = false
+    void (async () => {
+      const userQs = await listUserListenQ()
+      if (cancelled) return
+      const chosen = pickParagraphs(buildParaPool(userQs), 3)
+      setItems(chosen)
+      setN(1)
+      window.setTimeout(() => speak(chosen[0].play, rate), 400)
+    })()
+    return () => {
+      cancelled = true
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 

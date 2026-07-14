@@ -82,6 +82,19 @@ export interface GenCandidate {
   createdAt: number
 }
 
+/**
+ * 採用入庫的「段落理解題」（LLM 只生中文問題/選項，疊在已驗證短文上）。
+ * 日文題材＝data/passages 的短文（不由 LLM 生）；此表只存中文 Q/選項與所屬短文 id。
+ */
+export interface UserListenQ {
+  id?: number
+  passageId: string // data/passages 的 Passage.id
+  q: string // 中文問題
+  options: string[] // 中文選項（含正解）
+  answer: string // 正解（options 之一）
+  createdAt: number
+}
+
 /** N5 模擬測驗一次作答的結果（計分與弱項分析） */
 export interface QuizResult {
   id?: number
@@ -102,6 +115,7 @@ export class MichiDB extends Dexie {
   userPassages!: Table<UserPassage, number>
   genQueue!: Table<GenCandidate, number>
   quizResults!: Table<QuizResult, number>
+  userListenQ!: Table<UserListenQ, number>
 
   constructor() {
     super('nihongo-michi')
@@ -124,6 +138,9 @@ export class MichiDB extends Dexie {
     })
     this.version(5).stores({
       quizResults: '++id, ts',
+    })
+    this.version(6).stores({
+      userListenQ: '++id, passageId, createdAt',
     })
   }
 }

@@ -22,6 +22,7 @@
 | **v3.7** | **聽力理解**：耳の修行新增「聞き取り」——聽對話／情境句選中文意思、答後揭曉日文 |
 | **v3.8** | **段落聽解 + 短文情境分類**：聞き取り分句子/段落（聽整段對話答大意）；短文依基礎/旅遊/生活/商業分組 |
 | **v3.9** | **JLPT 聴解題型**：聞き取り重構為 N5 四大題型選單，新增即時応答（聽短問選回應）、発話表現（看情境選說法） |
+| **v3.10** | **AI 段落理解題（LLM 只生中文）**：Gemini 只寫中文問題/選項、疊在已驗證短文上，審核採用後併入段落題庫 |
 
 連續天數與已學假名可從 v1 一鍵匯入，不歸零。
 
@@ -77,7 +78,7 @@ python test_article.py   # NHK 文章解析（fixture HTML）
 ```
 src/
   data/        內容（kana 142・vocab ~190 N5・sentences・pairs・pitch・passages）— 唯一事實來源
-  db/          Dexie schema(v5) + repo（任務計數、蓋章、卡片、發音紀錄、生成句、文章、TTS 快取、測驗結果）
+  db/          Dexie schema(v6) + repo（任務計數、蓋章、卡片、發音紀錄、生成句、文章、TTS 快取、測驗結果、段落理解題）
   srs/         FSRS 排程封裝（新卡 / 評級 / 到期 / 定著判定）
   audio/       tts（VOICEVOX ▸ 原生 ▸ Web Speech 門面 + Dexie 快取）、scorer（whisper ▸ 原生/Web ASR ▸ 自評）
   lib/         sidecar（base URL 抽象）、llm（Gemini 直連 + 對話）、llmParse（純解析）、content（生成 client + i+1 已學詞）、
@@ -96,7 +97,7 @@ docs/          ANDROID_RELEASE_PLAN、PRIVACY_POLICY、PLAY_LISTING
 ## 主要功能
 
 - **三軌 FSRS**：假名與詞彙共用 ts-fsrs 間隔重複；詞彙隨假名進度解鎖，不冒出還沒學到的字。
-- **聴く：辨音＋聞き取り（JLPT 題型）＋重音**：辨音（最小對立組）；**聞き取り貼近 JLPT N5 四大題型**——句子聽解（ポイント理解）、段落對話（課題理解）、即時応答（聽短問選回應）、発話表現（看情境選說法），題材全來自已驗證資料、不經 LLM；重音（東京式高低型視覺化，規則生成）。
+- **聴く：辨音＋聞き取り（JLPT 題型）＋重音**：辨音（最小對立組）；**聞き取り貼近 JLPT N5 四大題型**——句子聽解（ポイント理解）、段落對話（課題理解）、即時応答（聽短問選回應）、発話表現（看情境選說法），題材全來自已驗證資料、不經 LLM；重音（東京式高低型視覺化，規則生成）。段落理解題還可用 **AI 自製更多**——Gemini 只寫中文問題/選項、疊在已驗證短文上，你採用後併入題庫（日文題材不由 AI 生）。
 - **分級閱讀依情境分類**：短文分基礎／旅遊／生活／商業四類，含中文對照與逐字上色。
 - **跟讀三段式評分**：whisper（5090）→ 原生/瀏覽器 ASR → 自評，附 mora 級逐拍診斷（促音漏發、濁音清化上色）。
 - **分級閱讀 + 時事**：靜態短文＋**NHK やさしいニュース 導入**（注音繼承 NHK 人工標註，LLM 只補中文對照），中文對照可整篇切換。
@@ -111,8 +112,8 @@ docs/          ANDROID_RELEASE_PLAN、PRIVACY_POLICY、PLAY_LISTING
 | 層級 | 指令 | 結果 |
 |--|--|--|
 | 建置（strict） | `npm run build` | ✅ 綠燈，PWA SW 生成 |
-| 前端邏輯 | `npm test` | ✅ 103 / 103 |
-| 瀏覽器 E2E | `npm run test:e2e` | ✅ 37 / 37 |
+| 前端邏輯 | `npm test` | ✅ 113 / 113 |
+| 瀏覽器 E2E | `npm run test:e2e` | ✅ 39 / 39 |
 | 後端評分 | `python sidecar/test_score.py` | ✅ 4 / 4 |
 | 後端文章解析 | `python sidecar/test_article.py` | ✅ 13 / 13 |
 | Android 殼可編譯 | GitHub Actions `android` job（`gradlew assembleDebug`） | ✅ |

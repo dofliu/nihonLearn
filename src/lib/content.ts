@@ -1,7 +1,9 @@
-import { db, type UserSentence, type GenCandidate } from '../db/schema'
+import { db, type UserSentence, type GenCandidate, type UserListenQ } from '../db/schema'
 import { VOCAB } from '../data/vocab'
 import { hasLLM, generateJSON } from './llm'
+import { parseListenQuestions, type ListenQCandidate } from './llmParse'
 export { analyzeCoverage, type Coverage } from './coverage'
+export type { ListenQCandidate } from './llmParse'
 
 export interface Candidate {
   jp: string
@@ -154,4 +156,57 @@ export async function getUserSentences(lv?: 1 | 2 | 3): Promise<UserSentence[]> 
 
 export async function deleteUserSentence(id: number): Promise<void> {
   await db.userSentences.delete(id)
+}
+
+// ── 段落理解題：LLM 只寫「中文問題/選項」，疊在已驗證短文上 ──
+// 日文題材＝data/passages 短文（不由 LLM 生）；生成物一律經審核採用才入段落聽解池。
+
+export interface PassageForGen {
+  id: string
+  title: string
+  lines: { jp: string; zh: string; read?: string }[]
+}
+
+/**
+ * 依一篇已驗證短文，請 Gemini 生「中文理解題」（中文問題＋3~4 中文選項，答案須由內容直接支持）。
+ * 只生中文——日文不改寫、不新增。無金鑰 → 丟 'no-key' 讓 UI 提示去設定。
+ */
+export async function generateListenQuestions(
+  passage: PassageForGen,
+  n = 3,
+): Promise<ListenQCandidate[]> {
+  if (!hasLLM()) throw new Error('no-key')
+  const body = passage.lines.map((l, i) => `${i + 1}. ${l.jp}（${l.zh}）`).join('\n')
+  const system =
+    '你是日語聽力測驗出題老師，服務對象是中文母語學習者。' +
+    '嚴格遵守：(1) 只輸出「中文」的問題與「中文」選項，' +
+    '不要輸出、改寫或新增任何日文；(2) 問題與正解必須「由短文內容直接支持」，' +
+    '不可推測短文沒提到的資訊；(3) 每題 4 個中文選項、只有 1 個正確，誘答要合理但明確為錯；' +
+    '(4) 題型以「大意／場景／說話者要做什麼／細節」為主；(5) 只輸出 JSON，無任何解說或 markdown。'
+  const user =
+    `以下是一段日文短文（附中文對照），逐行列出：\n${body}\n\n` +
+    `請出 ${n} 道中文理解題。JSON 格式：\n` +
+    '{"questions":[{"q":"中文問題","options":["中文選項1","中文選項2","中文選項3","中文選項4"],"answer":"正解（必須是 options 之一）"}]}'
+  const j = await generateJSON(system, user)
+  return parseListenQuestions(j).slice(0, n)
+}
+
+/** 採用一題 → 寫入段落聽解池（與所屬短文綁定）。 */
+export async function adoptListenQ(passageId: string, c: ListenQCandidate): Promise<void> {
+  const row: UserListenQ = {
+    passageId,
+    q: c.q,
+    options: c.options,
+    answer: c.answer,
+    createdAt: Date.now(),
+  }
+  await db.userListenQ.add(row)
+}
+
+export async function listUserListenQ(): Promise<UserListenQ[]> {
+  return db.userListenQ.orderBy('createdAt').toArray()
+}
+
+export async function deleteUserListenQ(id: number): Promise<void> {
+  await db.userListenQ.delete(id)
 }
