@@ -14,6 +14,7 @@ import { gatingChars, isVocabUnlocked } from '../src/lib/vocabGate.ts'
 import { stripJsonFences, extractText, chatContents } from '../src/lib/llmParse.ts'
 import { generateQuiz, seededRng, MIN_POOL } from '../src/lib/quiz.ts'
 import { karaokeChars, activeCharIndices } from '../src/lib/karaoke.ts'
+import { listeningQuestions, LISTEN_MIN_POOL, type ListenItem } from '../src/lib/listening.ts'
 
 let pass = 0
 let fail = 0
@@ -182,6 +183,24 @@ console.log('=== 5f. 朗讀逐字上色對齊 ===')
   const w = activeCharIndices(spaced, 0, 0)
   ok('未知長度：高亮 start 所在的詞', w.has(0) && w.has(1) && w.has(2) && !w.has(3))
   ok('空白不被高亮', !activeCharIndices(spaced, 0, 3).has(3))
+}
+
+console.log('=== 5g. 聽力理解出題 ===')
+{
+  const pool: ListenItem[] = Array.from({ length: 12 }, (_, i) => ({
+    play: `ぶん${i}`,
+    reveal: `ぶん${i}`,
+    zh: `中文${i}`,
+  }))
+  ok('LISTEN_MIN_POOL 為 4', LISTEN_MIN_POOL === 4)
+  ok('不足 4 句 → 空', listeningQuestions(pool.slice(0, 3), 5, seededRng(1)).length === 0)
+  const qs = listeningQuestions(pool, 5, seededRng(3))
+  ok('產出 5 題', qs.length === 5)
+  ok('每題四選項', qs.every((x) => x.options.length === 4))
+  ok('正解在選項內', qs.every((x) => x.options.includes(x.answer)))
+  ok('選項互異', qs.every((x) => new Set(x.options).size === 4))
+  ok('answer 對得上某句 zh', qs.every((x) => pool.some((p) => p.zh === x.answer)))
+  ok('seed 相同可重現', JSON.stringify(listeningQuestions(pool, 5, seededRng(9))) === JSON.stringify(listeningQuestions(pool, 5, seededRng(9))))
 }
 
 console.log('=== 6. 資料完整性 ===')
