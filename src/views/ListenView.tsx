@@ -1,5 +1,8 @@
 import { useState, useCallback, useRef } from 'react'
 import { PAIRS, type MinimalPair } from '../data/pairs'
+import { SENTS } from '../data/sentences'
+import { PASSAGES } from '../data/passages'
+import { listeningQuestions, type ListenItem, type ListenQuestion } from '../lib/listening'
 import { speak } from '../audio/tts'
 import { useApp } from '../state/store'
 import { toast } from '../components/ui'
@@ -10,8 +13,10 @@ interface Round {
   ans: 'a' | 'b'
 }
 
+type Mode = 'sound' | 'comprehension' | 'pitch'
+
 export function ListenView() {
-  const [mode, setMode] = useState<'sound' | 'pitch'>('sound')
+  const [mode, setMode] = useState<Mode>('sound')
   const bump = useApp((s) => s.bump)
   const [active, setActive] = useState(false)
   const [n, setN] = useState(0)
@@ -72,16 +77,24 @@ export function ListenView() {
       <div className="card">
         <div className="lvTabs" style={{ marginBottom: 0 }}>
           <button className={mode === 'sound' ? 'on' : ''} onClick={() => setMode('sound')}>
-            辨音（清濁・長短）
+            辨音
+          </button>
+          <button
+            className={mode === 'comprehension' ? 'on' : ''}
+            onClick={() => setMode('comprehension')}
+          >
+            聞き取り
           </button>
           <button className={mode === 'pitch' ? 'on' : ''} onClick={() => setMode('pitch')}>
-            重音（高低）
+            重音
           </button>
         </div>
       </div>
 
       {mode === 'pitch' ? (
         <PitchView />
+      ) : mode === 'comprehension' ? (
+        <ListenComprehension />
       ) : (
         <>
           <div className="card">
@@ -131,6 +144,113 @@ export function ListenView() {
         </div>
       )}
         </>
+      )}
+    </>
+  )
+}
+
+// ---------- 聞き取り（聽力理解）----------
+function stripTags(s: string): string {
+  return s.replace(/<[^>]+>/g, '')
+}
+
+/** 聽力題庫：例句＋情境短文的每一行（皆有中文對照）。 */
+function buildPool(): ListenItem[] {
+  const fromSents: ListenItem[] = SENTS.map((s) => ({ play: s.jp, reveal: s.jp, zh: s.zh }))
+  const fromPassages: ListenItem[] = PASSAGES.flatMap((p) =>
+    p.lines.map((l) => {
+      const kana = l.read || stripTags(l.jp)
+      return { play: kana, reveal: kana, zh: l.zh }
+    }),
+  )
+  return [...fromSents, ...fromPassages]
+}
+
+function ListenComprehension() {
+  const bump = useApp((s) => s.bump)
+  const rate = useApp((s) => s.rate)
+  const [active, setActive] = useState(false)
+  const [qs, setQs] = useState<ListenQuestion[]>([])
+  const [n, setN] = useState(0) // 1-based 題號
+  const [picked, setPicked] = useState<string | null>(null)
+
+  const q = qs[n - 1]
+
+  function play(text: string) {
+    speak(text, rate)
+  }
+
+  function start() {
+    const generated = listeningQuestions(buildPool(), 5)
+    setQs(generated)
+    setN(1)
+    setPicked(null)
+    setActive(true)
+    window.setTimeout(() => play(generated[0].play), 350)
+  }
+
+  function answer(opt: string) {
+    if (!q || picked) return
+    setPicked(opt)
+    void bump('listen', 1)
+    window.setTimeout(() => {
+      if (n >= qs.length) {
+        setActive(false)
+        toast('聞き取り 完成！')
+        return
+      }
+      const next = n + 1
+      setN(next)
+      setPicked(null)
+      window.setTimeout(() => play(qs[next - 1].play), 300)
+    }, 1600)
+  }
+
+  return (
+    <>
+      <div className="card">
+        <div className="eyebrow">耳の修行 ─ 聞き取り（聽力理解）</div>
+        <h2>聽句選意思</h2>
+        <p className="sub">
+          聽一句對話／情境句，選出正確的中文意思。答完會揭曉日文——
+          聽不懂沒關係，對照著再聽一次，耳朵會慢慢跟上。
+        </p>
+        <div className="spacer" />
+        {!active && (
+          <button className="btn" onClick={start}>
+            開始 5 題
+          </button>
+        )}
+      </div>
+
+      {active && q && (
+        <div className="card">
+          <div className="eyebrow">第 {n} / 5 題</div>
+          <div className="row center" style={{ margin: '6px 0 14px' }}>
+            <button className="btn red" onClick={() => play(q.play)}>
+              🔊 再聽一次
+            </button>
+          </div>
+          {picked && (
+            <div className="sent" style={{ fontSize: 20, marginBottom: 6 }}>
+              {q.reveal}
+            </div>
+          )}
+          <div>
+            {q.options.map((opt) => {
+              let cls = 'qopt big'
+              if (picked) {
+                if (opt === q.answer) cls += ' ok'
+                else if (opt === picked) cls += ' ng'
+              }
+              return (
+                <button key={opt} className={cls} onClick={() => answer(opt)}>
+                  {opt}
+                </button>
+              )
+            })}
+          </div>
+        </div>
       )}
     </>
   )

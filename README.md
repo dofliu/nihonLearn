@@ -19,6 +19,7 @@
 | **v3.4** | **N5 模擬測驗**：從已學詞卡自動出題（意味/語彙/聽力/重組），計分＋弱項分析 |
 | **v3.5** | **朗讀逐字上色**：朗讀時日文逐字卡拉OK上色（真實 timing：Web Speech boundary／原生 onRangeStart） |
 | **v3.6** | **AI 助教**（Gemini 對話、grounding 已學詞、僅供參考、不寫入學習庫）＋ **vocab i+1 個人化** |
+| **v3.7** | **聽力理解**：耳の修行新增「聞き取り」——聽對話／情境句選中文意思、答後揭曉日文 |
 
 連續天數與已學假名可從 v1 一鍵匯入，不歸零。
 
@@ -93,7 +94,7 @@ docs/          ANDROID_RELEASE_PLAN、PRIVACY_POLICY、PLAY_LISTING
 ## 主要功能
 
 - **三軌 FSRS**：假名與詞彙共用 ts-fsrs 間隔重複；詞彙隨假名進度解鎖，不冒出還沒學到的字。
-- **辨音＋重音道場**：最小對立組聽辨、東京式高低型視覺化（規則生成、無正確性風險）。
+- **聴く三模式**：辨音（最小對立組）、**聞き取り（聽力理解：聽對話/情境句選中文意思）**、重音（東京式高低型視覺化，規則生成、無正確性風險）。
 - **跟讀三段式評分**：whisper（5090）→ 原生/瀏覽器 ASR → 自評，附 mora 級逐拍診斷（促音漏發、濁音清化上色）。
 - **分級閱讀 + 時事**：靜態短文＋**NHK やさしいニュース 導入**（注音繼承 NHK 人工標註，LLM 只補中文對照），中文對照可整篇切換。
 - **AI 內容生成 + 審核佇列**：Gemini 依已學詞彙生成候選（每句 ≤1 新詞）＋程式覆蓋率檢核；持久化佇列，退回前不消失；採用才入庫。
@@ -107,8 +108,8 @@ docs/          ANDROID_RELEASE_PLAN、PRIVACY_POLICY、PLAY_LISTING
 | 層級 | 指令 | 結果 |
 |--|--|--|
 | 建置（strict） | `npm run build` | ✅ 綠燈，PWA SW 生成 |
-| 前端邏輯 | `npm test` | ✅ 72 / 72 |
-| 瀏覽器 E2E | `npm run test:e2e` | ✅ 33 / 33 |
+| 前端邏輯 | `npm test` | ✅ 80 / 80 |
+| 瀏覽器 E2E | `npm run test:e2e` | ✅ 34 / 34 |
 | 後端評分 | `python sidecar/test_score.py` | ✅ 4 / 4 |
 | 後端文章解析 | `python sidecar/test_article.py` | ✅ 13 / 13 |
 | Android 殼可編譯 | GitHub Actions `android` job（`gradlew assembleDebug`） | ✅ |
