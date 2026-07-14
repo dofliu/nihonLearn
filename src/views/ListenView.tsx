@@ -1,8 +1,13 @@
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
 import { PAIRS, type MinimalPair } from '../data/pairs'
 import { SENTS } from '../data/sentences'
 import { PASSAGES } from '../data/passages'
-import { listeningQuestions, type ListenItem, type ListenQuestion } from '../lib/listening'
+import {
+  listeningQuestions,
+  pickParagraphs,
+  type ListenItem,
+  type ListenQuestion,
+} from '../lib/listening'
 import { speak } from '../audio/tts'
 import { useApp } from '../state/store'
 import { toast } from '../components/ui'
@@ -154,7 +159,7 @@ function stripTags(s: string): string {
   return s.replace(/<[^>]+>/g, '')
 }
 
-/** 聽力題庫：例句＋情境短文的每一行（皆有中文對照）。 */
+/** 句子聽解題庫：例句＋情境短文的每一行（皆有中文對照）。 */
 function buildPool(): ListenItem[] {
   const fromSents: ListenItem[] = SENTS.map((s) => ({ play: s.jp, reveal: s.jp, zh: s.zh }))
   const fromPassages: ListenItem[] = PASSAGES.flatMap((p) =>
@@ -166,28 +171,72 @@ function buildPool(): ListenItem[] {
   return [...fromSents, ...fromPassages]
 }
 
+interface ParaItem {
+  id: string
+  title: string
+  play: string // 整段朗讀
+  reveal: { read: string; zh: string }[]
+  q: string
+  answer: string
+  options: string[]
+}
+
+/** 段落聽解題庫：附理解題的短文（整段朗讀 → 回答大意/場景）。 */
+function buildParaPool(): ParaItem[] {
+  return PASSAGES.filter((p) => p.quiz).map((p) => {
+    const readings = p.lines.map((l) => l.read || stripTags(l.jp))
+    return {
+      id: p.id,
+      title: p.title.split(' ─ ')[1]?.split('（')[0] ?? p.title,
+      play: readings.join('。'),
+      reveal: p.lines.map((l, i) => ({ read: readings[i], zh: l.zh })),
+      q: p.quiz!.q,
+      answer: p.quiz!.answer,
+      options: p.quiz!.options,
+    }
+  })
+}
+
 function ListenComprehension() {
+  const [sub, setSub] = useState<'menu' | 'sentence' | 'para'>('menu')
+  if (sub === 'sentence') return <SentenceQuiz onBack={() => setSub('menu')} />
+  if (sub === 'para') return <ParagraphQuiz onBack={() => setSub('menu')} />
+  return (
+    <div className="card">
+      <div className="eyebrow">耳の修行 ─ 聞き取り（聽力理解）</div>
+      <h2>聽日文，選意思</h2>
+      <p className="sub">
+        選一種練習：<b>句子</b>聽單句選意思；<b>段落</b>聽一整段對話後回答大意／場景。
+        答完會揭曉日文，對照著再聽一次，耳朵會慢慢跟上。
+      </p>
+      <div className="spacer" />
+      <div className="row">
+        <button className="btn" onClick={() => setSub('sentence')}>
+          句子（5 題）
+        </button>
+        <button className="btn ghost" onClick={() => setSub('para')}>
+          段落對話（3 題）
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function SentenceQuiz({ onBack }: { onBack: () => void }) {
   const bump = useApp((s) => s.bump)
   const rate = useApp((s) => s.rate)
-  const [active, setActive] = useState(false)
   const [qs, setQs] = useState<ListenQuestion[]>([])
-  const [n, setN] = useState(0) // 1-based 題號
+  const [n, setN] = useState(0)
   const [picked, setPicked] = useState<string | null>(null)
-
   const q = qs[n - 1]
 
-  function play(text: string) {
-    speak(text, rate)
-  }
-
-  function start() {
+  useEffect(() => {
     const generated = listeningQuestions(buildPool(), 5)
     setQs(generated)
     setN(1)
-    setPicked(null)
-    setActive(true)
-    window.setTimeout(() => play(generated[0].play), 350)
-  }
+    window.setTimeout(() => speak(generated[0].play, rate), 350)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   function answer(opt: string) {
     if (!q || picked) return
@@ -195,63 +244,129 @@ function ListenComprehension() {
     void bump('listen', 1)
     window.setTimeout(() => {
       if (n >= qs.length) {
-        setActive(false)
         toast('聞き取り 完成！')
+        onBack()
         return
       }
       const next = n + 1
       setN(next)
       setPicked(null)
-      window.setTimeout(() => play(qs[next - 1].play), 300)
+      window.setTimeout(() => speak(qs[next - 1].play, rate), 300)
     }, 1600)
   }
 
+  if (!q) return null
   return (
-    <>
-      <div className="card">
-        <div className="eyebrow">耳の修行 ─ 聞き取り（聽力理解）</div>
-        <h2>聽句選意思</h2>
-        <p className="sub">
-          聽一句對話／情境句，選出正確的中文意思。答完會揭曉日文——
-          聽不懂沒關係，對照著再聽一次，耳朵會慢慢跟上。
-        </p>
-        <div className="spacer" />
-        {!active && (
-          <button className="btn" onClick={start}>
-            開始 5 題
-          </button>
-        )}
+    <div className="card">
+      <div className="row between">
+        <div className="eyebrow">聞き取り　第 {n} / {qs.length} 題</div>
+        <button className="btn small ghost" onClick={onBack}>
+          返回
+        </button>
       </div>
-
-      {active && q && (
-        <div className="card">
-          <div className="eyebrow">第 {n} / 5 題</div>
-          <div className="row center" style={{ margin: '6px 0 14px' }}>
-            <button className="btn red" onClick={() => play(q.play)}>
-              🔊 再聽一次
-            </button>
-          </div>
-          {picked && (
-            <div className="sent" style={{ fontSize: 20, marginBottom: 6 }}>
-              {q.reveal}
-            </div>
-          )}
-          <div>
-            {q.options.map((opt) => {
-              let cls = 'qopt big'
-              if (picked) {
-                if (opt === q.answer) cls += ' ok'
-                else if (opt === picked) cls += ' ng'
-              }
-              return (
-                <button key={opt} className={cls} onClick={() => answer(opt)}>
-                  {opt}
-                </button>
-              )
-            })}
-          </div>
+      <div className="row center" style={{ margin: '6px 0 14px' }}>
+        <button className="btn red" onClick={() => speak(q.play, rate)}>
+          🔊 再聽一次
+        </button>
+      </div>
+      {picked && (
+        <div className="sent" style={{ fontSize: 20, marginBottom: 6 }}>
+          {q.reveal}
         </div>
       )}
-    </>
+      <div>
+        {q.options.map((opt) => {
+          let cls = 'qopt big'
+          if (picked) {
+            if (opt === q.answer) cls += ' ok'
+            else if (opt === picked) cls += ' ng'
+          }
+          return (
+            <button key={opt} className={cls} onClick={() => answer(opt)}>
+              {opt}
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+function ParagraphQuiz({ onBack }: { onBack: () => void }) {
+  const bump = useApp((s) => s.bump)
+  const rate = useApp((s) => s.rate)
+  const [items, setItems] = useState<ParaItem[]>([])
+  const [n, setN] = useState(0)
+  const [picked, setPicked] = useState<string | null>(null)
+  const it = items[n - 1]
+
+  useEffect(() => {
+    const chosen = pickParagraphs(buildParaPool(), 3)
+    setItems(chosen)
+    setN(1)
+    window.setTimeout(() => speak(chosen[0].play, rate), 400)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  function answer(opt: string) {
+    if (!it || picked) return
+    setPicked(opt)
+    void bump('listen', 1)
+    window.setTimeout(() => {
+      if (n >= items.length) {
+        toast('段落聽解 完成！')
+        onBack()
+        return
+      }
+      const next = n + 1
+      setN(next)
+      setPicked(null)
+      window.setTimeout(() => speak(items[next - 1].play, rate), 400)
+    }, 2200)
+  }
+
+  if (!it) return null
+  return (
+    <div className="card">
+      <div className="row between">
+        <div className="eyebrow">段落聽解　第 {n} / {items.length} 題</div>
+        <button className="btn small ghost" onClick={onBack}>
+          返回
+        </button>
+      </div>
+      <div className="row center" style={{ margin: '8px 0 12px' }}>
+        <button className="btn red" onClick={() => speak(it.play, rate)}>
+          ▶ 播放對話
+        </button>
+      </div>
+      <p className="sub center" style={{ fontSize: 15 }}>
+        {it.q}
+      </p>
+      <div>
+        {it.options.map((opt) => {
+          let cls = 'qopt big'
+          if (picked) {
+            if (opt === it.answer) cls += ' ok'
+            else if (opt === picked) cls += ' ng'
+          }
+          return (
+            <button key={opt} className={cls} onClick={() => answer(opt)}>
+              {opt}
+            </button>
+          )
+        })}
+      </div>
+      {picked && (
+        <div style={{ marginTop: 10 }}>
+          <div className="sub" style={{ marginBottom: 4 }}>對話內容：</div>
+          {it.reveal.map((l, i) => (
+            <div key={i} className="rline open">
+              <div className="jp">{l.read}</div>
+              <div className="zh">{l.zh}</div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   )
 }

@@ -3,16 +3,30 @@ export interface PassageLine {
   zh: string
   read?: string // 純假名讀音（TTS 用；缺省 fallback 到去標籤的 jp）
 }
+
+/** 短文分類（讀む頁分組、段落聽解取材） */
+export type PassageCat = '基礎' | '旅遊' | '生活' | '商業'
+
+/** 段落聽解的理解題（大意/場景，中文選擇題；答案由短文內容直接支持，無正確性風險） */
+export interface PassageQuiz {
+  q: string
+  options: string[] // 4 個中文選項（含正解）
+  answer: string
+}
+
 export interface Passage {
   id: string
   title: string
+  cat: PassageCat
   ruby?: boolean
   lines: PassageLine[]
+  quiz?: PassageQuiz
 }
 
 export const PASSAGES: Passage[] = [
   {
     id: 'p1',
+    cat: '基礎',
     title: '壱 ─ じこしょうかい（自我介紹・全假名）',
     lines: [
       { jp: 'わたしは たいわんじん です。', zh: '我是台灣人。' },
@@ -21,9 +35,15 @@ export const PASSAGES: Passage[] = [
       { jp: 'にほんの アニメが すきです。', zh: '我喜歡日本動漫。' },
       { jp: 'どうぞ よろしく おねがいします。', zh: '請多多指教。' },
     ],
+    quiz: {
+      q: '關於這個人，正確的是？',
+      options: ['正在學日文', '是日本人', '討厭動漫', '是老師'],
+      answer: '正在學日文',
+    },
   },
   {
     id: 'p2',
+    cat: '基礎',
     title: '弐 ─ まいにちの しゅうかん（每天的習慣）',
     lines: [
       { jp: 'まいあさ、コーヒーを のみます。', zh: '每天早上喝咖啡。' },
@@ -31,9 +51,15 @@ export const PASSAGES: Passage[] = [
       { jp: 'すこしずつ、まえに すすみます。', zh: '一點一點，向前邁進。' },
       { jp: 'きょうも がんばりましょう。', zh: '今天也加油吧。' },
     ],
+    quiz: {
+      q: '這個人每天早上做什麼？',
+      options: ['喝咖啡', '跑步', '看電視', '睡到中午'],
+      answer: '喝咖啡',
+    },
   },
   {
     id: 'p3',
+    cat: '基礎',
     title: '参 ─ ことばの にんじゃ（言葉的忍者・附漢字）',
     ruby: true,
     lines: [
@@ -61,6 +87,7 @@ export const PASSAGES: Passage[] = [
   },
   {
     id: 'p4',
+    cat: '生活',
     title: '肆 ─ コンビニで かいもの（在超商購物・全假名）',
     lines: [
       { jp: 'コンビニに いきます。', zh: '去便利商店。' },
@@ -69,9 +96,15 @@ export const PASSAGES: Passage[] = [
       { jp: 'ぜんぶで ごひゃくえん でした。', zh: '總共五百日圓。' },
       { jp: 'ありがとう ございました。', zh: '謝謝惠顧。' },
     ],
+    quiz: {
+      q: '這段對話發生在哪裡？',
+      options: ['便利商店', '機場', '醫院', '學校'],
+      answer: '便利商店',
+    },
   },
   {
     id: 'p5',
+    cat: '生活',
     title: '伍 ─ たのしい しゅうまつ（快樂的週末・全假名）',
     lines: [
       { jp: 'どようびは やすみです。', zh: '星期六休息。' },
@@ -80,9 +113,15 @@ export const PASSAGES: Passage[] = [
       { jp: 'よるは いえで ほんを よみます。', zh: '晚上在家看書。' },
       { jp: 'とても たのしい いちにち でした。', zh: '是非常快樂的一天。' },
     ],
+    quiz: {
+      q: '這個人週末做了什麼？',
+      options: ['看電影和吃拉麵', '加班工作', '去醫院', '搬家'],
+      answer: '看電影和吃拉麵',
+    },
   },
   {
     id: 'p6',
+    cat: '基礎',
     title: '陸 ─ たびびと（旅人・附漢字）',
     ruby: true,
     lines: [
@@ -112,6 +151,7 @@ export const PASSAGES: Passage[] = [
   // ── 旅遊（応用会話・全假名）──
   {
     id: 'p7',
+    cat: '旅遊',
     title: '旅 ─ くうこうで（機場）',
     lines: [
       { jp: 'パスポートを みせて ください。', zh: '請出示護照。' },
@@ -119,9 +159,15 @@ export const PASSAGES: Passage[] = [
       { jp: 'にもつは これ だけです。', zh: '行李只有這些。' },
       { jp: 'しゅっぱつは なんじ ですか。', zh: '出發是幾點？' },
     ],
+    quiz: {
+      q: '這段對話發生在哪裡？',
+      options: ['機場', '餐廳', '飯店', '公司'],
+      answer: '機場',
+    },
   },
   {
     id: 'p8',
+    cat: '旅遊',
     title: '旅 ─ ホテルで（飯店）',
     lines: [
       { jp: 'チェックインを おねがいします。', zh: '我要辦入住。' },
@@ -129,9 +175,15 @@ export const PASSAGES: Passage[] = [
       { jp: 'へやは きんえん ですか。', zh: '房間是禁菸的嗎？' },
       { jp: 'あさごはんは なんじ からですか。', zh: '早餐從幾點開始？' },
     ],
+    quiz: {
+      q: '這段對話發生在哪裡？',
+      options: ['飯店', '機場', '醫院', '超商'],
+      answer: '飯店',
+    },
   },
   {
     id: 'p9',
+    cat: '旅遊',
     title: '旅 ─ みちを きく（問路）',
     lines: [
       { jp: 'すみません、えきは どこですか。', zh: '不好意思，車站在哪裡？' },
@@ -139,11 +191,17 @@ export const PASSAGES: Passage[] = [
       { jp: 'ふたつめの かどを みぎに まがります。', zh: '在第二個轉角右轉。' },
       { jp: 'あるいて じゅっぷん ぐらいです。', zh: '走路大約十分鐘。' },
     ],
+    quiz: {
+      q: '這個人在做什麼？',
+      options: ['問路', '點餐', '打電話預約', '自我介紹'],
+      answer: '問路',
+    },
   },
 
   // ── 生活（応用会話・全假名）──
   {
     id: 'p10',
+    cat: '生活',
     title: '活 ─ レストランで（餐廳）',
     lines: [
       { jp: 'メニューを みせて ください。', zh: '請給我看菜單。' },
@@ -151,9 +209,15 @@ export const PASSAGES: Passage[] = [
       { jp: 'おすすめは なんですか。', zh: '有什麼推薦的？' },
       { jp: 'おかいけい おねがいします。', zh: '麻煩結帳。' },
     ],
+    quiz: {
+      q: '這段對話發生在哪裡？',
+      options: ['餐廳', '飯店', '車站', '公司'],
+      answer: '餐廳',
+    },
   },
   {
     id: 'p11',
+    cat: '生活',
     title: '活 ─ びょうきの とき（生病時）',
     lines: [
       { jp: 'あたまが いたいです。', zh: '頭痛。' },
@@ -161,9 +225,15 @@ export const PASSAGES: Passage[] = [
       { jp: 'くすりを ください。', zh: '請給我藥。' },
       { jp: 'びょういんは どこですか。', zh: '醫院在哪裡？' },
     ],
+    quiz: {
+      q: '這個人怎麼了？',
+      options: ['生病不舒服', '肚子餓', '想睡覺', '迷路了'],
+      answer: '生病不舒服',
+    },
   },
   {
     id: 'p12',
+    cat: '生活',
     title: '活 ─ でんわで よやく（電話預約）',
     lines: [
       { jp: 'もしもし、よやくを おねがいします。', zh: '喂，我想預約。' },
@@ -171,11 +241,17 @@ export const PASSAGES: Passage[] = [
       { jp: 'ふたりです。', zh: '兩位。' },
       { jp: 'なまえは ドフです。', zh: '名字是 Dof。' },
     ],
+    quiz: {
+      q: '這個人在做什麼？',
+      options: ['打電話預約', '問路', '結帳', '自我介紹'],
+      answer: '打電話預約',
+    },
   },
 
   // ── 商業（応用会話・全假名・僅用最基本的固定敬語）──
   {
     id: 'p13',
+    cat: '商業',
     title: '商 ─ はじめまして（初次見面）',
     lines: [
       { jp: 'はじめまして。', zh: '初次見面。' },
@@ -183,9 +259,15 @@ export const PASSAGES: Passage[] = [
       { jp: 'どうぞ よろしく おねがいします。', zh: '請多多指教。' },
       { jp: 'こちらこそ、よろしく おねがいします。', zh: '彼此彼此，請多指教。' },
     ],
+    quiz: {
+      q: '這是什麼場合？',
+      options: ['初次見面打招呼', '道別', '吵架', '購物'],
+      answer: '初次見面打招呼',
+    },
   },
   {
     id: 'p14',
+    cat: '商業',
     title: '商 ─ かいしゃで（在公司）',
     lines: [
       { jp: 'おはよう ございます。', zh: '早安。' },
@@ -193,5 +275,13 @@ export const PASSAGES: Passage[] = [
       { jp: 'しつれいします。', zh: '打擾了／失陪了。' },
       { jp: 'おさきに しつれいします。', zh: '我先走一步了。' },
     ],
+    quiz: {
+      q: '這些是什麼場合的用語？',
+      options: ['公司職場', '餐廳', '機場', '醫院'],
+      answer: '公司職場',
+    },
   },
 ]
+
+/** 短文分類的固定顯示順序 */
+export const PASSAGE_CATS: PassageCat[] = ['基礎', '旅遊', '生活', '商業']

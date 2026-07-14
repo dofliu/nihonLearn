@@ -31,6 +31,20 @@ function shuffle<T>(arr: T[], rng: RNG): T[] {
 }
 
 /**
+ * 段落聽解：從「已附理解題」的題庫洗牌取 n 篇，並洗牌每篇的選項。
+ * 選項為預先撰寫（答案由短文內容直接支持），此處只負責選材與選項順序。
+ */
+export function pickParagraphs<T extends { options: string[] }>(
+  items: T[],
+  n: number,
+  rng: RNG = Math.random,
+): T[] {
+  return shuffle(items, rng)
+    .slice(0, n)
+    .map((it) => ({ ...it, options: shuffle(it.options, rng) }))
+}
+
+/**
  * 產生 n 題聽力理解。pool 不足 4 句 → 空陣列。
  * 每題取一句當目標，另從 pool 取 3 個「中文互異且不等於正解」的誘答。
  */
