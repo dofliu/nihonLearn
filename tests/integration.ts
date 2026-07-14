@@ -14,8 +14,9 @@ import { gatingChars, isVocabUnlocked } from '../src/lib/vocabGate.ts'
 import { stripJsonFences, extractText, chatContents } from '../src/lib/llmParse.ts'
 import { generateQuiz, seededRng, MIN_POOL } from '../src/lib/quiz.ts'
 import { karaokeChars, activeCharIndices } from '../src/lib/karaoke.ts'
-import { listeningQuestions, pickParagraphs, LISTEN_MIN_POOL, type ListenItem } from '../src/lib/listening.ts'
+import { listeningQuestions, pickParagraphs, responseQuestions, expressionQuestions, LISTEN_MIN_POOL, type ListenItem } from '../src/lib/listening.ts'
 import { PASSAGES, PASSAGE_CATS } from '../src/data/passages.ts'
+import { RESPONSES, EXPRESSIONS } from '../src/data/kaiwa.ts'
 
 let pass = 0
 let fail = 0
@@ -226,6 +227,31 @@ console.log('=== 5h. 短文分類與段落理解題 ===')
   ok('有理解題的短文 ≥ 8 篇', withQuiz.length >= 8)
   ok('理解題四選項且含正解', withQuiz.every((p) => p.quiz!.options.length === 4 && p.quiz!.options.includes(p.quiz!.answer)))
   ok('四個分類都有短文', PASSAGE_CATS.every((c) => PASSAGES.some((p) => p.cat === c)))
+}
+
+console.log('=== 5i. JLPT 題型：即時応答・発話表現 ===')
+{
+  // 資料完整性：正解不在誘答內、各題選項湊得到 3~4 個
+  ok('即時応答題庫 ≥ 10', RESPONSES.length >= 10)
+  ok('発話表現題庫 ≥ 10', EXPRESSIONS.length >= 10)
+  ok('即時応答 id 唯一', new Set(RESPONSES.map((r) => r.id)).size === RESPONSES.length)
+  ok('発話表現 id 唯一', new Set(EXPRESSIONS.map((e) => e.id)).size === EXPRESSIONS.length)
+  ok('即時応答正解不混入誘答', RESPONSES.every((r) => !r.distractors.includes(r.answer)))
+  ok('発話表現正解不混入誘答', EXPRESSIONS.every((e) => !e.distractors.includes(e.answer)))
+
+  const rq = responseQuestions(RESPONSES, 5, seededRng(4))
+  ok('即時応答產出 5 題', rq.length === 5)
+  ok('即時応答含正解', rq.every((x) => x.options.includes(x.answer)))
+  ok('即時応答選項互異', rq.every((x) => new Set(x.options).size === x.options.length))
+  ok('即時応答帶播放日文與中文', rq.every((x) => x.play && x.playZh && x.answerZh))
+  ok('即時応答 seed 可重現', JSON.stringify(responseQuestions(RESPONSES, 5, seededRng(7))) === JSON.stringify(responseQuestions(RESPONSES, 5, seededRng(7))))
+
+  const eq = expressionQuestions(EXPRESSIONS, 5, seededRng(6))
+  ok('発話表現產出 5 題', eq.length === 5)
+  ok('発話表現含正解', eq.every((x) => x.options.includes(x.answer)))
+  ok('発話表現選項互異', eq.every((x) => new Set(x.options).size === x.options.length))
+  ok('発話表現帶情境中文', eq.every((x) => x.situationZh && x.answerZh))
+  ok('n 大於題庫時不超量', expressionQuestions(EXPRESSIONS.slice(0, 3), 5, seededRng(1)).length === 3)
 }
 
 console.log('=== 6. 資料完整性 ===')

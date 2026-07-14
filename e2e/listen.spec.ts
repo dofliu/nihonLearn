@@ -79,6 +79,50 @@ test.describe('聴く：辨音與重音', () => {
     await expect(page.locator('.toast')).toContainText('段落聽解 完成！', { timeout: 15_000 })
   })
 
+  test('即時応答：聽短問 → 選回應 → 揭曉正解', async ({ page }) => {
+    await gotoApp(page)
+    await navTo(page, '聴く')
+
+    await page.locator('.lvTabs button', { hasText: '聞き取り' }).click()
+    await page.getByRole('button', { name: /即時応答/ }).click()
+
+    await expect(page.locator('.card .eyebrow', { hasText: '即時応答　第 1 / 5 題' })).toBeVisible()
+    await expect(page.locator('button.qopt')).toHaveCount(3)
+
+    await page.locator('button.qopt').first().click()
+    await expect(page.locator('main')).toContainText('正解')
+
+    for (let n = 2; n <= 5; n++) {
+      await expect(
+        page.locator('.card .eyebrow', { hasText: `第 ${n} / 5 題` }),
+      ).toBeVisible({ timeout: 15_000 })
+      await page.locator('button.qopt').first().click()
+    }
+    await expect(page.locator('.toast')).toContainText('即時応答 完成！', { timeout: 15_000 })
+  })
+
+  test('発話表現：看情境 → 選日文說法 → 揭曉正解', async ({ page }) => {
+    await gotoApp(page)
+    await navTo(page, '聴く')
+
+    await page.locator('.lvTabs button', { hasText: '聞き取り' }).click()
+    await page.getByRole('button', { name: /発話表現/ }).click()
+
+    await expect(page.locator('.card .eyebrow', { hasText: '発話表現　第 1 / 5 題' })).toBeVisible()
+    await expect(page.locator('button.qopt')).toHaveCount(3)
+
+    await page.locator('button.qopt').first().click()
+    await expect(page.locator('main')).toContainText('正解')
+
+    for (let n = 2; n <= 5; n++) {
+      await expect(
+        page.locator('.card .eyebrow', { hasText: `第 ${n} / 5 題` }),
+      ).toBeVisible({ timeout: 15_000 })
+      await page.locator('button.qopt').first().click()
+    }
+    await expect(page.locator('.toast')).toContainText('発話表現 完成！', { timeout: 15_000 })
+  })
+
   test('重音道場：高低型視覺化與型別測驗入口', async ({ page }) => {
     await gotoApp(page)
     await navTo(page, '聴く')

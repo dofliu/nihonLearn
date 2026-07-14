@@ -44,6 +44,64 @@ export function pickParagraphs<T extends { options: string[] }>(
     .map((it) => ({ ...it, options: shuffle(it.options, rng) }))
 }
 
+// ── JLPT 題型：即時応答・発話表現 ──
+// 選項＝正解＋誘答洗牌（各題自帶誘答，皆為真實日文句）。純選材與順序，無正確性風險。
+
+interface HasChoices {
+  answer: string
+  distractors: string[]
+}
+
+/** 從一題的正解＋誘答組出「至多 4 個、含正解、已洗牌」的選項。 */
+function buildChoices(item: HasChoices, rng: RNG): string[] {
+  const opts = [item.answer, ...item.distractors].slice(0, 4)
+  return shuffle(opts, rng)
+}
+
+export interface ResponseQuestion {
+  play: string // 播放的日文短問／招呼
+  playZh: string
+  answer: string // 正確回應（日文）
+  answerZh: string
+  options: string[] // 日文回應選項（含正解，已洗牌）
+}
+
+/** 即時応答：洗牌取 n 題，各題選項洗牌。pool 不足 1 題 → 空陣列。 */
+export function responseQuestions<
+  T extends HasChoices & { prompt: string; promptZh: string; answerZh: string },
+>(pool: T[], n = 5, rng: RNG = Math.random): ResponseQuestion[] {
+  return shuffle(pool, rng)
+    .slice(0, n)
+    .map((it) => ({
+      play: it.prompt,
+      playZh: it.promptZh,
+      answer: it.answer,
+      answerZh: it.answerZh,
+      options: buildChoices(it, rng),
+    }))
+}
+
+export interface ExpressionQuestion {
+  situationZh: string // 情境（中文）
+  answer: string // 正確說法（日文）
+  answerZh: string
+  options: string[] // 日文說法選項（含正解，已洗牌）
+}
+
+/** 発話表現：洗牌取 n 題，各題選項洗牌。pool 不足 1 題 → 空陣列。 */
+export function expressionQuestions<
+  T extends HasChoices & { situationZh: string; answerZh: string },
+>(pool: T[], n = 5, rng: RNG = Math.random): ExpressionQuestion[] {
+  return shuffle(pool, rng)
+    .slice(0, n)
+    .map((it) => ({
+      situationZh: it.situationZh,
+      answer: it.answer,
+      answerZh: it.answerZh,
+      options: buildChoices(it, rng),
+    }))
+}
+
 /**
  * 產生 n 題聽力理解。pool 不足 4 句 → 空陣列。
  * 每題取一句當目標，另從 pool 取 3 個「中文互異且不等於正解」的誘答。

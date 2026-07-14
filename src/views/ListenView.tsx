@@ -5,9 +5,14 @@ import { PASSAGES } from '../data/passages'
 import {
   listeningQuestions,
   pickParagraphs,
+  responseQuestions,
+  expressionQuestions,
   type ListenItem,
   type ListenQuestion,
+  type ResponseQuestion,
+  type ExpressionQuestion,
 } from '../lib/listening'
+import { RESPONSES, EXPRESSIONS } from '../data/kaiwa'
 import { speak } from '../audio/tts'
 import { useApp } from '../state/store'
 import { toast } from '../components/ui'
@@ -197,27 +202,200 @@ function buildParaPool(): ParaItem[] {
   })
 }
 
+type ListenSub = 'menu' | 'sentence' | 'para' | 'response' | 'expression'
+
+const LISTEN_MENU: {
+  key: ListenSub
+  jp: string
+  jlpt: string
+  desc: string
+  ghost?: boolean
+}[] = [
+  { key: 'sentence', jp: '句子聽解', jlpt: 'ポイント理解', desc: '聽單句 → 選中文意思（5 題）' },
+  { key: 'para', jp: '段落對話', jlpt: '課題理解', desc: '聽整段對話 → 答大意／場景（3 題）', ghost: true },
+  { key: 'response', jp: '即時応答', jlpt: '即時応答', desc: '聽一句短問／招呼 → 選恰當回應（5 題）', ghost: true },
+  { key: 'expression', jp: '発話表現', jlpt: '発話表現', desc: '看情境 → 選該說的日文（5 題）', ghost: true },
+]
+
 function ListenComprehension() {
-  const [sub, setSub] = useState<'menu' | 'sentence' | 'para'>('menu')
-  if (sub === 'sentence') return <SentenceQuiz onBack={() => setSub('menu')} />
-  if (sub === 'para') return <ParagraphQuiz onBack={() => setSub('menu')} />
+  const [sub, setSub] = useState<ListenSub>('menu')
+  const back = () => setSub('menu')
+  if (sub === 'sentence') return <SentenceQuiz onBack={back} />
+  if (sub === 'para') return <ParagraphQuiz onBack={back} />
+  if (sub === 'response') return <ResponseQuiz onBack={back} />
+  if (sub === 'expression') return <ExpressionQuiz onBack={back} />
   return (
     <div className="card">
-      <div className="eyebrow">耳の修行 ─ 聞き取り（聽力理解）</div>
+      <div className="eyebrow">耳の修行 ─ 聞き取り（JLPT N5 題型）</div>
       <h2>聽日文，選意思</h2>
       <p className="sub">
-        選一種練習：<b>句子</b>聽單句選意思；<b>段落</b>聽一整段對話後回答大意／場景。
-        答完會揭曉日文，對照著再聽一次，耳朵會慢慢跟上。
+        四種練習貼近 JLPT N5 聴解題型，題材全來自已驗證的日文（不經 AI 生成、無正確性風險）。
+        選一種開始：
       </p>
       <div className="spacer" />
-      <div className="row">
-        <button className="btn" onClick={() => setSub('sentence')}>
-          句子（5 題）
-        </button>
-        <button className="btn ghost" onClick={() => setSub('para')}>
-          段落對話（3 題）
+      <div className="jlptMenu">
+        {LISTEN_MENU.map((m) => (
+          <button
+            key={m.key}
+            className={`btn ${m.ghost ? 'ghost' : ''} jlptItem`}
+            onClick={() => setSub(m.key)}
+          >
+            <span className="jlptTitle">{m.jp}</span>
+            <span className="jlptTag">{m.jlpt}</span>
+            <span className="jlptDesc">{m.desc}</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// 即時応答：播放一句短問／招呼 → 選恰當的「回應」（選項皆日文）。
+function ResponseQuiz({ onBack }: { onBack: () => void }) {
+  const bump = useApp((s) => s.bump)
+  const rate = useApp((s) => s.rate)
+  const [qs, setQs] = useState<ResponseQuestion[]>([])
+  const [n, setN] = useState(0)
+  const [picked, setPicked] = useState<string | null>(null)
+  const q = qs[n - 1]
+
+  useEffect(() => {
+    const generated = responseQuestions(RESPONSES, 5)
+    setQs(generated)
+    setN(1)
+    window.setTimeout(() => speak(generated[0].play, rate), 350)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  function answer(opt: string) {
+    if (!q || picked) return
+    setPicked(opt)
+    void bump('listen', 1)
+    window.setTimeout(() => {
+      if (n >= qs.length) {
+        toast('即時応答 完成！')
+        onBack()
+        return
+      }
+      const next = n + 1
+      setN(next)
+      setPicked(null)
+      window.setTimeout(() => speak(qs[next - 1].play, rate), 300)
+    }, 1800)
+  }
+
+  if (!q) return null
+  return (
+    <div className="card">
+      <div className="row between">
+        <div className="eyebrow">即時応答　第 {n} / {qs.length} 題</div>
+        <button className="btn small ghost" onClick={onBack}>
+          返回
         </button>
       </div>
+      <p className="sub center" style={{ marginTop: 2 }}>聽對方說了什麼，選出你該怎麼回應。</p>
+      <div className="row center" style={{ margin: '6px 0 12px' }}>
+        <button className="btn red" onClick={() => speak(q.play, rate)}>
+          🔊 再聽一次
+        </button>
+      </div>
+      {picked && (
+        <div className="sent center" style={{ fontSize: 18, marginBottom: 6 }}>
+          對方：{q.play}
+          <div className="zh">{q.playZh}</div>
+        </div>
+      )}
+      <div>
+        {q.options.map((opt) => {
+          let cls = 'qopt big'
+          if (picked) {
+            if (opt === q.answer) cls += ' ok'
+            else if (opt === picked) cls += ' ng'
+          }
+          return (
+            <button key={opt} className={cls} onClick={() => answer(opt)}>
+              {opt}
+            </button>
+          )
+        })}
+      </div>
+      {picked && (
+        <div className="sub center" style={{ marginTop: 8 }}>
+          正解：<b>{q.answer}</b>（{q.answerZh}）
+        </div>
+      )}
+    </div>
+  )
+}
+
+// 発話表現：給情境（中文）→ 選出該說的日文（選項皆日文，可點聽）。
+function ExpressionQuiz({ onBack }: { onBack: () => void }) {
+  const bump = useApp((s) => s.bump)
+  const rate = useApp((s) => s.rate)
+  const [qs, setQs] = useState<ExpressionQuestion[]>([])
+  const [n, setN] = useState(0)
+  const [picked, setPicked] = useState<string | null>(null)
+  const q = qs[n - 1]
+
+  useEffect(() => {
+    setQs(expressionQuestions(EXPRESSIONS, 5))
+    setN(1)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  function answer(opt: string) {
+    if (!q || picked) return
+    setPicked(opt)
+    void bump('listen', 1)
+    void speak(q.answer, rate)
+    window.setTimeout(() => {
+      if (n >= qs.length) {
+        toast('発話表現 完成！')
+        onBack()
+        return
+      }
+      setN(n + 1)
+      setPicked(null)
+    }, 1800)
+  }
+
+  if (!q) return null
+  return (
+    <div className="card">
+      <div className="row between">
+        <div className="eyebrow">発話表現　第 {n} / {qs.length} 題</div>
+        <button className="btn small ghost" onClick={onBack}>
+          返回
+        </button>
+      </div>
+      <p className="sub center" style={{ margin: '10px 0 4px', fontSize: 16 }}>
+        {q.situationZh}
+      </p>
+      <p className="sub center" style={{ marginBottom: 10 }}>（點選項可試聽）</p>
+      <div>
+        {q.options.map((opt) => {
+          let cls = 'qopt big'
+          if (picked) {
+            if (opt === q.answer) cls += ' ok'
+            else if (opt === picked) cls += ' ng'
+          }
+          return (
+            <button
+              key={opt}
+              className={cls}
+              onClick={() => (picked ? undefined : answer(opt))}
+              onDoubleClick={() => speak(opt, rate)}
+            >
+              {opt}
+            </button>
+          )
+        })}
+      </div>
+      {picked && (
+        <div className="sub center" style={{ marginTop: 8 }}>
+          正解：<b>{q.answer}</b>（{q.answerZh}）
+        </div>
+      )}
     </div>
   )
 }
