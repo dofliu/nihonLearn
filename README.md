@@ -1,5 +1,7 @@
 # 日本語の道（Nihongo no Michi）
 
+**繁體中文** ｜ [English](README.en.md)
+
 個人化日語學習 App — 聽說讀三軌、local-first、習慣養成優先。
 從 v1 Artifact 起步，經 v2 產品化（PWA），到 v3 以 Capacitor 包裝為可上架 Google Play 的 Android App。
 
@@ -126,9 +128,23 @@ docs/          ANDROID_RELEASE_PLAN、PRIVACY_POLICY、PLAY_LISTING
 `docs/PLAY_LISTING.md`、`docs/PRIVACY_POLICY.md`。程式碼與 CI 編譯已完成；
 真機 QA 與 Play 上架（含個人帳號 12 測試者 × 14 天封閉測試）需在本機/Console 進行。
 
-## Roadmap
+## Roadmap ／ 後續接續工作
 
-1. 真聲學 GOP（wav2vec2-CTC 音素模型 + 強制對齊，逐音素評分）— 發音評分天花板。
-2. pitch accent 擴充（接 OJAD／字典來源）。
-3. 漢字模式深化（短文漢字/假名雙版、vocab 書寫練習）。
-4. ~~測驗模組~~（v3.4）、~~AI 助教~~（v3.6）、~~vocab i+1~~（v3.6）完成。
+完整的後續工作與接手須知見 **[`ROADMAP.md`](ROADMAP.md)**。優先序摘要：
+
+1. **Android 真機 QA ＋ Google Play 封閉測試**（上架關鍵路徑；清單見 `tests/MANUAL_QA-ANDROID.md`）。
+2. **pitch accent 詞庫擴充**（接 OJAD／字典來源、標註出處；不讓 LLM 生 accent 數字）。
+3. **漢字模式深化**（短文漢字/假名雙版、vocab 書寫練習）。
+4. **真聲學 GOP**（wav2vec2-CTC 音素模型＋強制對齊，逐音素評分）— 發音評分天花板。
+5. **聽力題型續強化**（段落細節題、商業/旅遊單句；素材仍走已驗證資料或「LLM 只生中文」）。
+
+已完成：~~測驗模組~~（v3.4）、~~AI 助教~~（v3.6）、~~vocab i+1~~（v3.6）、
+~~JLPT 聴解題型~~（v3.9）、~~AI 段落理解題~~（v3.10）。
+
+## 文件索引
+
+- **[`README.en.md`](README.en.md)** — English version
+- **[`ROADMAP.md`](ROADMAP.md)** — roadmap 與後續接續工作
+- `CLAUDE.md` — 開發約定、架構地圖、已知陷阱（Claude Code 進場自動載入）
+- `docs/` — `ANDROID_RELEASE_PLAN`、`PLAY_LISTING`、`PRIVACY_POLICY`
+- `tests/` — `INTEGRATION_REPORT`、`MANUAL_QA`、`MANUAL_QA-ANDROID`
