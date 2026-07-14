@@ -52,7 +52,13 @@ export function ListenView() {
     if (ok) {
       setFb('正解！再聽兩詞的差異 →')
     } else {
-      setFb(`是「${round.pair[round.ans].jp}」。注意${round.pair.type}的長度差。`)
+      const tip =
+        round.pair.type === '長音'
+          ? '注意長音的長度差'
+          : round.pair.type === '促音'
+            ? '注意促音（小っ）的停頓'
+            : '注意濁音（゛）的清濁差別'
+      setFb(`是「${round.pair[round.ans].jp}」。${tip}。`)
     }
     void bump('listen', 1)
     // 對比重播：慢速播 a、再播 b
