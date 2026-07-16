@@ -28,7 +28,7 @@ Started as a v1 Artifact, productized into a PWA (v2), and wrapped with Capacito
 | **v3.9** | **JLPT listening question types**: kikitori restructured into the N5 four-type menu, adding quick response (pick the right reply) and verbal expression (pick what to say for a situation) |
 | **v3.10** | **AI paragraph comprehension questions (LLM writes Chinese only)**: Gemini writes only the Chinese question/options, layered over verified passages; merged into the paragraph pool after review & adoption |
 | **v3.11** | **Guided situational dialogues + kanji furigana**: role-play with clerk / family / partner / classmate / friend / vendor (7 scenes); kanji mode now shows kanji **with** kana furigana (auto-aligned, program-verified); quiz listening reveals the Japanese after answering |
-| **v3.12** | **Dedicated logo (vermilion "道" seal)**: upgraded to a hanko-style seal tile with a carved frame and washi "道"; favicon / PWA / Android icons regenerated via `scripts/gen-icons.mjs` |
+| **v3.12** | **Dedicated logo (torii gate)**: an indigo night-sky tile with a vermilion torii and a path leading up to it (echoing "the path of Japanese"); favicon / PWA / Android icons regenerated via `scripts/gen-icons.mjs` |
 | **v3.13** | **Kana writing practice + shape scoring**: kana dojo "✍ writing", trace / blank modes, canvas handwriting scored by glyph-shape similarity (shape reference, not stroke-order; pure function, program-verified) |
 
 Streak days and learned kana can be imported from v1 with one tap — they don't reset.
