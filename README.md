@@ -28,6 +28,7 @@
 | **v3.11** | **情境會話＋漢字注音**：会話引導（店員/家人/情人/同學/朋友/廠商 7 場景）；漢字モード改「漢字＋假名注音」（自動對齊、程式驗證）；測驗聽力答完顯示日文 |
 | **v3.12** | **專屬 Logo（鳥居）**：藍夜空底＋朱紅鳥居＋通往鳥居的參道（呼應「日本語の道」）；favicon／PWA／Android 圖示同步（由 `scripts/gen-icons.mjs` 重生成） |
 | **v3.13** | **假名書寫練習＋字形評分**：かな道場「✍ 書寫練習」，描紅／空白默寫，Canvas 手寫→字形相似度評分（形狀參考、非筆順；純函式、程式驗證） |
+| **v3.14** | **詞庫擴充**：N5 詞彙 191→299（+108，新增自然／交通分類），逐條確認讀音釋義、furigana 可還原 |
 
 連續天數與已學假名可從 v1 一鍵匯入，不歸零。
 
@@ -82,7 +83,7 @@ python test_article.py   # NHK 文章解析（fixture HTML）
 
 ```
 src/
-  data/        內容（kana 142・vocab ~190 N5・sentences・pairs・pitch・passages）— 唯一事實來源
+  data/        內容（kana 142・vocab ~300 N5・sentences・pairs・pitch・passages）— 唯一事實來源
   db/          Dexie schema(v6) + repo（任務計數、蓋章、卡片、發音紀錄、生成句、文章、TTS 快取、測驗結果、段落理解題）
   srs/         FSRS 排程封裝（新卡 / 評級 / 到期 / 定著判定）
   audio/       tts（VOICEVOX ▸ 原生 ▸ Web Speech 門面 + Dexie 快取）、scorer（whisper ▸ 原生/Web ASR ▸ 自評）
@@ -120,7 +121,7 @@ docs/          ANDROID_RELEASE_PLAN、PRIVACY_POLICY、PLAY_LISTING
 | 層級 | 指令 | 結果 |
 |--|--|--|
 | 建置（strict） | `npm run build` | ✅ 綠燈，PWA SW 生成 |
-| 前端邏輯 | `npm test` | ✅ 144 / 144 |
+| 前端邏輯 | `npm test` | ✅ 147 / 147 |
 | 瀏覽器 E2E | `npm run test:e2e` | ✅ 43 / 43 |
 | 後端評分 | `python sidecar/test_score.py` | ✅ 4 / 4 |
 | 後端文章解析 | `python sidecar/test_article.py` | ✅ 13 / 13 |

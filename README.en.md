@@ -30,6 +30,7 @@ Started as a v1 Artifact, productized into a PWA (v2), and wrapped with Capacito
 | **v3.11** | **Guided situational dialogues + kanji furigana**: role-play with clerk / family / partner / classmate / friend / vendor (7 scenes); kanji mode now shows kanji **with** kana furigana (auto-aligned, program-verified); quiz listening reveals the Japanese after answering |
 | **v3.12** | **Dedicated logo (torii gate)**: an indigo night-sky tile with a vermilion torii and a path leading up to it (echoing "the path of Japanese"); favicon / PWA / Android icons regenerated via `scripts/gen-icons.mjs` |
 | **v3.13** | **Kana writing practice + shape scoring**: kana dojo "✍ writing", trace / blank modes, canvas handwriting scored by glyph-shape similarity (shape reference, not stroke-order; pure function, program-verified) |
+| **v3.14** | **Vocabulary expansion**: N5 vocab 191→299 (+108, new nature / transport categories), readings & meanings verified per entry, furigana reconstructs |
 
 Streak days and learned kana can be imported from v1 with one tap — they don't reset.
 
@@ -83,7 +84,7 @@ demo content is used and nothing breaks. All generated content goes through the 
 
 ```
 src/
-  data/        content (kana 142 · vocab ~190 N5 · sentences · pairs · pitch · passages · kaiwa) — single source of truth
+  data/        content (kana 142 · vocab ~300 N5 · sentences · pairs · pitch · passages · kaiwa) — single source of truth
   db/          Dexie schema(v6) + repo (task counts, stamps, cards, pronunciation records, generated sentences, articles, TTS cache, quiz results, paragraph questions)
   srs/         FSRS scheduling wrapper (new card / review / due / mastery)
   audio/       tts (VOICEVOX ▸ native ▸ Web Speech facade + Dexie cache), scorer (whisper ▸ native/Web ASR ▸ self-rating)
@@ -121,7 +122,7 @@ docs/          ANDROID_RELEASE_PLAN, PRIVACY_POLICY, PLAY_LISTING
 | Layer | Command | Result |
 |--|--|--|
 | Build (strict) | `npm run build` | ✅ green, PWA SW generated |
-| Front-end logic | `npm test` | ✅ 144 / 144 |
+| Front-end logic | `npm test` | ✅ 147 / 147 |
 | Browser E2E | `npm run test:e2e` | ✅ 43 / 43 |
 | Backend scoring | `python sidecar/test_score.py` | ✅ 4 / 4 |
 | Backend article parsing | `python sidecar/test_article.py` | ✅ 13 / 13 |

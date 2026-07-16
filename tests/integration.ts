@@ -376,6 +376,9 @@ console.log('=== 6. 資料完整性 ===')
   ok('KANA_BY_ID 對得上', KANA_BY_ID['h0'].ch === 'あ')
   ok('詞彙 jp 唯一', new Set(VOCAB.map((v) => v.jp)).size === VOCAB.length)
   ok('詞彙皆有中文與分類', VOCAB.every((v) => v.zh && v.cat && v.level))
+  ok('詞庫已擴充 ≥ 290', VOCAB.length >= 290)
+  ok('含新分類 自然／交通', VOCAB.some((v) => v.cat === '自然') && VOCAB.some((v) => v.cat === '交通'))
+  ok('有漢字的詞其 kanji 皆含漢字', VOCAB.every((v) => !v.kanji || hasKanji(v.kanji)))
 }
 
 console.log(`\n=== 結果：${pass} passed, ${fail} failed ===`)
