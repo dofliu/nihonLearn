@@ -26,6 +26,9 @@
 | **v3.9** | **JLPT 聴解題型**：聞き取り重構為 N5 四大題型選單，新增即時応答（聽短問選回應）、発話表現（看情境選說法） |
 | **v3.10** | **AI 段落理解題（LLM 只生中文）**：Gemini 只寫中文問題/選項、疊在已驗證短文上，審核採用後併入段落題庫 |
 | **v3.11** | **情境會話＋漢字注音**：会話引導（店員/家人/情人/同學/朋友/廠商 7 場景）；漢字モード改「漢字＋假名注音」（自動對齊、程式驗證）；測驗聽力答完顯示日文 |
+| **v3.12** | **專屬 Logo（鳥居）**：藍夜空底＋朱紅鳥居＋通往鳥居的參道（呼應「日本語の道」）；favicon／PWA／Android 圖示同步（由 `scripts/gen-icons.mjs` 重生成） |
+| **v3.13** | **假名書寫練習＋字形評分**：かな道場「✍ 書寫練習」，描紅／空白默寫，Canvas 手寫→字形相似度評分（形狀參考、非筆順；純函式、程式驗證） |
+| **v3.14** | **詞庫擴充**：N5 詞彙 191→299（+108，新增自然／交通分類），逐條確認讀音釋義、furigana 可還原 |
 
 連續天數與已學假名可從 v1 一鍵匯入，不歸零。
 
@@ -80,7 +83,7 @@ python test_article.py   # NHK 文章解析（fixture HTML）
 
 ```
 src/
-  data/        內容（kana 142・vocab ~190 N5・sentences・pairs・pitch・passages）— 唯一事實來源
+  data/        內容（kana 142・vocab ~300 N5・sentences・pairs・pitch・passages）— 唯一事實來源
   db/          Dexie schema(v6) + repo（任務計數、蓋章、卡片、發音紀錄、生成句、文章、TTS 快取、測驗結果、段落理解題）
   srs/         FSRS 排程封裝（新卡 / 評級 / 到期 / 定著判定）
   audio/       tts（VOICEVOX ▸ 原生 ▸ Web Speech 門面 + Dexie 快取）、scorer（whisper ▸ 原生/Web ASR ▸ 自評）
@@ -104,6 +107,7 @@ docs/          ANDROID_RELEASE_PLAN、PRIVACY_POLICY、PLAY_LISTING
 - **分級閱讀依情境分類**：短文分基礎／旅遊／生活／商業四類，含中文對照與逐字上色。
 - **跟讀三段式評分**：whisper（5090）→ 原生/瀏覽器 ASR → 自評，附 mora 級逐拍診斷（促音漏發、濁音清化上色）。
 - **情境對話引導（会話）**：跟店員、家人、情人、同學、朋友、廠商來一段對話——對方的話自動朗讀，輪到你照句子說出來（可先聽手本），計入每日「口」任務。全為教科書等級固定基本句。
+- **假名書寫練習（描紅／空白默寫）**：かな道場「✍ 書寫練習」用手指或滑鼠書寫，系統以**字形相似度**評分（比對筆跡覆蓋範本、precision/recall→F1）。誠實標示為形狀參考、非筆順評分；最佳分持久化。
 - **漢字モード＝漢字＋假名注音**：開啟後詞彙卡、跟讀句、單字帳、聽力揭曉都顯示漢字並在上方標注假名（由已驗證的假名欄自動對齊、程式驗證正確性），初學者也能直接唸。
 - **分級閱讀 + 時事**：靜態短文＋**NHK やさしいニュース 導入**（注音繼承 NHK 人工標註，LLM 只補中文對照），中文對照可整篇切換。
 - **AI 內容生成 + 審核佇列**：Gemini 依已學詞彙生成候選（每句 ≤1 新詞）＋程式覆蓋率檢核；持久化佇列，退回前不消失；採用才入庫。
@@ -117,8 +121,8 @@ docs/          ANDROID_RELEASE_PLAN、PRIVACY_POLICY、PLAY_LISTING
 | 層級 | 指令 | 結果 |
 |--|--|--|
 | 建置（strict） | `npm run build` | ✅ 綠燈，PWA SW 生成 |
-| 前端邏輯 | `npm test` | ✅ 131 / 131 |
-| 瀏覽器 E2E | `npm run test:e2e` | ✅ 41 / 41 |
+| 前端邏輯 | `npm test` | ✅ 147 / 147 |
+| 瀏覽器 E2E | `npm run test:e2e` | ✅ 43 / 43 |
 | 後端評分 | `python sidecar/test_score.py` | ✅ 4 / 4 |
 | 後端文章解析 | `python sidecar/test_article.py` | ✅ 13 / 13 |
 | Android 殼可編譯 | GitHub Actions `android` job（`gradlew assembleDebug`） | ✅ |

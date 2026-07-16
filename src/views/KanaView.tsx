@@ -6,8 +6,9 @@ import { isDue, isMastered, type GradeKey } from '../srs/scheduler'
 import { speak } from '../audio/tts'
 import { useApp } from '../state/store'
 import { toast } from '../components/ui'
+import { WriteView } from './WriteView'
 
-type Mode = 'home' | 'session' | 'ear'
+type Mode = 'home' | 'session' | 'ear' | 'write'
 
 export function KanaView() {
   const bump = useApp((s) => s.bump)
@@ -141,6 +142,19 @@ export function KanaView() {
     return <EarQuiz learnedSet={learnedSet} onExit={() => { setMode('home'); void refreshMap() }} />
   }
 
+  if (mode === 'write') {
+    return (
+      <>
+        <div className="card">
+          <button className="btn small ghost" onClick={() => setMode('home')}>
+            ← 返回五十音道場
+          </button>
+        </div>
+        <WriteView />
+      </>
+    )
+  }
+
   // home
   const seion = (from: number, to: number) =>
     KANA.slice(from, to).map((k) => {
@@ -166,6 +180,9 @@ export function KanaView() {
         </button>
         <button className="btn ghost" onClick={() => setMode('ear')}>
           音 → 字 測驗
+        </button>
+        <button className="btn ghost" onClick={() => setMode('write')}>
+          ✍ 書寫練習
         </button>
       </div>
       <div className="statChips">

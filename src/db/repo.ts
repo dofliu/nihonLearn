@@ -170,6 +170,28 @@ export async function weakWordCounts(): Promise<{ refId: string; count: number }
     .sort((a, b) => b.count - a.count)
 }
 
+// ---------- 假名書寫練習成績 ----------
+/** 記錄一次書寫評分：保留該字元的最佳分數、累計次數。回傳更新後的最佳分。 */
+export async function saveWriteScore(ch: string, score: number): Promise<number> {
+  const prev = await db.writeScores.get(ch)
+  const best = Math.max(score, prev?.best ?? 0)
+  await db.writeScores.put({
+    ch,
+    best,
+    attempts: (prev?.attempts ?? 0) + 1,
+    ts: Date.now(),
+  })
+  return best
+}
+
+/** 字元 → 最佳分數的對照表（進度顯示用）。 */
+export async function writeBestMap(): Promise<Record<string, number>> {
+  const rows = await db.writeScores.toArray()
+  const map: Record<string, number> = {}
+  for (const r of rows) map[r.ch] = r.best
+  return map
+}
+
 // ---------- 設定 ----------
 export async function getSetting<T>(key: string, fallback: T): Promise<T> {
   const row = await db.settings.get(key)

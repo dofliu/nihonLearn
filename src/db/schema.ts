@@ -104,6 +104,14 @@ export interface QuizResult {
   weakRefs: string[] // 答錯的 vocab.jp（弱項聚合用）
 }
 
+/** 假名書寫練習的成績（每個假名字元存最佳分數與練習次數）。 */
+export interface WriteScore {
+  ch: string // 假名字元（主鍵）
+  best: number // 最佳字形相似度分數 0-100
+  attempts: number // 累計練習次數
+  ts: number // 最後練習時間
+}
+
 export class MichiDB extends Dexie {
   cards!: Table<Card, string>
   days!: Table<DaySession, string>
@@ -116,6 +124,7 @@ export class MichiDB extends Dexie {
   genQueue!: Table<GenCandidate, number>
   quizResults!: Table<QuizResult, number>
   userListenQ!: Table<UserListenQ, number>
+  writeScores!: Table<WriteScore, string>
 
   constructor() {
     super('nihongo-michi')
@@ -141,6 +150,9 @@ export class MichiDB extends Dexie {
     })
     this.version(6).stores({
       userListenQ: '++id, passageId, createdAt',
+    })
+    this.version(7).stores({
+      writeScores: 'ch, ts',
     })
   }
 }
