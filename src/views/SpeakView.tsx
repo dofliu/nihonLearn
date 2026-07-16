@@ -13,6 +13,9 @@ import { getUserSentences } from '../lib/content'
 import { useApp } from '../state/store'
 import { toast } from '../components/ui'
 import { Karaoke } from '../components/Karaoke'
+import { RubyText } from '../components/Ruby'
+import { hasKanji } from '../lib/furigana'
+import { DialogueView } from './DialogueView'
 
 function mark(score: number) {
   return score >= 80 ? '◎' : score >= 55 ? '○' : '△'
@@ -23,6 +26,8 @@ function markColor(score: number) {
 
 export function SpeakView({ onOpenReview }: { onOpenReview: () => void }) {
   const bump = useApp((s) => s.bump)
+  const showKanji = useApp((s) => s.showKanji)
+  const [tab, setTab] = useState<'shadow' | 'dialogue'>('shadow')
   const [lv, setLv] = useState<1 | 2 | 3>(1)
   const [idx, setIdx] = useState(0)
   const [recording, setRecording] = useState(false)
@@ -170,6 +175,21 @@ export function SpeakView({ onOpenReview }: { onOpenReview: () => void }) {
   return (
     <>
       <div className="card">
+        <div className="lvTabs" style={{ marginBottom: 0 }}>
+          <button className={tab === 'shadow' ? 'on' : ''} onClick={() => setTab('shadow')}>
+            跟読
+          </button>
+          <button className={tab === 'dialogue' ? 'on' : ''} onClick={() => setTab('dialogue')}>
+            会話
+          </button>
+        </div>
+      </div>
+
+      {tab === 'dialogue' ? (
+        <DialogueView />
+      ) : (
+        <>
+      <div className="card">
         <div className="eyebrow">口の修行 ─ 跟讀（Shadowing）</div>
         <p className="sub">
           聽 → 立刻模仿，連語調一起。每句至少跟讀三次再進下一句。
@@ -195,7 +215,12 @@ export function SpeakView({ onOpenReview }: { onOpenReview: () => void }) {
         <div className="eyebrow">
           第 {idx + 1} / {list.length} 句
         </div>
-        <Karaoke text={sent.jp} range={range} className="sent" />
+        {showKanji && sent.alt && hasKanji(sent.alt) ? (
+          // 漢字モード：漢字正寫＋假名注音（ruby 顯示不逐字上色）
+          <RubyText display={sent.alt} reading={sent.jp} className="sent" />
+        ) : (
+          <Karaoke text={sent.jp} range={range} className="sent" />
+        )}
         <div className="sentZh">{sent.zh}</div>
         <div className="row center" style={{ marginBottom: 14 }}>
           <button className="btn small ghost" onClick={() => void play(0.7)}>
@@ -286,6 +311,8 @@ export function SpeakView({ onOpenReview }: { onOpenReview: () => void }) {
           </button>
         </div>
       </div>
+        </>
+      )}
     </>
   )
 }

@@ -17,6 +17,9 @@ import { karaokeChars, activeCharIndices } from '../src/lib/karaoke.ts'
 import { listeningQuestions, pickParagraphs, responseQuestions, expressionQuestions, LISTEN_MIN_POOL, type ListenItem } from '../src/lib/listening.ts'
 import { PASSAGES, PASSAGE_CATS } from '../src/data/passages.ts'
 import { RESPONSES, EXPRESSIONS } from '../src/data/kaiwa.ts'
+import { alignFurigana, hasKanji, stripIgnored } from '../src/lib/furigana.ts'
+import { DIALOGUES } from '../src/data/dialogues.ts'
+import { SENTS } from '../src/data/sentences.ts'
 
 let pass = 0
 let fail = 0
@@ -275,6 +278,48 @@ console.log('=== 5j. AI 段落理解題純解析（LLM 只生中文） ===')
   ok('選項超過 4→丟', parseListenQuestions([{ q: 'a', options: ['甲', '乙', '丙', '丁', '戊'], answer: '甲' }]).length === 0)
   ok('重複選項去重後不足→丟', parseListenQuestions([{ q: 'a', options: ['甲', '甲', '乙'], answer: '甲' }]).length === 0)
   ok('非物件輸入→空陣列', parseListenQuestions('nope').length === 0 && parseListenQuestions(null).length === 0)
+}
+
+console.log('=== 5k. 漢字↔假名注音對齊（furigana） ===')
+{
+  ok('hasKanji 判斷', hasKanji('駅まで') && !hasKanji('えきまで') && hasKanji('日々'))
+  ok('無漢字 → null', alignFurigana('えきまで', 'えきまで') === null)
+  ok('對不上 → null', alignFurigana('駅まで', 'あめのひ') === null)
+
+  const segs = alignFurigana('駅までいくらですか', 'えきまで いくらですか')
+  ok('基本對齊：駅→えき', segs?.[0].text === '駅' && segs?.[0].ruby === 'えき')
+
+  // 錨點假名出現在讀音內（回溯處理）：学校が → がっこう+が
+  const amb = alignFurigana('学校が', 'がっこうが')
+  ok('回溯對齊：学校→がっこう', amb?.[0].ruby === 'がっこう' && amb?.[1].text === 'が')
+
+  // 程式驗證：全部 SENTS.alt 與 VOCAB.kanji 都能對齊，且重組完全還原
+  const sentAlts = SENTS.filter((s) => s.alt && hasKanji(s.alt))
+  ok('SENTS 有漢字正寫的句子 ≥ 15', sentAlts.length >= 15)
+  const reconstructs = (display: string, reading: string): boolean => {
+    const sg = alignFurigana(display, reading)
+    if (!sg) return false
+    const disp = sg.map((x) => x.text).join('')
+    const read = sg.map((x) => (x.ruby != null ? x.ruby : stripIgnored(x.text))).join('')
+    return disp === display && read === stripIgnored(reading)
+  }
+  ok('SENTS 全部對齊且重組還原', sentAlts.every((s) => reconstructs(s.alt!, s.jp)))
+  const vocabKanji = VOCAB.filter((v) => v.kanji && hasKanji(v.kanji))
+  ok('VOCAB 有漢字的詞 ≥ 20', vocabKanji.length >= 20)
+  ok('VOCAB 全部對齊且重組還原', vocabKanji.every((v) => reconstructs(v.kanji!, v.jp)))
+}
+
+console.log('=== 5l. 情境對話（会話引導） ===')
+{
+  ok('對話 ≥ 6 段', DIALOGUES.length >= 6)
+  ok('id 唯一', new Set(DIALOGUES.map((d) => d.id)).size === DIALOGUES.length)
+  ok('每段有對象與場景', DIALOGUES.every((d) => d.partner && d.scene && d.title))
+  ok('每段 ≥ 6 句', DIALOGUES.every((d) => d.lines.length >= 6))
+  ok('每句 jp/zh 非空', DIALOGUES.every((d) => d.lines.every((l) => l.jp && l.zh)))
+  ok('全假名（初學者友善，無漢字）', DIALOGUES.every((d) => d.lines.every((l) => !hasKanji(l.jp))))
+  ok('雙方輪流說話', DIALOGUES.every((d) => d.lines.every((l, i) => i === 0 || l.role !== d.lines[i - 1].role)))
+  ok('使用者（b）都有台詞', DIALOGUES.every((d) => d.lines.some((l) => l.role === 'b')))
+  ok('涵蓋店員/家人/情人/同學/朋友/廠商', ['店員', '家人', '情人', '同學', '朋友', '廠商'].every((p) => DIALOGUES.some((d) => d.partnerTag === p)))
 }
 
 console.log('=== 6. 資料完整性 ===')

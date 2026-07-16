@@ -71,6 +71,56 @@ test.describe('話す：跟讀與評分降級', () => {
     await expect(taskRow(page, '口の修行')).toContainText('3 / 3')
   })
 
+  test('会話引導：選場景 → 對方說/換你說輪替 → 完成計入口任務', async ({ page }) => {
+    await disableSpeechRecognition(page)
+    await gotoApp(page)
+    await navTo(page, '話す')
+
+    await page.locator('.lvTabs button', { hasText: '会話' }).click()
+    await expect(page.locator('main')).toContainText('情境對話引導')
+    // 六類對象都列出
+    for (const tag of ['店員', '家人', '情人', '同學', '朋友', '廠商']) {
+      await expect(page.locator('main .chip', { hasText: tag }).first()).toBeVisible()
+    }
+
+    await page.getByRole('button', { name: '開始 ▶' }).first().click()
+    const eyebrow = page.locator('.card .eyebrow', { hasText: '会話' })
+    await expect(eyebrow).toContainText('1 / 8')
+
+    // 依「つぎへ（對方）／唸完了（自己）」交替走完整段（第一段對話共 8 句）
+    for (let i = 1; i <= 8; i++) {
+      await expect(eyebrow).toContainText(`${i} / 8`)
+      await page.getByRole('button', { name: /つぎへ ▶|唸完了/ }).click()
+    }
+    await expect(page.locator('.toast')).toContainText('会話練習 完成', { timeout: 10_000 })
+    await expect(page.getByRole('button', { name: '再來一次' })).toBeVisible()
+
+    // 使用者台詞（4 句）計入「口」任務
+    await navTo(page, '今日')
+    await expect(taskRow(page, '口の修行')).toHaveClass(/done/)
+  })
+
+  test('漢字モード：跟讀句顯示漢字＋假名注音（ruby rt 可見）', async ({ page }) => {
+    await disableSpeechRecognition(page)
+    await gotoApp(page)
+    // 開啟漢字モード（設定頁），關閉回今日
+    await page.locator('.appHeader h1').click()
+    const kanjiBtn = page.locator('.card', { hasText: '漢字モード' }).getByRole('button')
+    await kanjiBtn.click()
+    await expect(page.locator('.app')).toHaveClass(/kanji-mode/)
+    await page.getByRole('button', { name: '返回' }).click()
+
+    await navTo(page, '話す')
+    // 前進到有漢字正寫的句（s3：これをください → これを下さい）
+    await page.getByRole('button', { name: '次の句 →' }).click()
+    await page.getByRole('button', { name: '次の句 →' }).click()
+    await expect(page.locator('.card .eyebrow', { hasText: '句' })).toContainText('第 3 /')
+
+    const sent = page.locator('.card .sent').first()
+    await expect(sent).toContainText('下')
+    await expect(sent.locator('ruby rt').first()).toHaveText('くだ')
+  })
+
   test('生成句審核佇列：未設 Gemini 金鑰時走離線示範（不噴 JSON 錯誤）', async ({ page }) => {
     await disableSpeechRecognition(page)
     await gotoApp(page)

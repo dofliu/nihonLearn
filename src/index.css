@@ -451,6 +451,55 @@ h2 {
   font-size: 30px;
   text-align: center;
 }
+/* 会話（情境對話引導）泡泡 */
+.dlgBox {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 46vh;
+  overflow-y: auto;
+  padding: 4px 2px;
+}
+.dlgRow {
+  display: flex;
+}
+.dlgRow.me {
+  justify-content: flex-end;
+}
+.dlgBubble {
+  max-width: 86%;
+  border: 1.5px solid var(--washi2);
+  border-radius: 12px;
+  border-top-left-radius: 4px;
+  background: var(--washi);
+  padding: 8px 12px;
+}
+.dlgBubble.me {
+  border-top-left-radius: 12px;
+  border-top-right-radius: 4px;
+  background: rgba(78, 141, 110, 0.08);
+}
+.dlgBubble.now {
+  border-color: var(--ai);
+  box-shadow: 0 0 0 2px rgba(58, 94, 140, 0.12);
+}
+.dlgWho {
+  font-size: 11px;
+  opacity: 0.6;
+  font-weight: 700;
+  margin-bottom: 2px;
+}
+.dlgJp {
+  font-family: var(--disp);
+  font-size: 18px;
+  cursor: pointer;
+}
+.dlgZh {
+  font-size: 12.5px;
+  opacity: 0.75;
+  margin-top: 2px;
+}
 .jlptMenu {
   display: flex;
   flex-direction: column;
@@ -712,10 +761,7 @@ select {
   }
 }
 
-/* 漢字模式：隱藏短文振り仮名（純漢字挑戰） */
-.kanji-mode ruby rt {
-  visibility: hidden;
-}
+/* 漢字模式：漢字＋假名注音並列（初學者也能唸；v3.11 起不再隱藏振り仮名） */
 .kanji-mode ruby {
   margin: 0 1px;
 }

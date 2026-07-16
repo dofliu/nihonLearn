@@ -7,12 +7,14 @@
 export interface ListenItem {
   play: string // 朗讀用（純假名）
   reveal: string // 作答後揭曉的日文（純假名）
+  revealKanji?: string // 漢字正寫（有的話；漢字モード揭曉時附假名注音）
   zh: string // 中文意思（正解）
 }
 
 export interface ListenQuestion {
   play: string
   reveal: string
+  revealKanji?: string
   answer: string // 正解中文
   options: string[] // 四個中文選項（含正解，已洗牌）
 }
@@ -127,6 +129,7 @@ export function listeningQuestions(
     out.push({
       play: target.play,
       reveal: target.reveal,
+      revealKanji: target.revealKanji,
       answer: target.zh,
       options: shuffle(options, rng),
     })

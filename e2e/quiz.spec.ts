@@ -20,11 +20,15 @@ test.describe('N5 模擬測驗', () => {
 
     // 作答 10 題：選擇題點第一個選項；並べ替え點完所有字塊
     for (let i = 1; i <= 10; i++) {
-      await expect(page.locator('.card .eyebrow')).toContainText(`${i} / 10`)
+      const eyebrow = page.locator('.card .eyebrow')
+      await expect(eyebrow).toContainText(`${i} / 10`)
+      const isListen = (await eyebrow.textContent())?.includes('聞き取り')
       const opts = page.locator('button.qopt')
       const tiles = page.locator('button.qtile')
       if (await opts.count()) {
         await opts.first().click()
+        // 聽力題：答完顯示日文對照（v3.11）
+        if (isListen) await expect(page.locator('.card .sent').first()).toBeVisible()
       } else {
         const n = await tiles.count()
         for (let t = 0; t < n; t++) await tiles.nth(t).click()
