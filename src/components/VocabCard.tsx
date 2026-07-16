@@ -14,6 +14,7 @@ import { isVocabUnlocked } from '../lib/vocabGate'
 import { speak } from '../audio/tts'
 import { useApp } from '../state/store'
 import { toast } from '../components/ui'
+import { RubyText } from './Ruby'
 
 /** 已學假名的字元集合（詞彙解鎖用）。 */
 async function learnedKanaChars(): Promise<Set<string>> {
@@ -121,7 +122,7 @@ export function VocabCard() {
 
   if (mode === 'session') {
     const v = queue[idx]
-    const front = showKanji && v.kanji ? v.kanji : v.jp
+    const kanjiFront = showKanji && v.kanji
     return (
       <div className="card">
         <div className="eyebrow">
@@ -133,11 +134,11 @@ export function VocabCard() {
           style={{ fontSize: 30, cursor: 'pointer' }}
           onClick={() => speak(v.jp, 0.85)}
         >
-          {front} 🔊
+          {kanjiFront ? <RubyText display={v.kanji!} reading={v.jp} /> : v.jp} 🔊
         </div>
         {revealed && (
           <div className="sentZh" style={{ fontSize: 15 }}>
-            {showKanji && v.kanji ? v.jp : v.kanji || ''}
+            {kanjiFront ? v.jp : v.kanji || ''}
           </div>
         )}
         <div className="reveal" style={{ fontSize: 22 }}>

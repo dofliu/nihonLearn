@@ -9,6 +9,8 @@ import { KANA } from '../data/kana'
 import { VOCAB } from '../data/vocab'
 import { speak } from '../audio/tts'
 import { Karaoke } from '../components/Karaoke'
+import { RubyText } from '../components/Ruby'
+import { hasKanji } from '../lib/furigana'
 import type { Tab } from '../components/Nav'
 
 function greeting() {
@@ -32,7 +34,7 @@ export function TodayView({
   onOpenQuiz: () => void
   onOpenTutor: () => void
 }) {
-  const { counts, streak, rate, asrAvg, setRate } = useApp()
+  const { counts, streak, rate, asrAvg, setRate, showKanji } = useApp()
   const [stampDates, setStampDates] = useState<Set<string>>(new Set())
   const [hitokotoRange, setHitokotoRange] = useState<[number, number] | null>(null)
   const [learned, setLearned] = useState(0)
@@ -122,7 +124,11 @@ export function TodayView({
 
       <div className="card">
         <div className="eyebrow">今日のひとこと</div>
-        <Karaoke text={sent.jp} range={hitokotoRange} className="sent" />
+        {showKanji && sent.alt && hasKanji(sent.alt) ? (
+          <RubyText display={sent.alt} reading={sent.jp} className="sent" />
+        ) : (
+          <Karaoke text={sent.jp} range={hitokotoRange} className="sent" />
+        )}
         <div className="sentZh">{sent.zh}</div>
         <div className="row center">
           <button className="btn small ghost" onClick={() => void playHitokoto(0.75)}>

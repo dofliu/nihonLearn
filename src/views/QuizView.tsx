@@ -5,6 +5,8 @@ import { saveQuizResult, weakWordCounts } from '../db/repo'
 import { generateQuiz, MIN_POOL, type QuizQuestion } from '../lib/quiz'
 import { speak } from '../audio/tts'
 import { toast } from '../components/ui'
+import { RubyText } from '../components/Ruby'
+import { useApp } from '../state/store'
 
 const BY_JP = Object.fromEntries(VOCAB.map((v) => [v.jp, v])) as Record<string, Vocab>
 const QUIZ_N = 10
@@ -17,6 +19,7 @@ const KIND_LABEL: Record<QuizQuestion['kind'], string> = {
 }
 
 export function QuizView({ onDone }: { onDone: () => void }) {
+  const showKanji = useApp((s) => s.showKanji)
   const [mode, setMode] = useState<'home' | 'run' | 'result'>('home')
   const [learnedVocab, setLearnedVocab] = useState<Vocab[]>([])
   const [weak, setWeak] = useState<{ jp: string; zh: string; count: number }[]>([])
@@ -61,7 +64,7 @@ export function QuizView({ onDone }: { onDone: () => void }) {
     if (first.kind === 'listen') window.setTimeout(() => speak(first.promptRead || '', 0.85), 300)
   }
 
-  function advance(ok: boolean, refId: string) {
+  function advance(ok: boolean, refId: string, delay = 850) {
     if (!ok) setWrong((w) => (w.includes(refId) ? w : [...w, refId]))
     if (ok) setCorrect((c) => c + 1)
     window.setTimeout(() => {
@@ -75,7 +78,7 @@ export function QuizView({ onDone }: { onDone: () => void }) {
         const q = qs[next]
         if (q.kind === 'listen') window.setTimeout(() => speak(q.promptRead || '', 0.85), 300)
       }
-    }, 850)
+    }, delay)
   }
 
   async function finish(lastOk: boolean) {
@@ -96,7 +99,8 @@ export function QuizView({ onDone }: { onDone: () => void }) {
     const ok = opt === q.answer
     if (ok) speak(q.refId, 0.85)
     else toast(`正解：${q.answer}`)
-    advance(ok, q.refId)
+    // 聽力題答完顯示日文對照，停久一點讓眼睛跟上耳朵
+    advance(ok, q.refId, q.kind === 'listen' ? 2000 : 850)
   }
 
   function tapTile(ch: string, i: number) {
@@ -166,11 +170,23 @@ export function QuizView({ onDone }: { onDone: () => void }) {
         </div>
 
         {q.kind === 'listen' ? (
-          <div className="row center" style={{ margin: '12px 0' }}>
-            <button className="btn red" onClick={() => speak(q.promptRead || '', 0.85)}>
-              🔊 再聽一次
-            </button>
-          </div>
+          <>
+            <div className="row center" style={{ margin: '12px 0' }}>
+              <button className="btn red" onClick={() => speak(q.promptRead || '', 0.85)}>
+                🔊 再聽一次
+              </button>
+            </div>
+            {picked && (
+              // 答完揭曉日文對照（漢字モード附假名注音）
+              <div className="sent" style={{ fontSize: 22, textAlign: 'center', marginBottom: 6 }}>
+                {showKanji && BY_JP[q.refId]?.kanji ? (
+                  <RubyText display={BY_JP[q.refId].kanji!} reading={q.promptRead || ''} />
+                ) : (
+                  q.promptRead
+                )}
+              </div>
+            )}
+          </>
         ) : (
           <div className="sent" style={{ fontSize: 26, textAlign: 'center', margin: '8px 0' }}>
             {q.prompt}

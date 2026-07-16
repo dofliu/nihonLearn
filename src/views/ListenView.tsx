@@ -21,6 +21,8 @@ import {
   type PassageForGen,
 } from '../lib/content'
 import type { UserListenQ } from '../db/schema'
+import { RubyText } from '../components/Ruby'
+import { hasKanji } from '../lib/furigana'
 import { speak } from '../audio/tts'
 import { useApp } from '../state/store'
 import { toast } from '../components/ui'
@@ -174,7 +176,12 @@ function stripTags(s: string): string {
 
 /** 句子聽解題庫：例句＋情境短文的每一行（皆有中文對照）。 */
 function buildPool(): ListenItem[] {
-  const fromSents: ListenItem[] = SENTS.map((s) => ({ play: s.jp, reveal: s.jp, zh: s.zh }))
+  const fromSents: ListenItem[] = SENTS.map((s) => ({
+    play: s.jp,
+    reveal: s.jp,
+    revealKanji: s.alt && hasKanji(s.alt) ? s.alt : undefined,
+    zh: s.zh,
+  }))
   const fromPassages: ListenItem[] = PASSAGES.flatMap((p) =>
     p.lines.map((l) => {
       const kana = l.read || stripTags(l.jp)
@@ -551,6 +558,7 @@ function ExpressionQuiz({ onBack }: { onBack: () => void }) {
 function SentenceQuiz({ onBack }: { onBack: () => void }) {
   const bump = useApp((s) => s.bump)
   const rate = useApp((s) => s.rate)
+  const showKanji = useApp((s) => s.showKanji)
   const [qs, setQs] = useState<ListenQuestion[]>([])
   const [n, setN] = useState(0)
   const [picked, setPicked] = useState<string | null>(null)
@@ -595,11 +603,19 @@ function SentenceQuiz({ onBack }: { onBack: () => void }) {
           🔊 再聽一次
         </button>
       </div>
-      {picked && (
-        <div className="sent" style={{ fontSize: 20, marginBottom: 6 }}>
-          {q.reveal}
-        </div>
-      )}
+      {picked &&
+        (showKanji && q.revealKanji ? (
+          <RubyText
+            display={q.revealKanji}
+            reading={q.reveal}
+            className="sent"
+            style={{ fontSize: 20, marginBottom: 6, display: 'block' }}
+          />
+        ) : (
+          <div className="sent" style={{ fontSize: 20, marginBottom: 6 }}>
+            {q.reveal}
+          </div>
+        ))}
       <div>
         {q.options.map((opt) => {
           let cls = 'qopt big'

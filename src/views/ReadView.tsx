@@ -6,6 +6,7 @@ import { useApp } from '../state/store'
 import { toast } from '../components/ui'
 import { VocabCard } from '../components/VocabCard'
 import { Karaoke } from '../components/Karaoke'
+import { RubyText } from '../components/Ruby'
 import { analyzeCoverage } from '../lib/coverage'
 import {
   fetchArticleList,
@@ -348,11 +349,10 @@ export function ReadView() {
               {VOCAB.filter((w) => w.cat === cat).map((w) => (
                 <div key={w.jp} className="wordRow" onClick={() => speak(w.jp, 0.85)}>
                   <span className="wj">
-                    {showKanji && w.kanji ? w.kanji : w.jp}
-                    {showKanji && w.kanji && (
-                      <span style={{ fontSize: 12, color: 'var(--nezu)', marginLeft: 6 }}>
-                        {w.jp}
-                      </span>
+                    {showKanji && w.kanji ? (
+                      <RubyText display={w.kanji} reading={w.jp} />
+                    ) : (
+                      w.jp
                     )}
                   </span>
                   <span className="wz">{w.zh} 🔊</span>

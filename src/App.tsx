@@ -370,7 +370,7 @@ function SettingsPanel({ onDone }: { onDone: () => void }) {
         <div className="row between">
           <div>
             <div style={{ fontSize: 14.5, fontWeight: 700 }}>漢字モード</div>
-            <div className="sub">詞彙顯示漢字、短文隱藏振り仮名（進階挑戰）</div>
+            <div className="sub">詞彙與句子顯示漢字＋假名注音（初學者也能直接唸）</div>
           </div>
           <button
             className={'btn small' + (showKanji ? '' : ' ghost')}

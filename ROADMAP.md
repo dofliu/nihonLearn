@@ -5,14 +5,14 @@
 > 設計原則不變：**正確性交給權威來源與程式驗證，AI 生成一律人工審核採用才入庫；
 > 使用者只做策展，不當正確性把關者。**
 
-最後更新：v3.10 合併後（JLPT 題型 ＋ AI 段落理解題）。
+最後更新：v3.11 合併後（情境會話 ＋ 漢字假名注音）。
 
 ---
 
 ## 目前狀態
 
 - **程式碼**：Web/PWA 與 Android（Capacitor 殼）皆完成；CI（web 測試＋e2e＋Android `assembleDebug`）綠燈。
-- **測試**：`npm test` 113/113、`npm run test:e2e` 39/39、`sidecar/test_score.py` 4/4、`test_article.py` 13/13、`npm run build` strict 綠燈。
+- **測試**：`npm test` 131/131、`npm run test:e2e` 41/41、`sidecar/test_score.py` 4/4、`test_article.py` 13/13、`npm run build` strict 綠燈。
 - **尚未做**：Android 真機驗收（清單 `tests/MANUAL_QA-ANDROID.md`）與 Google Play 封閉測試——**未通過前勿送審**。
 
 ## 已完成里程碑（摘要）
@@ -25,6 +25,7 @@
 | N5 模擬測驗、朗讀逐字上色、AI 助教、vocab i+1 | v3.4–v3.6 |
 | 聽力理解（聞き取り）、段落聽解＋短文情境分類 | v3.7–v3.8 |
 | JLPT N5 聴解四大題型（含即時応答／発話表現）、AI 段落理解題（LLM 只生中文） | v3.9–v3.10 |
+| 情境對話引導（店員/家人/情人/同學/朋友/廠商）、漢字モード改「漢字＋假名注音」（程式驗證對齊）、測驗聽力日文對照 | v3.11 |
 
 ## 後續接續工作（優先序）
 
