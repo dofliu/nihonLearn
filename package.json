@@ -12,6 +12,8 @@
     "typecheck": "tsc -b --noEmit",
     "test": "node --experimental-strip-types tests/integration.ts",
     "test:e2e": "playwright test",
+    "gen:icons": "node scripts/gen-icons.mjs",
+    "gen:android-icons": "node scripts/gen-android-icons.mjs",
     "build:android": "cross-env CAP_BUILD=1 npm run build && cap sync android",
     "android:open": "npm run build:android && cap open android",
     "android:run": "npm run build:android && cap run android"
