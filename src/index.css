@@ -451,6 +451,54 @@ h2 {
   font-size: 30px;
   text-align: center;
 }
+/* 假名書寫練習 */
+.writeWrap {
+  position: relative;
+  width: 260px;
+  max-width: 100%;
+  aspect-ratio: 1;
+  margin: 10px auto;
+}
+.writeGuide {
+  position: absolute;
+  inset: 0;
+  border: 2px solid var(--washi2);
+  border-radius: 10px;
+  background:
+    linear-gradient(var(--washi2), var(--washi2)) center / 100% 1px no-repeat,
+    linear-gradient(var(--washi2), var(--washi2)) center / 1px 100% no-repeat;
+  background-color: var(--washi);
+  pointer-events: none;
+}
+.writeGhost {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Noto Sans CJK JP', 'Noto Sans JP', sans-serif;
+  font-weight: 700;
+  font-size: 200px;
+  line-height: 1;
+  color: var(--nezu);
+  opacity: 0.18;
+  pointer-events: none;
+  user-select: none;
+}
+.writeGhost.revealed {
+  opacity: 0.3;
+  color: var(--take);
+}
+.writeCanvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+  cursor: crosshair;
+  border-radius: 10px;
+}
+
 /* 会話（情境對話引導）泡泡 */
 .dlgBox {
   margin-top: 10px;

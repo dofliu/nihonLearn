@@ -20,6 +20,7 @@ import { RESPONSES, EXPRESSIONS } from '../src/data/kaiwa.ts'
 import { alignFurigana, hasKanji, stripIgnored } from '../src/lib/furigana.ts'
 import { DIALOGUES } from '../src/data/dialogues.ts'
 import { SENTS } from '../src/data/sentences.ts'
+import { scoreHandwriting, dilate, gradeOf } from '../src/lib/handwriting.ts'
 
 let pass = 0
 let fail = 0
@@ -320,6 +321,51 @@ console.log('=== 5l. 情境對話（会話引導） ===')
   ok('雙方輪流說話', DIALOGUES.every((d) => d.lines.every((l, i) => i === 0 || l.role !== d.lines[i - 1].role)))
   ok('使用者（b）都有台詞', DIALOGUES.every((d) => d.lines.some((l) => l.role === 'b')))
   ok('涵蓋店員/家人/情人/同學/朋友/廠商', ['店員', '家人', '情人', '同學', '朋友', '廠商'].every((p) => DIALOGUES.some((d) => d.partnerTag === p)))
+}
+
+console.log('=== 5m. 手寫字形相似度評分 ===')
+{
+  const N = 8
+  const blank = () => new Array<boolean>(N * N).fill(false)
+  // 中央 4×4 方塊當「範本」
+  const box = () => {
+    const g = blank()
+    for (let y = 2; y <= 5; y++) for (let x = 2; x <= 5; x++) g[y * N + x] = true
+    return g
+  }
+  const ref = box()
+
+  ok('完全一致 → 100', scoreHandwriting(ref, box(), N, { tolerance: 0 }).score === 100)
+  ok('沒寫 → grade —', scoreHandwriting(ref, blank(), N).grade === '—')
+  ok('沒寫 → score 0', scoreHandwriting(ref, blank(), N).score === 0)
+  ok('範本空 → 無法評分', scoreHandwriting(blank(), box(), N).grade === '—')
+
+  // 整格塗滿：recall=1 但 precision 低 → 分數被壓低（不能作弊）
+  const full = new Array<boolean>(N * N).fill(true)
+  const cheat = scoreHandwriting(ref, full, N, { tolerance: 0 })
+  ok('塗滿整格 recall 高', cheat.recall === 1)
+  ok('塗滿整格 precision 低', cheat.precision < 0.4)
+  ok('塗滿整格分數被壓低', cheat.score < 60)
+
+  // 只寫一半 → recall 掉、分數中段
+  const half = blank()
+  for (let y = 2; y <= 5; y++) for (let x = 2; x <= 3; x++) half[y * N + x] = true
+  const h = scoreHandwriting(ref, half, N, { tolerance: 0 })
+  ok('寫一半 recall≈0.5', Math.abs(h.recall - 0.5) < 0.01)
+  ok('寫一半分數 0<score<100', h.score > 0 && h.score < 100)
+
+  // 位移 1 格但在容忍內 → 仍高分
+  const shifted = blank()
+  for (let y = 3; y <= 6; y++) for (let x = 3; x <= 6; x++) shifted[y * N + x] = true
+  ok('位移1格容忍內仍高分', scoreHandwriting(ref, shifted, N, { tolerance: 1 }).score >= 80)
+
+  // dilate 基本行為
+  const single = blank()
+  single[3 * N + 3] = true
+  ok('dilate r=1 → 3×3=9 格', dilate(single, N, 1).filter(Boolean).length === 9)
+  ok('dilate r=0 → 原樣', dilate(single, N, 0).filter(Boolean).length === 1)
+
+  ok('gradeOf 門檻', gradeOf(85) === '◎' && gradeOf(65) === '○' && gradeOf(30) === '△')
 }
 
 console.log('=== 6. 資料完整性 ===')
