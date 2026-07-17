@@ -194,11 +194,12 @@ export function WriteView() {
         </div>
 
         <div className="writeWrap">
-          {/* 描紅範本：淡淡的目標字（空白默寫模式或已評分時隱藏，評分後顯示對照） */}
+          {/* 底層：格線＋和紙底（不透明，必須在最下層，否則會蓋住描紅範本） */}
+          <div className="writeGuide" />
+          {/* 描紅範本：淡淡的目標字（空白默寫時隱藏；評分後以對照色顯示） */}
           {(wmode === 'trace' || result) && (
             <div className={'writeGhost' + (result ? ' revealed' : '')}>{cur.ch}</div>
           )}
-          <div className="writeGuide" />
           <canvas
             ref={canvasRef}
             width={CANVAS}

@@ -59,6 +59,28 @@ test.describe('假名書寫練習', () => {
     await expect(page.locator('.scoreBig')).toHaveCount(0)
   })
 
+  test('描紅範本可見；切空白默寫時隱藏（層級不被蓋住）', async ({ page }) => {
+    await gotoApp(page)
+    await navTo(page, 'かな')
+    await page.getByRole('button', { name: /書寫練習/ }).click()
+
+    // 描紅模式：範本字可見（在格線層之上、畫布之下）
+    const ghost = page.locator('.writeGhost')
+    await expect(ghost).toBeVisible()
+    // 範本在 DOM 中須排在格線層 .writeGuide 之後（否則會被不透明底蓋住）
+    const guideThenGhost = await page.evaluate(() => {
+      const wrap = document.querySelector('.writeWrap')!
+      const kids = Array.from(wrap.children)
+      return kids.findIndex((e) => e.classList.contains('writeGuide')) <
+        kids.findIndex((e) => e.classList.contains('writeGhost'))
+    })
+    expect(guideThenGhost).toBe(true)
+
+    // 切到空白默寫 → 範本隱藏
+    await page.getByRole('button', { name: /空白默寫/ }).click()
+    await expect(page.locator('.writeGhost')).toHaveCount(0)
+  })
+
   test('沒寫就評分 → 提示先寫', async ({ page }) => {
     await gotoApp(page)
     await navTo(page, 'かな')

@@ -29,6 +29,7 @@
 | **v3.12** | **專屬 Logo（鳥居）**：藍夜空底＋朱紅鳥居＋通往鳥居的參道（呼應「日本語の道」）；favicon／PWA／Android 圖示同步（由 `scripts/gen-icons.mjs` 重生成） |
 | **v3.13** | **假名書寫練習＋字形評分**：かな道場「✍ 書寫練習」，描紅／空白默寫，Canvas 手寫→字形相似度評分（形狀參考、非筆順；純函式、程式驗證） |
 | **v3.14** | **詞庫擴充**：N5 詞彙 191→299（+108，新增自然／交通分類），逐條確認讀音釋義、furigana 可還原 |
+| **v3.15** | **修正**：書寫描紅範本被格線層蓋住（層級調整）；Android 桌面 mipmap 圖示直接生成鳥居（免本機 @capacitor/assets） |
 
 連續天數與已學假名可從 v1 一鍵匯入，不歸零。
 
@@ -122,7 +123,7 @@ docs/          ANDROID_RELEASE_PLAN、PRIVACY_POLICY、PLAY_LISTING
 |--|--|--|
 | 建置（strict） | `npm run build` | ✅ 綠燈，PWA SW 生成 |
 | 前端邏輯 | `npm test` | ✅ 147 / 147 |
-| 瀏覽器 E2E | `npm run test:e2e` | ✅ 43 / 43 |
+| 瀏覽器 E2E | `npm run test:e2e` | ✅ 44 / 44 |
 | 後端評分 | `python sidecar/test_score.py` | ✅ 4 / 4 |
 | 後端文章解析 | `python sidecar/test_article.py` | ✅ 13 / 13 |
 | Android 殼可編譯 | GitHub Actions `android` job（`gradlew assembleDebug`） | ✅ |
