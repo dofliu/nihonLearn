@@ -81,6 +81,29 @@ test.describe('假名書寫練習', () => {
     await expect(page.locator('.writeGhost')).toHaveCount(0)
   })
 
+  test('漢字書寫模式：切漢字字集、顯示讀音＋釋義、可評分', async ({ page }) => {
+    await gotoApp(page)
+    await navTo(page, 'かな')
+    await page.getByRole('button', { name: /書寫練習/ }).click()
+
+    await page.getByRole('button', { name: '漢字', exact: true }).click()
+    // eyebrow 顯示「讀音・釋義」（含中點）
+    await expect(page.locator('.card .eyebrow').first()).toContainText('・')
+    // 底部計數改「個漢字」，且字集非空
+    await expect(page.locator('main')).toContainText('個漢字')
+
+    // 畫幾筆 → 評分出現分數
+    const canvas = page.locator('canvas.writeCanvas')
+    const box = (await canvas.boundingBox())!
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height * 0.2)
+    await page.mouse.down()
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height * 0.8, { steps: 8 })
+    await page.mouse.up()
+    await page.getByRole('button', { name: '評分', exact: true }).click()
+    await expect(page.locator('.scoreBig')).toBeVisible()
+    await expect(page.locator('main')).toContainText('/ 100')
+  })
+
   test('沒寫就評分 → 提示先寫', async ({ page }) => {
     await gotoApp(page)
     await navTo(page, 'かな')

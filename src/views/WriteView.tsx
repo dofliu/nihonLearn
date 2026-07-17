@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
-import { KANA, type Kana } from '../data/kana'
+import { KANA } from '../data/kana'
+import { WRITE_KANJI } from '../data/kanjiWrite'
 import { scoreHandwriting, type WriteScore } from '../lib/handwriting'
 import { saveWriteScore, writeBestMap } from '../db/repo'
 import { speak } from '../audio/tts'
@@ -9,8 +10,20 @@ const GRID = 32 // 評分光柵解析度（GRID×GRID）
 const CANVAS = 260 // 顯示畫布邏輯尺寸（px）
 const PEN = 11 // 畫筆粗細（顯示 px）
 
-type Script = 'hiragana' | 'katakana'
+type Script = 'hiragana' | 'katakana' | 'kanji'
 type WMode = 'trace' | 'blank' // 描紅 / 空白默寫
+
+interface WChar {
+  ch: string // 書寫目標字
+  read: string // 假名讀音（TTS）
+  sub: string // eyebrow 顯示（假名/羅馬字＋釋義）
+}
+
+const SCRIPT_LABEL: Record<Script, string> = {
+  hiragana: '平假名',
+  katakana: '片假名',
+  kanji: '漢字',
+}
 
 function markColor(g: WriteScore['grade']) {
   return g === '◎' ? 'var(--take)' : g === '○' ? 'var(--yama)' : g === '△' ? 'var(--shu)' : 'var(--nezu)'
@@ -72,8 +85,15 @@ export function WriteView() {
   const strokesRef = useRef<{ x: number; y: number }[][]>([])
   const drawingRef = useRef(false)
 
-  // 只練清音 46（初學者友善），依 KANA 順序
-  const chars: Kana[] = KANA.filter((k) => k.script === script && k.seion)
+  // 假名練清音 46（初學者友善）；漢字取自已驗證的 VOCAB 單漢字詞
+  const chars: WChar[] =
+    script === 'kanji'
+      ? WRITE_KANJI.map((k) => ({ ch: k.ch, read: k.read, sub: `${k.read}・${k.zh}` }))
+      : KANA.filter((k) => k.script === script && k.seion).map((k) => ({
+          ch: k.ch,
+          read: k.ch,
+          sub: k.ro,
+        }))
   const cur = chars[idx % chars.length]
 
   useEffect(() => {
@@ -167,6 +187,9 @@ export function WriteView() {
           <button className={script === 'katakana' ? 'on' : ''} onClick={() => setScript('katakana')}>
             カタカナ
           </button>
+          <button className={script === 'kanji' ? 'on' : ''} onClick={() => setScript('kanji')}>
+            漢字
+          </button>
         </div>
         <div className="lvTabs">
           <button className={wmode === 'trace' ? 'on' : ''} onClick={() => setWmode('trace')}>
@@ -185,10 +208,10 @@ export function WriteView() {
       <div className="card">
         <div className="row between">
           <div className="eyebrow">
-            書く　{cur.ro}
+            書く　{cur.sub}
             {best[cur.ch] != null && <span style={{ marginLeft: 8 }}>最佳 {best[cur.ch]}</span>}
           </div>
-          <button className="btn small ghost" onClick={() => speak(cur.ch, 0.85)}>
+          <button className="btn small ghost" onClick={() => speak(cur.read, 0.85)}>
             🔊 唸這個音
           </button>
         </div>
@@ -259,7 +282,7 @@ export function WriteView() {
 
       <div className="card">
         <p className="sub center">
-          已寫得工整（≥60 分）<b>{done}</b> / {chars.length} 個{script === 'hiragana' ? '平假名' : '片假名'}
+          已寫得工整（≥60 分）<b>{done}</b> / {chars.length} 個{SCRIPT_LABEL[script]}
         </p>
       </div>
     </>
