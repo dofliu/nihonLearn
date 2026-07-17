@@ -31,6 +31,7 @@
 | **v3.14** | **詞庫擴充**：N5 詞彙 191→299（+108，新增自然／交通分類），逐條確認讀音釋義、furigana 可還原 |
 | **v3.15** | **修正**：書寫描紅範本被格線層蓋住（層級調整）；Android 桌面 mipmap 圖示直接生成鳥居（免本機 @capacitor/assets） |
 | **v3.16** | **漢字書寫練習**：書寫練習加「漢字」字集（取自已驗證的 60 個單漢字詞），沿用字形相似度評分；描紅／空白默寫同假名 |
+| **v3.17** | **學習活動記錄＋統計**：各功能練習記進 `activityLog`（Dexie v8），成長頁加練習日曆 heatmap＋各項目累計；新功能（書寫/測驗/重音）當今日頁「+α 選配」不卡蓋章 |
 
 連續天數與已學假名可從 v1 一鍵匯入，不歸零。
 
@@ -86,7 +87,7 @@ python test_article.py   # NHK 文章解析（fixture HTML）
 ```
 src/
   data/        內容（kana 142・vocab ~300 N5・sentences・pairs・pitch・passages）— 唯一事實來源
-  db/          Dexie schema(v6) + repo（任務計數、蓋章、卡片、發音紀錄、生成句、文章、TTS 快取、測驗結果、段落理解題）
+  db/          Dexie schema(v8) + repo（任務計數、蓋章、卡片、發音紀錄、生成句、文章、TTS 快取、測驗結果、段落理解題）
   srs/         FSRS 排程封裝（新卡 / 評級 / 到期 / 定著判定）
   audio/       tts（VOICEVOX ▸ 原生 ▸ Web Speech 門面 + Dexie 快取）、scorer（whisper ▸ 原生/Web ASR ▸ 自評）
   lib/         sidecar（base URL 抽象）、llm（Gemini 直連 + 對話）、llmParse（純解析）、content（生成 client + i+1 已學詞）、
@@ -123,8 +124,8 @@ docs/          ANDROID_RELEASE_PLAN、PRIVACY_POLICY、PLAY_LISTING
 | 層級 | 指令 | 結果 |
 |--|--|--|
 | 建置（strict） | `npm run build` | ✅ 綠燈，PWA SW 生成 |
-| 前端邏輯 | `npm test` | ✅ 147 / 147 |
-| 瀏覽器 E2E | `npm run test:e2e` | ✅ 45 / 45 |
+| 前端邏輯 | `npm test` | ✅ 157 / 157 |
+| 瀏覽器 E2E | `npm run test:e2e` | ✅ 46 / 46 |
 | 後端評分 | `python sidecar/test_score.py` | ✅ 4 / 4 |
 | 後端文章解析 | `python sidecar/test_article.py` | ✅ 13 / 13 |
 | Android 殼可編譯 | GitHub Actions `android` job（`gradlew assembleDebug`） | ✅ |

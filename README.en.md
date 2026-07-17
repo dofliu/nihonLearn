@@ -33,6 +33,7 @@ Started as a v1 Artifact, productized into a PWA (v2), and wrapped with Capacito
 | **v3.14** | **Vocabulary expansion**: N5 vocab 191→299 (+108, new nature / transport categories), readings & meanings verified per entry, furigana reconstructs |
 | **v3.15** | **Fixes**: writing-practice trace template no longer hidden behind the grid layer; Android launcher mipmaps regenerated with the torii directly (no local @capacitor/assets needed) |
 | **v3.16** | **Kanji writing practice**: writing practice gains a "kanji" set (60 verified single-kanji words), reusing glyph-shape scoring; trace / blank modes as with kana |
+| **v3.17** | **Learning activity log + stats**: every feature’s practice is logged to `activityLog` (Dexie v8); the progress page adds a practice-calendar heatmap + per-feature totals; new features (writing/quiz/pitch) are Today-page "+α" extras that don’t gate the daily seal |
 
 Streak days and learned kana can be imported from v1 with one tap — they don't reset.
 
@@ -87,7 +88,7 @@ demo content is used and nothing breaks. All generated content goes through the 
 ```
 src/
   data/        content (kana 142 · vocab ~300 N5 · sentences · pairs · pitch · passages · kaiwa) — single source of truth
-  db/          Dexie schema(v6) + repo (task counts, stamps, cards, pronunciation records, generated sentences, articles, TTS cache, quiz results, paragraph questions)
+  db/          Dexie schema(v8) + repo (task counts, stamps, cards, pronunciation records, generated sentences, articles, TTS cache, quiz results, paragraph questions)
   srs/         FSRS scheduling wrapper (new card / review / due / mastery)
   audio/       tts (VOICEVOX ▸ native ▸ Web Speech facade + Dexie cache), scorer (whisper ▸ native/Web ASR ▸ self-rating)
   lib/         sidecar (base-URL abstraction), llm (direct Gemini + chat), llmParse (pure parsing), content (generation client + i+1 learned words),
@@ -124,8 +125,8 @@ docs/          ANDROID_RELEASE_PLAN, PRIVACY_POLICY, PLAY_LISTING
 | Layer | Command | Result |
 |--|--|--|
 | Build (strict) | `npm run build` | ✅ green, PWA SW generated |
-| Front-end logic | `npm test` | ✅ 147 / 147 |
-| Browser E2E | `npm run test:e2e` | ✅ 45 / 45 |
+| Front-end logic | `npm test` | ✅ 157 / 157 |
+| Browser E2E | `npm run test:e2e` | ✅ 46 / 46 |
 | Backend scoring | `python sidecar/test_score.py` | ✅ 4 / 4 |
 | Backend article parsing | `python sidecar/test_article.py` | ✅ 13 / 13 |
 | Android shell compiles | GitHub Actions `android` job (`gradlew assembleDebug`) | ✅ |

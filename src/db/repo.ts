@@ -78,7 +78,35 @@ export async function bumpTask(taskId: string, n = 1) {
     }
   }
   await db.days.put(day)
+  await logActivity(taskId, n) // 五核心的練習也記進活動記錄
   return { day, stamped }
+}
+
+// ---------- 學習活動記錄（每日 × 每功能累計）----------
+/** 記一次某功能的練習（今日 day+feature 累加 n）。額外練習（write/quiz/pitch）直接呼叫。 */
+export async function logActivity(feature: string, n = 1) {
+  if (n <= 0) return
+  const day = todayStr()
+  const now = Date.now()
+  const row = await db.activityLog.where('[day+feature]').equals([day, feature]).first()
+  if (row) {
+    row.count += n
+    row.ts = now
+    await db.activityLog.put(row)
+  } else {
+    await db.activityLog.add({ day, feature, count: n, ts: now })
+  }
+}
+
+export async function listActivity() {
+  return db.activityLog.toArray()
+}
+
+/** 今日有練過的功能集合（今日頁 +α 顯示用）。 */
+export async function todayActivityFeatures(): Promise<Set<string>> {
+  const day = todayStr()
+  const rows = await db.activityLog.where('day').equals(day).toArray()
+  return new Set(rows.filter((r) => r.count > 0).map((r) => r.feature))
 }
 
 export async function incNewIntro(n = 1) {

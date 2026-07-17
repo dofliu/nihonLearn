@@ -21,6 +21,7 @@ import { alignFurigana, hasKanji, stripIgnored } from '../src/lib/furigana.ts'
 import { DIALOGUES } from '../src/data/dialogues.ts'
 import { SENTS } from '../src/data/sentences.ts'
 import { scoreHandwriting, dilate, gradeOf } from '../src/lib/handwriting.ts'
+import { totalsByDay, totalsByFeature, featuresOnDay, activeDayCount, heatLevel, calendarCells } from '../src/lib/activity.ts'
 
 let pass = 0
 let fail = 0
@@ -366,6 +367,31 @@ console.log('=== 5m. 手寫字形相似度評分 ===')
   ok('dilate r=0 → 原樣', dilate(single, N, 0).filter(Boolean).length === 1)
 
   ok('gradeOf 門檻', gradeOf(85) === '◎' && gradeOf(65) === '○' && gradeOf(30) === '△')
+}
+
+console.log('=== 5n. 學習活動統計 ===')
+{
+  const rows = [
+    { day: '2026-07-01', feature: 'kana', count: 10 },
+    { day: '2026-07-01', feature: 'write', count: 3 },
+    { day: '2026-07-02', feature: 'listen', count: 5 },
+    { day: '2026-07-02', feature: 'kana', count: 2 },
+    { day: '2026-07-04', feature: 'quiz', count: 1 },
+  ]
+  const byDay = totalsByDay(rows)
+  ok('每日總數：07-01=13', byDay['2026-07-01'] === 13)
+  ok('每日總數：07-02=7', byDay['2026-07-02'] === 7)
+  const byFeat = totalsByFeature(rows)
+  ok('功能累計：kana=12', byFeat['kana'] === 12)
+  ok('功能累計：write=3', byFeat['write'] === 3)
+  ok('某日功能集合', featuresOnDay(rows, '2026-07-01').has('write') && featuresOnDay(rows, '2026-07-01').has('kana'))
+  ok('練習天數＝3', activeDayCount(rows) === 3)
+  ok('count 0 不算練習天', activeDayCount([{ day: 'x', feature: 'kana', count: 0 }]) === 0)
+
+  ok('heatLevel 分級', heatLevel(0) === 0 && heatLevel(3) === 1 && heatLevel(8) === 2 && heatLevel(20) === 3 && heatLevel(40) === 4)
+  const cells = calendarCells(rows, ['2026-07-01', '2026-07-02', '2026-07-03'])
+  ok('日曆格對齊日期序', cells.length === 3 && cells[0].day === '2026-07-01')
+  ok('日曆格帶總數與分級', cells[0].count === 13 && cells[0].level === 3 && cells[2].count === 0 && cells[2].level === 0)
 }
 
 console.log('=== 6. 資料完整性 ===')

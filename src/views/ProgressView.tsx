@@ -1,8 +1,17 @@
 import { useEffect, useState } from 'react'
-import { allAttempts, perSentenceBest } from '../db/repo'
-import type { Attempt } from '../db/schema'
+import { allAttempts, perSentenceBest, listActivity, allStampDates } from '../db/repo'
+import type { Attempt, ActivityRow } from '../db/schema'
 import { SENTS } from '../data/sentences'
 import { speak } from '../audio/tts'
+import { lastNDays, computeStreak } from '../lib/date'
+import {
+  calendarCells,
+  totalsByFeature,
+  activeDayCount,
+  FEATURE_LABEL,
+  CORE_FEATURES,
+  EXTRA_FEATURES,
+} from '../lib/activity'
 
 const SENT_BY_ID = Object.fromEntries(SENTS.map((s) => [s.id, s]))
 
@@ -25,6 +34,8 @@ export function ProgressView({ onDone }: { onDone: () => void }) {
   const [perSent, setPerSent] = useState<
     { id: string; best: number; count: number }[]
   >([])
+  const [activity, setActivity] = useState<ActivityRow[]>([])
+  const [streak, setStreak] = useState(0)
 
   useEffect(() => {
     void (async () => {
@@ -35,8 +46,19 @@ export function ProgressView({ onDone }: { onDone: () => void }) {
           .map(([id, v]) => ({ id, best: v.best, count: v.count }))
           .sort((a, b) => b.best - a.best),
       )
+      setActivity(await listActivity())
+      setStreak(computeStreak(await allStampDates()))
     })()
   }, [])
+
+  // 學習記録：近 70 天日曆（10 週×7）＋各項目累計
+  const days = lastNDays(70)
+  const cells = calendarCells(activity, days)
+  const featTotals = totalsByFeature(activity)
+  const practiced = activeDayCount(activity)
+  const totalActs = Object.values(featTotals).reduce((s, v) => s + v, 0)
+  const orderedFeatures = [...CORE_FEATURES, ...EXTRA_FEATURES].filter((f) => featTotals[f] > 0)
+  const maxFeat = Math.max(1, ...orderedFeatures.map((f) => featTotals[f]))
 
   const asr = attempts.filter((a) => a.source === 'asr')
   const scores = attempts.map((a) => a.score)
@@ -56,6 +78,44 @@ export function ProgressView({ onDone }: { onDone: () => void }) {
 
   return (
     <>
+      <div className="card">
+        <div className="eyebrow">学習記録 ─ 練習日曆</div>
+        <div className="statChips" style={{ marginBottom: 10 }}>
+          <span className="chip">連続 <b>{streak}</b> 日</span>
+          <span className="chip">近 70 日練習 <b>{practiced}</b> 天</span>
+          <span className="chip">累計動作 <b>{totalActs}</b></span>
+        </div>
+        <div className="heatGrid">
+          {cells.map((c) => (
+            <div key={c.day} className={`heatCell lv${c.level}`} title={`${c.day}：${c.count}`} />
+          ))}
+        </div>
+        <p className="sub" style={{ marginTop: 6 }}>
+          每格一天，顏色越深當天練得越多（含選配的書寫／測驗／重音）。
+        </p>
+      </div>
+
+      {orderedFeatures.length > 0 && (
+        <div className="card">
+          <div className="eyebrow">各項目累計次數</div>
+          {orderedFeatures.map((f) => (
+            <div key={f} className="featRow">
+              <span className="featName">{FEATURE_LABEL[f] || f}</span>
+              <span className="featBar">
+                <span
+                  className="featFill"
+                  style={{ width: `${Math.round((featTotals[f] / maxFeat) * 100)}%` }}
+                />
+              </span>
+              <span className="featNum">{featTotals[f]}</span>
+            </div>
+          ))}
+          <p className="sub" style={{ marginTop: 6 }}>
+            前五項為每日修行核心（計入蓋章）；書寫／測驗／重音為選配額外練習。
+          </p>
+        </div>
+      )}
+
       <div className="card">
         <div className="eyebrow">口の記録 ─ 發音成長曲線</div>
         {attempts.length === 0 ? (
