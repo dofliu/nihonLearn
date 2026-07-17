@@ -4,8 +4,8 @@ import { gotoApp, statChip, localDateStr } from './helpers'
 /**
  * IndexedDB 深度驗證（CLAUDE.md A-1）：
  * 1. Dexie v1 → 現行 schema 升級：先以 Dexie version(1) 的原生 IDB 佈局（版本 10）
- *    塞入既有資料，再載入 app 觸發升級到現行 version(7)（版本 70），驗證資料不遺失、
- *    新表 userSentences / ttsCache / userPassages / genQueue / quizResults / userListenQ / writeScores 建立。
+ *    塞入既有資料，再載入 app 觸發升級到現行 version(8)（版本 80），驗證資料不遺失、
+ *    新表 userSentences / ttsCache / userPassages / genQueue / quizResults / userListenQ / writeScores / activityLog 建立。
  * 2. v1 Artifact 存檔 JSON 匯入：假名 SRS 播種 + 蓋章沿用（streak 不歸零）。
  */
 
@@ -73,7 +73,7 @@ test.describe('Dexie 升級與 v1 匯入', () => {
     // 昨日有章、今日沒有 → streak 從昨天起算 1
     await expect(page.locator('.streakBadge')).toContainText('連続 1 日')
 
-    // schema 已升級：IDB 版本 70（Dexie version(7)×10）、新表建立
+    // schema 已升級：IDB 版本 80（Dexie version(8)×10）、新表建立
     const info = await page.evaluate(async () => {
       const metas = await indexedDB.databases()
       const meta = metas.find((d) => d.name === 'nihongo-michi')
@@ -88,7 +88,7 @@ test.describe('Dexie 升級與 v1 匯入', () => {
       })
       return { version: meta?.version, names }
     })
-    expect(info.version).toBe(70)
+    expect(info.version).toBe(80)
     expect(info.names).toContain('userSentences')
     expect(info.names).toContain('ttsCache')
     expect(info.names).toContain('userPassages')
@@ -96,6 +96,7 @@ test.describe('Dexie 升級與 v1 匯入', () => {
     expect(info.names).toContain('quizResults')
     expect(info.names).toContain('userListenQ')
     expect(info.names).toContain('writeScores')
+    expect(info.names).toContain('activityLog')
     expect(info.names).toContain('cards')
 
     // 卡片狀態語義保留：あ 顯示為已定著（master）

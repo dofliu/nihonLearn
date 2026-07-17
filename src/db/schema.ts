@@ -112,6 +112,18 @@ export interface WriteScore {
   ts: number // 最後練習時間
 }
 
+/**
+ * 學習活動記錄（每日 × 每功能一列，累計次數）。驅動練習日曆與各項目統計。
+ * 不做精確計時——習慣型 App 用「有沒有練、練了幾次」比分鐘更有意義。
+ */
+export interface ActivityRow {
+  id?: number
+  day: string // YYYY-MM-DD（本地時區）
+  feature: string // kana/vocab/listen/speak/read/write/quiz/pitch
+  count: number // 當日該功能累計動作數
+  ts: number // 最後更新時間
+}
+
 export class MichiDB extends Dexie {
   cards!: Table<Card, string>
   days!: Table<DaySession, string>
@@ -125,6 +137,7 @@ export class MichiDB extends Dexie {
   quizResults!: Table<QuizResult, number>
   userListenQ!: Table<UserListenQ, number>
   writeScores!: Table<WriteScore, string>
+  activityLog!: Table<ActivityRow, number>
 
   constructor() {
     super('nihongo-michi')
@@ -153,6 +166,9 @@ export class MichiDB extends Dexie {
     })
     this.version(7).stores({
       writeScores: 'ch, ts',
+    })
+    this.version(8).stores({
+      activityLog: '++id, day, feature, [day+feature]',
     })
   }
 }

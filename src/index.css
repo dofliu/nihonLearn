@@ -451,6 +451,56 @@ h2 {
   font-size: 30px;
   text-align: center;
 }
+/* 學習記録：練習日曆 heatmap（10 週×7）＋各項目長條 */
+.heatGrid {
+  display: grid;
+  grid-template-columns: repeat(10, 1fr);
+  grid-auto-flow: column;
+  grid-template-rows: repeat(7, 1fr);
+  gap: 3px;
+  max-width: 320px;
+}
+.heatCell {
+  aspect-ratio: 1;
+  border-radius: 3px;
+  background: var(--washi2);
+}
+.heatCell.lv1 { background: rgba(78, 141, 110, 0.35); }
+.heatCell.lv2 { background: rgba(78, 141, 110, 0.55); }
+.heatCell.lv3 { background: rgba(78, 141, 110, 0.78); }
+.heatCell.lv4 { background: var(--take); }
+.featRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 5px 0;
+}
+.featName {
+  flex: 0 0 44px;
+  font-size: 13px;
+  font-weight: 700;
+}
+.featBar {
+  flex: 1;
+  height: 12px;
+  background: var(--washi2);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.featFill {
+  display: block;
+  height: 100%;
+  background: var(--ai);
+  border-radius: 6px;
+}
+.featNum {
+  flex: 0 0 auto;
+  font-size: 12.5px;
+  font-weight: 700;
+  min-width: 24px;
+  text-align: right;
+}
+
 /* 假名書寫練習 */
 .writeWrap {
   position: relative;

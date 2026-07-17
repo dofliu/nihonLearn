@@ -3,6 +3,7 @@ import { PITCH, type PitchWord } from '../data/pitch'
 import { splitMora, pitchPattern, accentTypeName } from '../lib/pitch'
 import { speak } from '../audio/tts'
 import { toast } from '../components/ui'
+import { logActivity } from '../db/repo'
 
 // ---------- 高低線視覺化 ----------
 function PitchLine({ kana, accent }: { kana: string; accent: number }) {
@@ -87,6 +88,7 @@ export function PitchView() {
     setPicked(opt)
     const correct = accentTypeName(quiz.w.accent, quiz.n)
     toast(opt === correct ? '正解！' : `是「${correct}」`)
+    void logActivity('pitch')
     window.setTimeout(next, 1400)
   }
 

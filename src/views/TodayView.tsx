@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useApp, TASKS } from '../state/store'
 import { db } from '../db/schema'
-import { allStampDates } from '../db/repo'
+import { allStampDates, todayActivityFeatures } from '../db/repo'
 import { isMastered } from '../srs/scheduler'
 import { lastNDays, todayStr } from '../lib/date'
 import { SENTS } from '../data/sentences'
@@ -40,6 +40,7 @@ export function TodayView({
   const [learned, setLearned] = useState(0)
   const [mastered, setMastered] = useState(0)
   const [vocabLearned, setVocabLearned] = useState(0)
+  const [extrasToday, setExtrasToday] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     void (async () => {
@@ -49,6 +50,7 @@ export function TodayView({
       setMastered(cards.filter((c) => isMastered(c.fsrs)).length)
       const vcards = await db.cards.where('type').equals('vocab').toArray()
       setVocabLearned(vcards.length)
+      setExtrasToday(await todayActivityFeatures())
     })()
   }, [counts])
 
@@ -92,6 +94,24 @@ export function TodayView({
               </div>
             )
           })}
+        </div>
+      </div>
+
+      <div className="card">
+        <div className="eyebrow">今日の +α（選配練習・不影響蓋章）</div>
+        <p className="sub" style={{ marginBottom: 8 }}>
+          核心五修行之外的加練，練了就打勾——想加強再做，不做也不扣分。
+        </p>
+        <div className="row" style={{ flexWrap: 'wrap', gap: 8 }}>
+          <button className="btn small ghost" onClick={() => onNav('kana')}>
+            {extrasToday.has('write') ? '✓ ' : ''}✍ 書寫練習
+          </button>
+          <button className="btn small ghost" onClick={onOpenQuiz}>
+            {extrasToday.has('quiz') ? '✓ ' : ''}📝 N5 測驗
+          </button>
+          <button className="btn small ghost" onClick={() => onNav('listen')}>
+            {extrasToday.has('pitch') ? '✓ ' : ''}📈 重音道場
+          </button>
         </div>
       </div>
 

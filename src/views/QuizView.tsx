@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { VOCAB, type Vocab } from '../data/vocab'
 import { db } from '../db/schema'
-import { saveQuizResult, weakWordCounts } from '../db/repo'
+import { saveQuizResult, weakWordCounts, logActivity } from '../db/repo'
 import { generateQuiz, MIN_POOL, type QuizQuestion } from '../lib/quiz'
 import { speak } from '../audio/tts'
 import { toast } from '../components/ui'
@@ -87,6 +87,7 @@ export function QuizView({ onDone }: { onDone: () => void }) {
       new Set(lastOk ? wrong : [...wrong, qs[idx].refId]),
     )
     await saveQuizResult(qs.length, finalCorrect, finalWrong)
+    await logActivity('quiz')
     setCorrect(finalCorrect)
     setMode('result')
     await refresh()

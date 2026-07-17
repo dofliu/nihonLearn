@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, useCallback } from 'react'
 import { KANA } from '../data/kana'
 import { WRITE_KANJI } from '../data/kanjiWrite'
 import { scoreHandwriting, type WriteScore } from '../lib/handwriting'
-import { saveWriteScore, writeBestMap } from '../db/repo'
+import { saveWriteScore, writeBestMap, logActivity } from '../db/repo'
 import { speak } from '../audio/tts'
 import { toast } from '../components/ui'
 
@@ -165,6 +165,7 @@ export function WriteView() {
     void (async () => {
       const b = await saveWriteScore(cur.ch, r.score)
       setBest((m) => ({ ...m, [cur.ch]: b }))
+      await logActivity('write')
     })()
   }
 
