@@ -32,6 +32,7 @@ Started as a v1 Artifact, productized into a PWA (v2), and wrapped with Capacito
 | **v3.13** | **Kana writing practice + shape scoring**: kana dojo "✍ writing", trace / blank modes, canvas handwriting scored by glyph-shape similarity (shape reference, not stroke-order; pure function, program-verified) |
 | **v3.14** | **Vocabulary expansion**: N5 vocab 191→299 (+108, new nature / transport categories), readings & meanings verified per entry, furigana reconstructs |
 | **v3.15** | **Fixes**: writing-practice trace template no longer hidden behind the grid layer; Android launcher mipmaps regenerated with the torii directly (no local @capacitor/assets needed) |
+| **v3.16** | **Kanji writing practice**: writing practice gains a "kanji" set (60 verified single-kanji words), reusing glyph-shape scoring; trace / blank modes as with kana |
 
 Streak days and learned kana can be imported from v1 with one tap — they don't reset.
 
@@ -124,7 +125,7 @@ docs/          ANDROID_RELEASE_PLAN, PRIVACY_POLICY, PLAY_LISTING
 |--|--|--|
 | Build (strict) | `npm run build` | ✅ green, PWA SW generated |
 | Front-end logic | `npm test` | ✅ 147 / 147 |
-| Browser E2E | `npm run test:e2e` | ✅ 44 / 44 |
+| Browser E2E | `npm run test:e2e` | ✅ 45 / 45 |
 | Backend scoring | `python sidecar/test_score.py` | ✅ 4 / 4 |
 | Backend article parsing | `python sidecar/test_article.py` | ✅ 13 / 13 |
 | Android shell compiles | GitHub Actions `android` job (`gradlew assembleDebug`) | ✅ |
