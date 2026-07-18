@@ -1,6 +1,6 @@
 {
   "name": "nihongo-michi",
-  "version": "3.17.0",
+  "version": "3.18.0",
   "private": true,
   "type": "module",
   "description": "日本語の道 — 個人化日語學習 PWA（聽說讀三軌，local-first）",

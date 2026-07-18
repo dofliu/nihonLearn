@@ -40,7 +40,8 @@ body {
 .appHeader {
   background: var(--ai);
   color: #f4f1e8;
-  padding: 14px 18px 12px;
+  /* 頂端加入系統狀態列安全區（瀏海／時間電量列），避免標題被蓋住 */
+  padding: calc(14px + env(safe-area-inset-top)) 18px 12px;
   display: flex;
   align-items: baseline;
   justify-content: space-between;
@@ -51,13 +52,6 @@ body {
   font-size: 20px;
   font-weight: 700;
   letter-spacing: 0.12em;
-}
-.appHeader h1 span {
-  font-size: 11px;
-  letter-spacing: 0.2em;
-  opacity: 0.75;
-  margin-left: 8px;
-  font-family: var(--body);
 }
 .streakBadge {
   font-size: 13px;

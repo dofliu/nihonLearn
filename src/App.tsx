@@ -57,7 +57,7 @@ export default function App() {
           onClick={() => setOverlay((v) => (v === 'settings' ? null : 'settings'))}
           style={{ cursor: 'pointer' }}
         >
-          日本語の道<span>NIHONGO NO MICHI</span>
+          日本語の道
         </h1>
         <StreakBadge />
       </header>

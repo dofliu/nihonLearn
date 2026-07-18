@@ -244,8 +244,8 @@ const LISTEN_MENU: {
 }[] = [
   { key: 'sentence', jp: '句子聽解', jlpt: 'ポイント理解', desc: '聽單句 → 選中文意思（5 題）' },
   { key: 'para', jp: '段落對話', jlpt: '課題理解', desc: '聽整段對話 → 答大意／場景（3 題）', ghost: true },
-  { key: 'response', jp: '即時応答', jlpt: '即時応答', desc: '聽一句短問／招呼 → 選恰當回應（5 題）', ghost: true },
-  { key: 'expression', jp: '発話表現', jlpt: '発話表現', desc: '看情境 → 選該說的日文（5 題）', ghost: true },
+  { key: 'response', jp: '即時應答', jlpt: '即時応答', desc: '聽一句短問／招呼 → 選恰當回應（5 題）', ghost: true },
+  { key: 'expression', jp: '情境表達', jlpt: '発話表現', desc: '看情境 → 選該說的日文（5 題）', ghost: true },
 ]
 
 function ListenComprehension() {
@@ -426,17 +426,18 @@ function ResponseQuiz({ onBack }: { onBack: () => void }) {
     if (!q || picked) return
     setPicked(opt)
     void bump('listen', 1)
-    window.setTimeout(() => {
-      if (n >= qs.length) {
-        toast('即時応答 完成！')
-        onBack()
-        return
-      }
-      const next = n + 1
-      setN(next)
-      setPicked(null)
-      window.setTimeout(() => speak(qs[next - 1].play, rate), 300)
-    }, 1800)
+  }
+
+  function next() {
+    if (n >= qs.length) {
+      toast('即時応答 完成！')
+      onBack()
+      return
+    }
+    const nx = n + 1
+    setN(nx)
+    setPicked(null)
+    window.setTimeout(() => speak(qs[nx - 1].play, rate), 300)
   }
 
   if (!q) return null
@@ -475,9 +476,16 @@ function ResponseQuiz({ onBack }: { onBack: () => void }) {
         })}
       </div>
       {picked && (
-        <div className="sub center" style={{ marginTop: 8 }}>
-          正解：<b>{q.answer}</b>（{q.answerZh}）
-        </div>
+        <>
+          <div className="sub center" style={{ marginTop: 8 }}>
+            正解：<b>{q.answer}</b>（{q.answerZh}）
+          </div>
+          <div className="row center" style={{ marginTop: 12 }}>
+            <button className="btn" onClick={next}>
+              {n >= qs.length ? '完成 ✓' : '下一題 →'}
+            </button>
+          </div>
+        </>
       )}
     </div>
   )
@@ -503,15 +511,16 @@ function ExpressionQuiz({ onBack }: { onBack: () => void }) {
     setPicked(opt)
     void bump('listen', 1)
     void speak(q.answer, rate)
-    window.setTimeout(() => {
-      if (n >= qs.length) {
-        toast('発話表現 完成！')
-        onBack()
-        return
-      }
-      setN(n + 1)
-      setPicked(null)
-    }, 1800)
+  }
+
+  function next() {
+    if (n >= qs.length) {
+      toast('発話表現 完成！')
+      onBack()
+      return
+    }
+    setN(n + 1)
+    setPicked(null)
   }
 
   if (!q) return null
@@ -547,9 +556,16 @@ function ExpressionQuiz({ onBack }: { onBack: () => void }) {
         })}
       </div>
       {picked && (
-        <div className="sub center" style={{ marginTop: 8 }}>
-          正解：<b>{q.answer}</b>（{q.answerZh}）
-        </div>
+        <>
+          <div className="sub center" style={{ marginTop: 8 }}>
+            正解：<b>{q.answer}</b>（{q.answerZh}）
+          </div>
+          <div className="row center" style={{ marginTop: 12 }}>
+            <button className="btn" onClick={next}>
+              {n >= qs.length ? '完成 ✓' : '下一題 →'}
+            </button>
+          </div>
+        </>
       )}
     </div>
   )
@@ -576,17 +592,18 @@ function SentenceQuiz({ onBack }: { onBack: () => void }) {
     if (!q || picked) return
     setPicked(opt)
     void bump('listen', 1)
-    window.setTimeout(() => {
-      if (n >= qs.length) {
-        toast('聞き取り 完成！')
-        onBack()
-        return
-      }
-      const next = n + 1
-      setN(next)
-      setPicked(null)
-      window.setTimeout(() => speak(qs[next - 1].play, rate), 300)
-    }, 1600)
+  }
+
+  function next() {
+    if (n >= qs.length) {
+      toast('聞き取り 完成！')
+      onBack()
+      return
+    }
+    const nx = n + 1
+    setN(nx)
+    setPicked(null)
+    window.setTimeout(() => speak(qs[nx - 1].play, rate), 300)
   }
 
   if (!q) return null
@@ -630,6 +647,13 @@ function SentenceQuiz({ onBack }: { onBack: () => void }) {
           )
         })}
       </div>
+      {picked && (
+        <div className="row center" style={{ marginTop: 12 }}>
+          <button className="btn" onClick={next}>
+            {n >= qs.length ? '完成 ✓' : '下一題 →'}
+          </button>
+        </div>
+      )}
     </div>
   )
 }
@@ -662,17 +686,18 @@ function ParagraphQuiz({ onBack }: { onBack: () => void }) {
     if (!it || picked) return
     setPicked(opt)
     void bump('listen', 1)
-    window.setTimeout(() => {
-      if (n >= items.length) {
-        toast('段落聽解 完成！')
-        onBack()
-        return
-      }
-      const next = n + 1
-      setN(next)
-      setPicked(null)
-      window.setTimeout(() => speak(items[next - 1].play, rate), 400)
-    }, 2200)
+  }
+
+  function next() {
+    if (n >= items.length) {
+      toast('段落聽解 完成！')
+      onBack()
+      return
+    }
+    const nx = n + 1
+    setN(nx)
+    setPicked(null)
+    window.setTimeout(() => speak(items[nx - 1].play, rate), 400)
   }
 
   if (!it) return null
@@ -715,6 +740,11 @@ function ParagraphQuiz({ onBack }: { onBack: () => void }) {
               <div className="zh">{l.zh}</div>
             </div>
           ))}
+          <div className="row center" style={{ marginTop: 12 }}>
+            <button className="btn" onClick={next}>
+              {n >= items.length ? '完成 ✓' : '下一題 →'}
+            </button>
+          </div>
         </div>
       )}
     </div>

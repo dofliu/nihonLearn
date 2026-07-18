@@ -172,6 +172,14 @@ v3.17（學習活動記錄＋統計）：每次練習記進 Dexie v8 `activityLo
 每日修行維持 5 核心（會話→口、聞き取り→耳 早已計入）；書寫/測驗/重音為**今日頁「+α 選配」、不卡蓋章**
 （`todayActivityFeatures` 顯示今日已練打勾）。時間追蹤刻意不做（習慣型 App 用「有沒有練/幾次」更實）。
 
+v3.18（實機 UI 微調，使用回饋三項）：①**標題安全區**——`.appHeader` 頂端 padding 併入
+`env(safe-area-inset-top)`，避免主畫面標題被手機系統狀態列（時間/電量/瀏海）蓋住；同時移除
+英文副標「NIHONGO NO MICHI」（避免窄機換行）。②**聞き取り不再自動跳題**——四型題（句子/段落/
+即時応答/発話表現）答完不再用 setTimeout 自動前進，改由答後出現「下一題 →／完成 ✓」按鈕，
+**日文對照停留到使用者確認**（回饋「日文一下子就跳掉」）；辨音道場維持快速自動重播（無日文釋義可讀）。
+③**聽力分類主題中文化**——`LISTEN_MENU` 四型標題全改中文可讀（即時応答→即時應答、発話表現→情境表達；
+句子聽解/段落對話原即中文），JLPT 官方題型名保留為右上小 tag（供考試對照）。純 UI／文案調整，不動題庫與正確性。
+
 測試：`npm test` 157/157（對真原始碼）、`npm run test:e2e` 46/46（Playwright 瀏覽器點按，
 sidecar 與 Gemini API 以 page.route 攔截）、`sidecar/test_score.py` 4/4＋`test_article.py` 13/13、
 `npm run build` strict 綠燈。詳見 `tests/INTEGRATION_REPORT.md`。
