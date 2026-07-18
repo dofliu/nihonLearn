@@ -149,7 +149,8 @@ See **[`ROADMAP.md`](ROADMAP.md)** for the full follow-up work and hand-off note
 4. **True acoustic GOP** (wav2vec2-CTC phoneme model + forced alignment, per-phoneme scoring) — the pronunciation-scoring ceiling.
 5. **More listening question types** (paragraph detail questions, business/travel single sentences; material still from verified data or "LLM writes Chinese only").
 
-Done: ~~quiz module~~ (v3.4), ~~AI tutor~~ (v3.6), ~~vocab i+1~~ (v3.6), ~~JLPT listening types~~ (v3.9), ~~AI paragraph questions~~ (v3.10).
+Done: ~~quiz module~~ (v3.4), ~~AI tutor~~ (v3.6), ~~vocab i+1~~ (v3.6), ~~JLPT listening types~~ (v3.9), ~~AI paragraph questions~~ (v3.10), ~~dialogues & kanji furigana~~ (v3.11), ~~dedicated logo & kana writing & vocab expansion~~ (v3.12–v3.14), ~~trace layer & launcher icon fixes~~ (v3.15), ~~kanji writing practice~~ (v3.16), ~~learning activity log & stats~~ (v3.17).
+
 
 ## Doc index
 
