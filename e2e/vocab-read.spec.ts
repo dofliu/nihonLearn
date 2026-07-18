@@ -64,8 +64,13 @@ test.describe('詞彙 FSRS 與閱讀', () => {
     await gotoApp(page)
     await navTo(page, '読む')
 
+    // 短文按鈕同時顯示日文與中文主題（初學者看得懂情境）
+    const firstPass = page.locator('.card', { hasText: '読む修行' }).locator('.row button').first()
+    await expect(firstPass.locator('.passJp')).toHaveText('じこしょうかい')
+    await expect(firstPass.locator('.passZh')).toContainText('自我介紹')
+
     // 開第一篇（第一個「読み物」卡＝分級短文）
-    await page.locator('.card', { hasText: '読む修行' }).locator('.row button').first().click()
+    await firstPass.click()
     const lines = page.locator('.rline')
     await expect(lines.first()).toBeVisible()
 
