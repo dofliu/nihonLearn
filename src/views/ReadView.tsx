@@ -23,6 +23,19 @@ import type { UserPassage } from '../db/schema'
 
 const KNOWN_READS = VOCAB.map((v) => v.jp)
 
+/**
+ * 短文標題解析：`壱 ─ じこしょうかい（自我介紹・全假名）`
+ * → { jp: 'じこしょうかい', zh: '自我介紹', note: '全假名' }
+ * 讓読む頁的短文按鈕同時顯示日文與中文主題（初學者看得懂是哪個情境）。
+ */
+function passageLabel(title: string): { jp: string; zh: string; note: string } {
+  const after = title.split(' ─ ')[1] ?? title
+  const jp = after.split('（')[0].trim()
+  const inParen = after.match(/（(.+?)）/)?.[1] ?? ''
+  const parts = inParen.split('・')
+  return { jp, zh: (parts[0] ?? '').trim(), note: (parts[1] ?? '').trim() }
+}
+
 /** 閱讀器統一文件：靜態短文與使用者文章共用 */
 interface ReaderDoc {
   title: string
@@ -157,15 +170,24 @@ export function ReadView() {
             <div key={cat} style={{ marginTop: 10 }}>
               <div className="catTag">{cat}</div>
               <div className="row" style={{ flexWrap: 'wrap', gap: 6 }}>
-                {list.map((p) => (
-                  <button
-                    key={p.id}
-                    className="btn small ghost"
-                    onClick={() => openPassage(p)}
-                  >
-                    {p.title.split(' ─ ')[1]?.split('（')[0] ?? p.title}
-                  </button>
-                ))}
+                {list.map((p) => {
+                  const lab = passageLabel(p.title)
+                  return (
+                    <button
+                      key={p.id}
+                      className="btn small ghost passBtn"
+                      onClick={() => openPassage(p)}
+                    >
+                      <span className="passJp">{lab.jp}</span>
+                      {lab.zh && (
+                        <span className="passZh">
+                          {lab.zh}
+                          {lab.note ? `・${lab.note}` : ''}
+                        </span>
+                      )}
+                    </button>
+                  )
+                })}
               </div>
             </div>
           )

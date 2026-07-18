@@ -180,6 +180,11 @@ v3.18（實機 UI 微調，使用回饋三項）：①**標題安全區**——`
 ③**聽力分類主題中文化**——`LISTEN_MENU` 四型標題全改中文可讀（即時応答→即時應答、発話表現→情境表達；
 句子聽解/段落對話原即中文），JLPT 官方題型名保留為右上小 tag（供考試對照）。純 UI／文案調整，不動題庫與正確性。
 
+v3.19（読む短文選單中文主題）：延續 v3.18 ③——読む頁「読み物」的分級短文按鈕原本只顯示
+日文標題（`p.title` 去掉 `（中文）`），初學者看不懂是哪個情境。改為**日文標題＋中文主題兩行**
+（`ReadView` `passageLabel()` 解析 `壱 ─ じこしょうかい（自我介紹・全假名）`→ jp/zh/note，
+`.passBtn`/`.passJp`/`.passZh` 兩行樣式）。純 UI，短文資料與 id 不動。
+
 測試：`npm test` 157/157（對真原始碼）、`npm run test:e2e` 46/46（Playwright 瀏覽器點按，
 sidecar 與 Gemini API 以 page.route 攔截）、`sidecar/test_score.py` 4/4＋`test_article.py` 13/13、
 `npm run build` strict 綠燈。詳見 `tests/INTEGRATION_REPORT.md`。

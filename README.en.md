@@ -35,6 +35,7 @@ Started as a v1 Artifact, productized into a PWA (v2), and wrapped with Capacito
 | **v3.16** | **Kanji writing practice**: writing practice gains a "kanji" set (60 verified single-kanji words), reusing glyph-shape scoring; trace / blank modes as with kana |
 | **v3.17** | **Learning activity log + stats**: every feature’s practice is logged to `activityLog` (Dexie v8); the progress page adds a practice-calendar heatmap + per-feature totals; new features (writing/quiz/pitch) are Today-page "+α" extras that don’t gate the daily seal |
 | **v3.18** | **On-device UI polish**: the header respects the system status-bar safe area (and drops the English subtitle); listening no longer auto-advances — the Japanese reveal stays until you tap "next"; the four listening category titles are all in Chinese (the JLPT type name kept as a small tag) |
+| **v3.19** | **Chinese topics on the reading menu**: graded-passage buttons on the Read page now show a two-line "Japanese title + Chinese topic" so beginners can tell which scenario each passage is |
 
 Streak days and learned kana can be imported from v1 with one tap — they don't reset.
 
