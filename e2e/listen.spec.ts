@@ -39,15 +39,20 @@ test.describe('聴く：辨音與重音', () => {
     await expect(page.locator('.card .eyebrow', { hasText: '第 1 / 5 題' })).toBeVisible()
     await expect(page.locator('button.qopt')).toHaveCount(4)
 
-    // 作答 → 揭曉正解＋日文
+    // 作答 → 揭曉正解＋日文；不自動跳題，日文對照停留到按「下一題」
     await page.locator('button.qopt').first().click()
     await expect(page.locator('button.qopt.ok')).toHaveCount(1)
+    await expect(page.locator('.sent')).toBeVisible()
+    // 停在第 1 題（不自動前進）
+    await expect(page.locator('.card .eyebrow', { hasText: '第 1 / 5 題' })).toBeVisible()
+    await page.getByRole('button', { name: /下一題/ }).click()
 
     for (let n = 2; n <= 5; n++) {
       await expect(
         page.locator('.card .eyebrow', { hasText: `第 ${n} / 5 題` }),
       ).toBeVisible({ timeout: 15_000 })
       await page.locator('button.qopt').first().click()
+      await page.getByRole('button', { name: n < 5 ? /下一題/ : /完成/ }).click()
     }
     await expect(page.locator('.toast')).toContainText('聞き取り 完成！', { timeout: 15_000 })
 
@@ -66,15 +71,17 @@ test.describe('聴く：辨音與重音', () => {
     await expect(page.getByRole('button', { name: /播放對話/ })).toBeVisible()
     await expect(page.locator('button.qopt')).toHaveCount(4)
 
-    // 作答 → 揭曉對話內容
+    // 作答 → 揭曉對話內容（停留到按「下一題」）
     await page.locator('button.qopt').first().click()
     await expect(page.locator('main')).toContainText('對話內容')
+    await page.getByRole('button', { name: /下一題/ }).click()
 
     for (let n = 2; n <= 3; n++) {
       await expect(
         page.locator('.card .eyebrow', { hasText: `第 ${n} / 3 題` }),
       ).toBeVisible({ timeout: 15_000 })
       await page.locator('button.qopt').first().click()
+      await page.getByRole('button', { name: n < 3 ? /下一題/ : /完成/ }).click()
     }
     await expect(page.locator('.toast')).toContainText('段落聽解 完成！', { timeout: 15_000 })
   })
@@ -91,12 +98,14 @@ test.describe('聴く：辨音與重音', () => {
 
     await page.locator('button.qopt').first().click()
     await expect(page.locator('main')).toContainText('正解')
+    await page.getByRole('button', { name: /下一題/ }).click()
 
     for (let n = 2; n <= 5; n++) {
       await expect(
         page.locator('.card .eyebrow', { hasText: `第 ${n} / 5 題` }),
       ).toBeVisible({ timeout: 15_000 })
       await page.locator('button.qopt').first().click()
+      await page.getByRole('button', { name: n < 5 ? /下一題/ : /完成/ }).click()
     }
     await expect(page.locator('.toast')).toContainText('即時応答 完成！', { timeout: 15_000 })
   })
@@ -113,12 +122,14 @@ test.describe('聴く：辨音與重音', () => {
 
     await page.locator('button.qopt').first().click()
     await expect(page.locator('main')).toContainText('正解')
+    await page.getByRole('button', { name: /下一題/ }).click()
 
     for (let n = 2; n <= 5; n++) {
       await expect(
         page.locator('.card .eyebrow', { hasText: `第 ${n} / 5 題` }),
       ).toBeVisible({ timeout: 15_000 })
       await page.locator('button.qopt').first().click()
+      await page.getByRole('button', { name: n < 5 ? /下一題/ : /完成/ }).click()
     }
     await expect(page.locator('.toast')).toContainText('発話表現 完成！', { timeout: 15_000 })
   })
