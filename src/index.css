@@ -472,6 +472,18 @@ h2 {
   color: var(--nezu);
   font-size: 12px;
 }
+.modeRow {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+/* 回想テスト：中文題目大字置中 */
+.recallZh {
+  text-align: center;
+  font-size: 20px;
+  font-weight: 700;
+  padding: 14px 0 4px;
+}
 
 /* quiz option */
 .qopt {

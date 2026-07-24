@@ -399,6 +399,7 @@ console.log('=== 5n. 學習活動統計 ===')
 console.log('=== 5o. 文型ドリル（句型 × 已學單字） ===')
 {
   ok('句型 id 唯一', new Set(PATTERNS.map((p) => p.id)).size === PATTERNS.length)
+  ok('句型 ≥ 12', PATTERNS.length >= 12)
   ok('句型皆有分類', PATTERNS.every((p) => p.cats.length > 0))
   // pre/post 純假名——保證與帶漢字的詞組出可還原的 alt（漢字モード）
   ok('句型接續純假名', PATTERNS.every((p) => !hasKanji(p.pre) && !hasKanji(p.post)))
@@ -442,8 +443,9 @@ console.log('=== 6. 資料完整性 ===')
   ok('KANA_BY_ID 對得上', KANA_BY_ID['h0'].ch === 'あ')
   ok('詞彙 jp 唯一', new Set(VOCAB.map((v) => v.jp)).size === VOCAB.length)
   ok('詞彙皆有中文與分類', VOCAB.every((v) => v.zh && v.cat && v.level))
-  ok('詞庫已擴充 ≥ 290', VOCAB.length >= 290)
+  ok('詞庫已擴充 ≥ 320', VOCAB.length >= 320)
   ok('含新分類 自然／交通', VOCAB.some((v) => v.cat === '自然') && VOCAB.some((v) => v.cat === '交通'))
+  ok('含新增食物 ジュース／おにぎり', VOCAB.some((v) => v.jp === 'ジュース') && VOCAB.some((v) => v.jp === 'おにぎり'))
   ok('有漢字的詞其 kanji 皆含漢字', VOCAB.every((v) => !v.kanji || hasKanji(v.kanji)))
 }
 

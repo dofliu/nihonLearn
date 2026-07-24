@@ -37,4 +37,26 @@ test.describe('文型ドリル（句型練習）', () => {
     await page.locator('.patGrid .passBtn', { hasText: '在哪裡' }).click()
     await expect(page.locator('.sentZh')).toContainText('在哪裡')
   })
+
+  test('回想テスト：只看中文 → 看答案 → 自評進下一題', async ({ page }) => {
+    await gotoApp(page)
+    await page.getByRole('button', { name: /文型ドリル/ }).click()
+    await page.locator('.patGrid .passBtn', { hasText: '請給我〜' }).click()
+
+    // 切到回想模式：中文題目出現、日文答案先隱藏
+    await page.getByRole('button', { name: /回想テスト/ }).click()
+    await expect(page.locator('.recallZh')).toContainText('請給我')
+    await expect(page.locator('.sent')).toHaveCount(0)
+
+    // 看答案 → 日文揭曉
+    await page.getByRole('button', { name: /看答案/ }).click()
+    await expect(page.locator('.sent')).toBeVisible()
+
+    // 自評「說對了」→ 換下一題（答案再次隱藏）
+    const first = await page.locator('.recallZh').innerText()
+    await page.getByRole('button', { name: /說對了/ }).click()
+    await expect(page.locator('.sent')).toHaveCount(0)
+    await expect(page.locator('.recallZh')).not.toHaveText(first)
+    await expect(page.locator('main')).toContainText('說對')
+  })
 })
