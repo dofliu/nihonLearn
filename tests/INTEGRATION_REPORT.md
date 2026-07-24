@@ -8,7 +8,7 @@ Capacitor 7.6（Android 殼）。
 | 層級 | 方式 | 結果 |
 |------|------|------|
 | 建置 | `tsc -b && vite build`（strict） | ✅ 綠燈，PWA sw 生成（`CAP_BUILD=1` 時停用 SW） |
-| 前端邏輯 | `npm test`（Node 直跑真實 .ts 原始碼） | ✅ 157 / 157 |
+| 前端邏輯 | `npm test`（Node 直跑真實 .ts 原始碼） | ✅ 169 / 169 |
 | **瀏覽器 E2E** | `npm run test:e2e`（Playwright + Chromium，真 dev server） | ✅ 46 / 46 |
 | 後端評分 | `sidecar/test_score.py`（注入假 whisper） | ✅ 4 / 4 |
 | 後端文章解析 | `sidecar/test_article.py`（fixture HTML，NHK 解析） | ✅ 13 / 13 |
@@ -67,7 +67,7 @@ sidecar 與 Gemini API 皆以 `page.route` 攔截，不需真服務。
   導致測驗直接從第 2 題開始（第一題被跳過、發音播兩次）。已用 ref 守衛修正。
 - `WriteView` 書寫描紅範本被格線層（`.writeGuide`）蓋住：DOM 層級重排修正。
 
-## 前端邏輯（157 項，直接對原始碼執行）
+## 前端邏輯（169 項，直接對原始碼執行）
 
 `tests/integration.ts`，Node 22 `--experimental-strip-types` 直跑 `.ts`。
 

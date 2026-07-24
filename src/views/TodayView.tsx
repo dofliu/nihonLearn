@@ -11,6 +11,7 @@ import { speak } from '../audio/tts'
 import { Karaoke } from '../components/Karaoke'
 import { RubyText } from '../components/Ruby'
 import { hasKanji } from '../lib/furigana'
+import { dailyPattern } from '../lib/patternDrill'
 import type { Tab } from '../components/Nav'
 
 function greeting() {
@@ -28,11 +29,13 @@ export function TodayView({
   onOpenProgress,
   onOpenQuiz,
   onOpenTutor,
+  onOpenPattern,
 }: {
   onNav: (t: Tab) => void
   onOpenProgress: () => void
   onOpenQuiz: () => void
   onOpenTutor: () => void
+  onOpenPattern: () => void
 }) {
   const { counts, streak, rate, asrAvg, setRate, showKanji } = useApp()
   const [stampDates, setStampDates] = useState<Set<string>>(new Set())
@@ -55,6 +58,7 @@ export function TodayView({
   }, [counts])
 
   const sent = dailySentence()
+  const pat = dailyPattern(Math.floor(Date.now() / 86400000))
   const days = lastNDays(14)
   const today = todayStr()
 
@@ -112,6 +116,9 @@ export function TodayView({
           <button className="btn small ghost" onClick={() => onNav('listen')}>
             {extrasToday.has('pitch') ? '✓ ' : ''}📈 重音道場
           </button>
+          <button className="btn small ghost" onClick={onOpenPattern}>
+            {extrasToday.has('pattern') ? '✓ ' : ''}🧩 文型ドリル
+          </button>
         </div>
       </div>
 
@@ -139,6 +146,23 @@ export function TodayView({
               </div>
             )
           })}
+        </div>
+      </div>
+
+      <div className="card">
+        <div className="row between">
+          <div className="eyebrow">今日の文型 ─ 一句多用</div>
+          {extrasToday.has('pattern') && <span className="chip">✓ 今日已練</span>}
+        </div>
+        <div className="sent" style={{ fontSize: 20 }}>{pat.label}</div>
+        <div className="sentZh">{pat.zh}</div>
+        <p className="sub" style={{ textAlign: 'center' }}>
+          用學過的單字換著套進去，每天重複——句型自然記住。
+        </p>
+        <div className="row center">
+          <button className="btn small" onClick={onOpenPattern}>
+            🧩 開始練習 →
+          </button>
         </div>
       </div>
 

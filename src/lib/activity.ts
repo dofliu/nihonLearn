@@ -12,7 +12,7 @@ export interface ActivityLike {
 /** 每日五修行核心項目（會計入蓋章）。 */
 export const CORE_FEATURES = ['kana', 'vocab', 'listen', 'speak', 'read'] as const
 /** 選配額外練習（不卡蓋章）。 */
-export const EXTRA_FEATURES = ['write', 'quiz', 'pitch'] as const
+export const EXTRA_FEATURES = ['write', 'quiz', 'pitch', 'pattern'] as const
 
 export const FEATURE_LABEL: Record<string, string> = {
   kana: '假名',
@@ -23,6 +23,7 @@ export const FEATURE_LABEL: Record<string, string> = {
   write: '書寫',
   quiz: '測驗',
   pitch: '重音',
+  pattern: '句型',
 }
 
 /** day → 當日總動作數。 */

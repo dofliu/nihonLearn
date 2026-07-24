@@ -22,6 +22,8 @@ import { DIALOGUES } from '../src/data/dialogues.ts'
 import { SENTS } from '../src/data/sentences.ts'
 import { scoreHandwriting, dilate, gradeOf } from '../src/lib/handwriting.ts'
 import { totalsByDay, totalsByFeature, featuresOnDay, activeDayCount, heatLevel, calendarCells } from '../src/lib/activity.ts'
+import { PATTERNS } from '../src/data/patterns.ts'
+import { poolFor, candidatesFor, buildItem, itemsFor, dailyPattern } from '../src/lib/patternDrill.ts'
 
 let pass = 0
 let fail = 0
@@ -392,6 +394,44 @@ console.log('=== 5n. 學習活動統計 ===')
   const cells = calendarCells(rows, ['2026-07-01', '2026-07-02', '2026-07-03'])
   ok('日曆格對齊日期序', cells.length === 3 && cells[0].day === '2026-07-01')
   ok('日曆格帶總數與分級', cells[0].count === 13 && cells[0].level === 3 && cells[2].count === 0 && cells[2].level === 0)
+}
+
+console.log('=== 5o. 文型ドリル（句型 × 已學單字） ===')
+{
+  ok('句型 id 唯一', new Set(PATTERNS.map((p) => p.id)).size === PATTERNS.length)
+  ok('句型皆有分類', PATTERNS.every((p) => p.cats.length > 0))
+  // pre/post 純假名——保證與帶漢字的詞組出可還原的 alt（漢字モード）
+  ok('句型接續純假名', PATTERNS.every((p) => !hasKanji(p.pre) && !hasKanji(p.post)))
+  ok('每個分類都對得到詞', PATTERNS.every((p) => poolFor(p).length > 0))
+
+  // 空 learned：初學者 fallback，每個句型仍有詞可練、畫面不空
+  const empty = new Set<string>()
+  ok('空進度也非空（fallback）', PATTERNS.every((p) => candidatesFor(p, empty).length > 0))
+  ok('空進度 items 皆標 fallback', itemsFor(PATTERNS[0], empty).every((it) => it.fallback))
+
+  // 學過夠多時只出學過的詞
+  const learned = new Set(poolFor(PATTERNS[0]).slice(0, 6).map((v) => v.jp))
+  const cand = candidatesFor(PATTERNS[0], learned)
+  ok('學過夠多→只出學過', cand.length >= 4 && cand.every((v) => learned.has(v.jp)))
+
+  // 核心正確性：任一句型 × 任一分類詞，若詞有漢字，alt 必能被 furigana 對齊（漢字モード安全）
+  let alignFail = 0
+  for (const p of PATTERNS)
+    for (const w of poolFor(p)) {
+      const it = buildItem(p, w)
+      if (it.alt && alignFurigana(it.alt, it.jp) === null) alignFail++
+    }
+  ok('全句型×詞的 alt 皆可 furigana 對齊', alignFail === 0)
+
+  // 具體組句：をください × コーヒー
+  const coffee = VOCAB.find((v) => v.jp === 'コーヒー')!
+  const kudasai = PATTERNS.find((p) => p.id === 'kudasai')!
+  const it = buildItem(kudasai, coffee)
+  ok('jp 組句正確', it.jp === 'コーヒーを ください')
+  ok('zh 組句正確', it.zh === '請給我咖啡')
+
+  ok('dailyPattern 在範圍內', [0, 1, 5, 13, 100].every((d) => PATTERNS.includes(dailyPattern(d))))
+  ok('dailyPattern 每天輪替', dailyPattern(0).id !== dailyPattern(1).id)
 }
 
 console.log('=== 6. 資料完整性 ===')
