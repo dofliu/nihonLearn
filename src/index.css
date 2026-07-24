@@ -238,6 +238,16 @@ h2 {
   transform: rotate(-8deg);
   background: rgba(199, 65, 47, 0.06);
 }
+/* 金印：核心蓋章當天又做了選配加練 */
+.hanko.gold {
+  border-color: #b8860b;
+  color: #8a6100;
+  background: linear-gradient(135deg, rgba(255, 215, 0, 0.28), rgba(184, 134, 11, 0.12));
+  box-shadow: 0 0 6px rgba(212, 160, 23, 0.5);
+}
+.goldText {
+  color: #b8860b;
+}
 .hanko.pop {
   animation: stampIn 0.45s cubic-bezier(0.2, 1.6, 0.4, 1);
 }
@@ -252,6 +262,50 @@ h2 {
   100% {
     transform: rotate(-8deg) scale(1);
   }
+}
+
+/* 今日の加練：每日輪替主推按鈕 */
+.btn.extraRec {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  text-align: left;
+  padding: 12px 14px;
+  background: rgba(36, 70, 107, 0.06);
+  border: 1.5px solid var(--ai);
+  color: var(--ai);
+}
+.extraEmoji {
+  font-size: 26px;
+  line-height: 1;
+}
+.extraBody {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+}
+.extraLabel {
+  font-size: 15px;
+  font-weight: 700;
+}
+.extraHint {
+  font-size: 11.5px;
+  font-weight: 500;
+  opacity: 0.75;
+}
+.extraGo {
+  font-size: 18px;
+  font-weight: 700;
+}
+.btn.small.ghost.linkish {
+  border: none;
+  background: none;
+  color: var(--nezu);
+  padding: 6px 2px;
+  font-size: 12px;
+  margin-top: 6px;
 }
 
 /* task */

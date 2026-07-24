@@ -9,6 +9,7 @@ import {
   completeSpeakSelf,
   completeRead,
   taskRow,
+  openExtra,
 } from './helpers'
 
 /**
@@ -57,9 +58,19 @@ test('五項修行全完成 → 蓋章、大印動畫、streak +1', async ({ pag
   await expect(page.locator('.stampCell.today.hit')).toHaveCount(1)
   await expect(page.locator('.streakBadge')).toContainText('連続 1 日')
 
-  // 重整後蓋章與 streak 保留
+  // 金印：只完成核心五項、尚未加練 → 済印非金
+  await expect(page.locator('.stampCell.today .hanko.gold')).toHaveCount(0)
+  // 做一項選配加練（文型ドリル 回想テスト・看答案即記入）→ 済印變金
+  await openExtra(page, /文型ドリル/)
+  await page.getByRole('button', { name: /回想テスト/ }).click()
+  await page.getByRole('button', { name: /看答案/ }).click()
+  await page.getByRole('button', { name: /返回/ }).click()
+  await expect(page.locator('.stampCell.today .hanko.gold')).toHaveCount(1)
+
+  // 重整後蓋章、streak、金印保留
   await page.reload()
   await expect(page.locator('main')).not.toContainText('読み込み中', { timeout: 15_000 })
   await expect(page.locator('.stampCell.today.hit')).toHaveCount(1)
+  await expect(page.locator('.stampCell.today .hanko.gold')).toHaveCount(1)
   await expect(page.locator('.streakBadge')).toContainText('連続 1 日')
 })

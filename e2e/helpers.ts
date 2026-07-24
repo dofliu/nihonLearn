@@ -26,6 +26,16 @@ export async function navTo(page: Page, label: NavLabel) {
   await page.locator('nav.nav button', { hasText: label }).click()
 }
 
+/**
+ * 今日頁「今日の加練」改為每日輪替主推一項＋「全部加練」可展開。
+ * 展開全部後點指定選配（不論它今天是不是被主推，都找得到）。
+ */
+export async function openExtra(page: Page, name: RegExp) {
+  const toggle = page.getByRole('button', { name: /全部加練/ })
+  if (await toggle.isVisible().catch(() => false)) await toggle.click()
+  await page.getByRole('button', { name }).first().click()
+}
+
 /** 話す頁降級測試用：載入前移除瀏覽器語音辨識 API，強制走「自評」路徑 */
 export async function disableSpeechRecognition(page: Page) {
   await page.addInitScript(() => {

@@ -43,9 +43,10 @@ test.describe('學習活動記錄與統計', () => {
     )
     expect(writeCount).toBeGreaterThanOrEqual(1)
 
-    // 今日頁 +α 卡：書寫已打勾
+    // 今日頁 加練 卡：展開全部加練後，書寫已打勾
     await navTo(page, '今日')
-    await expect(page.locator('main')).toContainText('今日の +α')
+    await expect(page.locator('main')).toContainText('今日の加練')
+    await page.getByRole('button', { name: /全部加練/ }).click()
     await expect(page.getByRole('button', { name: /✓.*書寫練習/ })).toBeVisible()
 
     // 統計頁：學習記録 / 練習日曆 / 各項目累計

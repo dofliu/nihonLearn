@@ -1,6 +1,7 @@
 import { db, type Card, type CardType } from './schema'
 import { newCard, review, type GradeKey } from '../srs/scheduler'
 import { todayStr } from '../lib/date'
+import { EXTRA_FEATURES } from '../lib/activity'
 import type { Card as FSRSCard } from 'ts-fsrs'
 
 /** 每日五項修行的定義（驅動今日頁與蓋章） */
@@ -133,6 +134,16 @@ export async function addDuration(sec: number) {
 export async function allStampDates(): Promise<Set<string>> {
   const rows = await db.stamps.toArray()
   return new Set(rows.map((r) => r.date))
+}
+
+/**
+ * 有做過任一「選配加練」的日子（day set）。
+ * 用於「金印」：核心五修行蓋章日 ∩ 這個集合＝當天有額外加練→金印。
+ */
+export async function extraActiveDays(): Promise<Set<string>> {
+  const rows = await db.activityLog.toArray()
+  const extra = new Set<string>(EXTRA_FEATURES as readonly string[])
+  return new Set(rows.filter((r) => r.count > 0 && extra.has(r.feature)).map((r) => r.day))
 }
 
 // ---------- 發音紀錄 ----------

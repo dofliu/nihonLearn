@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useApp, TASKS } from '../state/store'
 import { db } from '../db/schema'
-import { allStampDates, todayActivityFeatures } from '../db/repo'
+import { allStampDates, todayActivityFeatures, extraActiveDays } from '../db/repo'
 import { isMastered } from '../srs/scheduler'
 import { lastNDays, todayStr } from '../lib/date'
 import { SENTS } from '../data/sentences'
@@ -39,15 +39,19 @@ export function TodayView({
 }) {
   const { counts, streak, rate, asrAvg, setRate, showKanji } = useApp()
   const [stampDates, setStampDates] = useState<Set<string>>(new Set())
+  const [goldenDates, setGoldenDates] = useState<Set<string>>(new Set())
   const [hitokotoRange, setHitokotoRange] = useState<[number, number] | null>(null)
   const [learned, setLearned] = useState(0)
   const [mastered, setMastered] = useState(0)
   const [vocabLearned, setVocabLearned] = useState(0)
   const [extrasToday, setExtrasToday] = useState<Set<string>>(new Set())
+  const [showAllExtras, setShowAllExtras] = useState(false)
 
   useEffect(() => {
     void (async () => {
-      setStampDates(await allStampDates())
+      const [stamps, extraDays] = await Promise.all([allStampDates(), extraActiveDays()])
+      setStampDates(stamps)
+      setGoldenDates(new Set([...stamps].filter((d) => extraDays.has(d))))
       const cards = await db.cards.where('type').equals('kana').toArray()
       setLearned(cards.length)
       setMastered(cards.filter((c) => isMastered(c.fsrs)).length)
@@ -57,10 +61,20 @@ export function TodayView({
     })()
   }, [counts])
 
+  const dayIndex = Math.floor(Date.now() / 86400000)
   const sent = dailySentence()
-  const pat = dailyPattern(Math.floor(Date.now() / 86400000))
+  const pat = dailyPattern(dayIndex)
   const days = lastNDays(14)
   const today = todayStr()
+
+  // 選配加練：每天輪替主推一項（不影響蓋章）
+  const EXTRAS = [
+    { key: 'write', emoji: '✍', label: '書寫練習', hint: '手寫假名／漢字，練字形', onClick: () => onNav('kana') },
+    { key: 'quiz', emoji: '📝', label: 'N5 測驗', hint: '從學過的詞出題，抓弱點', onClick: onOpenQuiz },
+    { key: 'pitch', emoji: '📈', label: '重音道場', hint: '辨識東京式高低音', onClick: () => onNav('listen') },
+    { key: 'pattern', emoji: '🧩', label: '文型ドリル', hint: '一個句型換不同單字', onClick: onOpenPattern },
+  ]
+  const todayExtra = EXTRAS[dayIndex % EXTRAS.length]
 
   async function playHitokoto(rate: number) {
     setHitokotoRange([0, 0])
@@ -102,46 +116,62 @@ export function TodayView({
       </div>
 
       <div className="card">
-        <div className="eyebrow">今日の +α（選配練習・不影響蓋章）</div>
-        <p className="sub" style={{ marginBottom: 8 }}>
-          核心五修行之外的加練，練了就打勾——想加強再做，不做也不扣分。
-        </p>
-        <div className="row" style={{ flexWrap: 'wrap', gap: 8 }}>
-          <button className="btn small ghost" onClick={() => onNav('kana')}>
-            {extrasToday.has('write') ? '✓ ' : ''}✍ 書寫練習
-          </button>
-          <button className="btn small ghost" onClick={onOpenQuiz}>
-            {extrasToday.has('quiz') ? '✓ ' : ''}📝 N5 測驗
-          </button>
-          <button className="btn small ghost" onClick={() => onNav('listen')}>
-            {extrasToday.has('pitch') ? '✓ ' : ''}📈 重音道場
-          </button>
-          <button className="btn small ghost" onClick={onOpenPattern}>
-            {extrasToday.has('pattern') ? '✓ ' : ''}🧩 文型ドリル
-          </button>
+        <div className="row between">
+          <div className="eyebrow">今日の加練 ─ 選配・不影響蓋章</div>
+          {extrasToday.has(todayExtra.key) && <span className="chip">✓ 今日已練</span>}
         </div>
+        <p className="sub" style={{ marginBottom: 8 }}>
+          核心五修行之外的加練，每天換一項推薦——練了就記入学習記録、還讓済印變金 ✨；不做也不扣分。
+        </p>
+        <button className="btn extraRec" onClick={todayExtra.onClick}>
+          <span className="extraEmoji">{todayExtra.emoji}</span>
+          <span className="extraBody">
+            <span className="extraLabel">{todayExtra.label}</span>
+            <span className="extraHint">{todayExtra.hint}</span>
+          </span>
+          <span className="extraGo">→</span>
+        </button>
+        <button
+          className="btn small ghost linkish"
+          onClick={() => setShowAllExtras((v) => !v)}
+        >
+          {showAllExtras ? '收合 ▴' : '想練別的？全部加練 ▾'}
+        </button>
+        {showAllExtras && (
+          <div className="row" style={{ flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
+            {EXTRAS.map((e) => (
+              <button key={e.key} className="btn small ghost" onClick={e.onClick}>
+                {extrasToday.has(e.key) ? '✓ ' : ''}
+                {e.emoji} {e.label}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="card">
         <div className="eyebrow">出席印 ─ 蓋章卡</div>
-        <p className="sub">五項修行全部完成，即蓋下今日之印。</p>
+        <p className="sub">
+          五項修行全部完成即蓋<b>済</b>印；當天再多做 1 項加練，済印變<b className="goldText">金 ✨</b>。
+        </p>
         <div className="stampGrid">
           {days.map((d) => {
             const hit = stampDates.has(d)
+            const gold = goldenDates.has(d)
             const isToday = d === today
             const [, m, day] = d.split('-')
             return (
               <div
                 key={d}
                 className={
-                  'stampCell' + (hit ? ' hit' : '') + (isToday ? ' today' : '')
+                  'stampCell' + (hit ? ' hit' : '') + (gold ? ' gold' : '') + (isToday ? ' today' : '')
                 }
               >
                 <span className="d">
                   {Number(m)}/{Number(day)}
                 </span>
                 {hit && (
-                  <div className={'hanko' + (isToday ? ' pop' : '')}>済</div>
+                  <div className={'hanko' + (gold ? ' gold' : '') + (isToday ? ' pop' : '')}>済</div>
                 )}
               </div>
             )
