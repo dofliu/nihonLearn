@@ -2,6 +2,7 @@ import { test, expect } from '@playwright/test'
 import {
   gotoApp,
   navTo,
+  localDateStr,
   disableSpeechRecognition,
   completeKanaRound,
   completeVocabRound,
@@ -62,4 +63,44 @@ test('五項修行全完成 → 蓋章、大印動畫、streak +1', async ({ pag
   await expect(page.locator('main')).not.toContainText('読み込み中', { timeout: 15_000 })
   await expect(page.locator('.stampCell.today.hit')).toHaveCount(1)
   await expect(page.locator('.streakBadge')).toContainText('連続 1 日')
+})
+
+/**
+ * 金印（純獎勵，不動蓋章門檻）：核心全達標＝一般済印；當天再做任一加練＝金印。
+ * 直接播種兩個過去日的蓋章＋活動記錄，驗證金印只落在「有加練」的那天。
+ */
+test('金印：蓋章日有加練＝金印，只核心＝一般済印', async ({ page }) => {
+  await gotoApp(page)
+  const goldDay = localDateStr(-1) // 蓋章 + 加練（write）→ 金印
+  const plainDay = localDateStr(-2) // 只蓋章 → 一般済印
+
+  await page.evaluate(async ([gd, pd]) => {
+    await new Promise<void>((resolve, reject) => {
+      const req = indexedDB.open('nihongo-michi')
+      req.onsuccess = () => {
+        const db = req.result
+        const tx = db.transaction(['stamps', 'activityLog'], 'readwrite')
+        tx.objectStore('stamps').put({ date: gd, complete: true })
+        tx.objectStore('stamps').put({ date: pd, complete: true })
+        tx.objectStore('activityLog').add({ day: gd, feature: 'write', count: 2, ts: Date.now() })
+        tx.oncomplete = () => {
+          db.close()
+          resolve()
+        }
+        tx.onerror = () => reject(tx.error)
+      }
+      req.onerror = () => reject(req.error)
+    })
+  }, [goldDay, plainDay])
+
+  await page.reload()
+  await expect(page.locator('main')).not.toContainText('読み込み中', { timeout: 15_000 })
+
+  // 兩天都蓋章，只有「有加練」那天是金印
+  await expect(page.locator('.stampCell .hanko')).toHaveCount(2)
+  await expect(page.locator('.stampCell .hanko.gold')).toHaveCount(1)
+  const [, gm, gdd] = goldDay.split('-')
+  await expect(
+    page.locator('.stampCell', { hasText: `${Number(gm)}/${Number(gdd)}` }).locator('.hanko.gold'),
+  ).toHaveCount(1)
 })

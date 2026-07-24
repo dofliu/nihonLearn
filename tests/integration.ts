@@ -21,7 +21,7 @@ import { alignFurigana, hasKanji, stripIgnored } from '../src/lib/furigana.ts'
 import { DIALOGUES } from '../src/data/dialogues.ts'
 import { SENTS } from '../src/data/sentences.ts'
 import { scoreHandwriting, dilate, gradeOf } from '../src/lib/handwriting.ts'
-import { totalsByDay, totalsByFeature, featuresOnDay, activeDayCount, heatLevel, calendarCells } from '../src/lib/activity.ts'
+import { totalsByDay, totalsByFeature, featuresOnDay, activeDayCount, heatLevel, calendarCells, hasExtraOnDay, goldStampDays, dailyExtraFeature, EXTRA_FEATURES } from '../src/lib/activity.ts'
 import { PATTERNS } from '../src/data/patterns.ts'
 import { poolFor, candidatesFor, buildItem, itemsFor, dailyPattern } from '../src/lib/patternDrill.ts'
 
@@ -394,6 +394,22 @@ console.log('=== 5n. 學習活動統計 ===')
   const cells = calendarCells(rows, ['2026-07-01', '2026-07-02', '2026-07-03'])
   ok('日曆格對齊日期序', cells.length === 3 && cells[0].day === '2026-07-01')
   ok('日曆格帶總數與分級', cells[0].count === 13 && cells[0].level === 3 && cells[2].count === 0 && cells[2].level === 0)
+
+  // 金印：某日有加練（write/quiz/pitch/pattern）才算
+  ok('07-01 有加練（write）', hasExtraOnDay(rows, '2026-07-01') === true)
+  ok('07-02 無加練（只核心）', hasExtraOnDay(rows, '2026-07-02') === false)
+  ok('count 0 的加練不算', hasExtraOnDay([{ day: 'x', feature: 'write', count: 0 }], 'x') === false)
+  // 金印＝已蓋章 ∩ 當天有加練（不改門檻，只是交集）
+  const gold = goldStampDays(rows, ['2026-07-01', '2026-07-02', '2026-07-04'])
+  ok('金印含 07-01/07-04（有加練）', gold.has('2026-07-01') && gold.has('2026-07-04'))
+  ok('金印不含 07-02（無加練）', !gold.has('2026-07-02'))
+  ok('未蓋章日不入金印', !goldStampDays(rows, []).size)
+
+  // 今日的加練：每天輪替一項、都在 EXTRA_FEATURES 內、每項都輪得到
+  ok('dailyExtra 在 EXTRA_FEATURES 內', [0, 1, 2, 3, 4, 99].every((d) => (EXTRA_FEATURES as readonly string[]).includes(dailyExtraFeature(d))))
+  ok('dailyExtra 每天輪替', dailyExtraFeature(0) !== dailyExtraFeature(1))
+  ok('dailyExtra 一輪涵蓋全部', new Set(EXTRA_FEATURES.map((_, i) => dailyExtraFeature(i))).size === EXTRA_FEATURES.length)
+  ok('dailyExtra 負數 index 安全', (EXTRA_FEATURES as readonly string[]).includes(dailyExtraFeature(-1)))
 }
 
 console.log('=== 5o. 文型ドリル（句型 × 已學單字） ===')

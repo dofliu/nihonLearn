@@ -7,8 +7,10 @@ import {
   getSetting,
   setSetting,
   attemptStats,
+  todayActivityFeatures,
 } from '../db/repo'
 import { computeStreak } from '../lib/date'
+import { EXTRA_FEATURES } from '../lib/activity'
 import { initTTS, reprobeTTS, ttsProviderName, setSpeaker } from '../audio/tts'
 
 interface AppState {
@@ -21,6 +23,7 @@ interface AppState {
   asrAvg: number | null
   showKanji: boolean
   lastStamped: string | null // 觸發蓋章動畫用
+  lastStampGold: boolean // 蓋章當下是否已做過加練（金印大印）
   refresh: () => Promise<void>
   bump: (taskId: string, n?: number) => Promise<void>
   setRate: (r: number) => Promise<void>
@@ -39,6 +42,7 @@ export const useApp = create<AppState>((set, get) => ({
   asrAvg: null,
   showKanji: false,
   lastStamped: null,
+  lastStampGold: false,
 
   async refresh() {
     const [day, stamps, rate, stats, showKanji] = await Promise.all([
@@ -63,7 +67,12 @@ export const useApp = create<AppState>((set, get) => ({
   async bump(taskId, n = 1) {
     const { stamped } = await bumpTask(taskId, n)
     await get().refresh()
-    if (stamped) set({ lastStamped: new Date().toISOString() })
+    if (stamped) {
+      // 核心全達標的當下若已做過任一加練 → 金印（純獎勵，不影響蓋章與否）
+      const feats = await todayActivityFeatures()
+      const gold = (EXTRA_FEATURES as readonly string[]).some((f) => feats.has(f))
+      set({ lastStamped: new Date().toISOString(), lastStampGold: gold })
+    }
   },
 
   async setRate(r) {

@@ -8,8 +8,8 @@ Capacitor 7.6（Android 殼）。
 | 層級 | 方式 | 結果 |
 |------|------|------|
 | 建置 | `tsc -b && vite build`（strict） | ✅ 綠燈，PWA sw 生成（`CAP_BUILD=1` 時停用 SW） |
-| 前端邏輯 | `npm test`（Node 直跑真實 .ts 原始碼） | ✅ 171 / 171 |
-| **瀏覽器 E2E** | `npm run test:e2e`（Playwright + Chromium，真 dev server） | ✅ 46 / 46 |
+| 前端邏輯 | `npm test`（Node 直跑真實 .ts 原始碼） | ✅ 181 / 181 |
+| **瀏覽器 E2E** | `npm run test:e2e`（Playwright + Chromium，真 dev server） | ✅ 48 / 48 |
 | 後端評分 | `sidecar/test_score.py`（注入假 whisper） | ✅ 4 / 4 |
 | 後端文章解析 | `sidecar/test_article.py`（fixture HTML，NHK 解析） | ✅ 13 / 13 |
 | **Android 殼可編譯** | GitHub Actions `android` job（`gradlew assembleDebug` + APK artifact） | ✅ |
@@ -17,7 +17,7 @@ Capacitor 7.6（Android 殼）。
 真機／真服務項目（原生語音、真 VOICEVOX/whisper、真 Gemini 生成品質、PWA 安裝離線、
 Android 裝置），見 `MANUAL_QA.md` 與 `MANUAL_QA-ANDROID.md`——未在真機/真服務跑過的一律不打勾。
 
-## 瀏覽器 E2E（46 項，Playwright 對真 dev server 點按）
+## 瀏覽器 E2E（48 項，Playwright 對真 dev server 點按）
 
 `e2e/`，14 個 spec 檔，執行：`npm run test:e2e`（容器/CI 用 `PW_CHROMIUM_PATH` 指定預裝 Chromium）。
 sidecar 與 Gemini API 皆以 `page.route` 攔截，不需真服務。
@@ -39,8 +39,9 @@ sidecar 與 Gemini API 皆以 `page.route` 攔截，不需真服務。
   → app 開啟後升級到 80、全部新表建立、舊卡與蓋章不遺失、定著語義保留）、
   **v1 存檔 JSON 匯入**（假名播種 2、蓋章 2、streak 2 不歸零、無效 id 跳過、重整保留）、
   壞 JSON 顯示錯誤且不寫入。
-- **stamp.spec** 黃金路徑（1）：單日完成五項修行 → 自動蓋章、大印 overlay（済＋日期、
-  點擊關閉）、蓋章卡今日格標記、streak 0→1、重整保留。全程約 50 秒真實點按。
+- **stamp.spec** 黃金路徑（2）：①單日完成五項修行 → 自動蓋章、大印 overlay（済＋日期、
+  點擊關閉）、蓋章卡今日格標記、streak 0→1、重整保留（全程約 50 秒真實點按）；
+  ②**金印**——播種蓋章日＋加練活動，驗證有加練的日子渲染金印（`.hanko.gold`）、只核心為一般済印。
 
 ### v3 新增 E2E（v3.0–v3.17）
 
@@ -59,7 +60,7 @@ sidecar 與 Gemini API 皆以 `page.route` 攔截，不需真服務。
 - **write.spec**：書寫練習流程（字集切換ひらがな/カタカナ/漢字、描紅/空白默寫模式、Canvas 手寫→
   字形評分→最佳分持久化）、**描紅層級守衛**（範本不被格線蓋住）。
 - **activity.spec**：學習活動記錄（練習後 activityLog 寫入、成長頁日曆 heatmap 與項目統計、
-  +α 選配不卡蓋章）。
+  「今日の加練」卡展開後選配已打勾、不卡蓋章）。
 
 ### E2E 抓到並修正的 bug
 
@@ -67,7 +68,7 @@ sidecar 與 Gemini API 皆以 `page.route` 攔截，不需真服務。
   導致測驗直接從第 2 題開始（第一題被跳過、發音播兩次）。已用 ref 守衛修正。
 - `WriteView` 書寫描紅範本被格線層（`.writeGuide`）蓋住：DOM 層級重排修正。
 
-## 前端邏輯（171 項，直接對原始碼執行）
+## 前端邏輯（181 項，直接對原始碼執行）
 
 `tests/integration.ts`，Node 22 `--experimental-strip-types` 直跑 `.ts`。
 

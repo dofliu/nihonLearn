@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { gotoApp, navTo } from './helpers'
+import { gotoApp, navTo, expandExtras } from './helpers'
 
 test.describe('學習活動記錄與統計', () => {
   test('書寫後：activityLog 記錄、今日+α 打勾、統計頁顯示練習日曆', async ({ page }) => {
@@ -43,9 +43,10 @@ test.describe('學習活動記錄與統計', () => {
     )
     expect(writeCount).toBeGreaterThanOrEqual(1)
 
-    // 今日頁 +α 卡：書寫已打勾
+    // 今日頁「今日の加練」卡：展開後書寫已打勾
     await navTo(page, '今日')
-    await expect(page.locator('main')).toContainText('今日の +α')
+    await expect(page.locator('main')).toContainText('今日の加練')
+    await expandExtras(page)
     await expect(page.getByRole('button', { name: /✓.*書寫練習/ })).toBeVisible()
 
     // 統計頁：學習記録 / 練習日曆 / 各項目累計

@@ -47,6 +47,26 @@ export function featuresOnDay(rows: ActivityLike[], day: string): Set<string> {
   return s
 }
 
+/** 某日是否做過任一「選配加練」（金印判定用）。 */
+export function hasExtraOnDay(rows: ActivityLike[], day: string): boolean {
+  const extras = new Set<string>(EXTRA_FEATURES)
+  return rows.some((r) => r.day === day && r.count > 0 && extras.has(r.feature))
+}
+
+/** 已蓋章「且」當天有加練的日子集合＝金印。純交集，不改蓋章門檻。 */
+export function goldStampDays(rows: ActivityLike[], stamped: Iterable<string>): Set<string> {
+  const out = new Set<string>()
+  for (const day of stamped) if (hasExtraOnDay(rows, day)) out.add(day)
+  return out
+}
+
+/** 依日序輪替出「今日的加練」（每天推一項選配練習，穩定不隨機，每項都輪得到曝光）。 */
+export function dailyExtraFeature(dayIndex: number): (typeof EXTRA_FEATURES)[number] {
+  const n = EXTRA_FEATURES.length
+  const i = ((dayIndex % n) + n) % n
+  return EXTRA_FEATURES[i]
+}
+
 /** 有任何活動的不同天數（練習天數）。 */
 export function activeDayCount(rows: ActivityLike[]): number {
   const s = new Set<string>()

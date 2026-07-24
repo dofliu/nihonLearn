@@ -190,3 +190,12 @@ export function taskRow(page: Page, keyword: string) {
 export function statChip(page: Page, label: string) {
   return page.locator('.statChips .chip', { hasText: label })
 }
+
+/**
+ * 今日頁「今日の加練」預設只主推一項、其餘收在「展開全部」後——
+ * 測試要點特定加練鈕前先展開，才不受當日輪替到哪一項影響。
+ */
+export async function expandExtras(page: Page) {
+  const toggle = page.getByRole('button', { name: /展開全部/ })
+  if (await toggle.count()) await toggle.click()
+}
