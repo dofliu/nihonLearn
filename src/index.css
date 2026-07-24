@@ -926,6 +926,13 @@ ruby rt {
   transform: rotate(-8deg);
   animation: stampIn 0.5s cubic-bezier(0.2, 1.6, 0.4, 1);
 }
+/* 金印大印：與蓋章格 .hanko.gold 同一套金色 */
+.bigStamp .inner.gold {
+  border-color: #b8860b;
+  color: #8a6100;
+  background: linear-gradient(135deg, rgba(255, 215, 0, 0.28), rgba(184, 134, 11, 0.12));
+  box-shadow: 0 0 24px rgba(212, 160, 23, 0.55);
+}
 .bigStamp .inner .b1 {
   font-size: 44px;
   font-weight: 700;
