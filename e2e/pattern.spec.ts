@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { gotoApp } from './helpers'
+import { gotoApp, openExtra } from './helpers'
 
 test.describe('文型ドリル（句型練習）', () => {
   test('今日頁入口 → 選句型、換單字、日文對照顯示', async ({ page }) => {
@@ -31,7 +31,7 @@ test.describe('文型ドリル（句型練習）', () => {
 
   test('+α 列亦可開啟文型ドリル', async ({ page }) => {
     await gotoApp(page)
-    await page.getByRole('button', { name: /文型ドリル/ }).click()
+    await openExtra(page, /文型ドリル/)
     await expect(page.locator('main')).toContainText('選一個句型')
     // 切到「〜在哪裡？」句型
     await page.locator('.patGrid .passBtn', { hasText: '在哪裡' }).click()
@@ -40,7 +40,7 @@ test.describe('文型ドリル（句型練習）', () => {
 
   test('回想テスト：只看中文 → 看答案 → 自評進下一題', async ({ page }) => {
     await gotoApp(page)
-    await page.getByRole('button', { name: /文型ドリル/ }).click()
+    await openExtra(page, /文型ドリル/)
     await page.locator('.patGrid .passBtn', { hasText: '請給我〜' }).click()
 
     // 切到回想模式：中文題目出現、日文答案先隱藏

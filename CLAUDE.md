@@ -215,6 +215,16 @@ v3.22（文型ドリル強化：回想テスト＋更多句型/單字）：①**
 物 めがね/さいふ/けいたい等、場所 コンビニ/えいがかん等；含使用者點名的**果汁・飯糰**）——
 逐條確認讀音/釋義、furigana 可還原，天然餵養句型池與各既有功能。純資料＋UI，不動組句/驗證邏輯。
 
+v3.23（每日任務結構調整：加練輪替＋金印）：功能越來越多後的收斂——**守住 5 核心/10 分鐘門檻不變**
+（低門檻優先），只在呈現與獎勵上做文章。①**今日の加練 每日輪替**（`TodayView` `EXTRAS` 陣列
+＋`dayIndex % n` 輪替）：原本一排越長的 +α 按鈕改為每天主推一項（書寫→測驗→重音→文型），
+「全部加練 ▾」可展開看全部（`showAllExtras`）——畫面清爽、每個選配都輪得到曝光。
+②**金印**：核心五項蓋章日**又做了任一選配加練**→「済」印變金（`repo.extraActiveDays()` 回傳有加練的日子，
+`TodayView` 與蓋章日取交集算 `goldenDates`，`.hanko.gold` 金色樣式）。純獎勵、**不動門檻**——沒加練照常蓋章、不扣分。
+`repo` import `activity.ts EXTRA_FEATURES`（activity 為純函式、無循環）。e2e：`stamp.spec` 延伸驗證
+「核心完成非金 → 做一項加練變金 → 重整保留」；`e2e/helpers.ts` 加 `openExtra`（展開全部加練再點），
+`pattern`/`activity` spec 改用之。純 UI／獎勵，不動核心任務定義與蓋章判定邏輯。
+
 測試：`npm test` 171/171（對真原始碼）、`npm run test:e2e` 47/47（Playwright 瀏覽器點按，
 sidecar 與 Gemini API 以 page.route 攔截）、`sidecar/test_score.py` 4/4＋`test_article.py` 13/13、
 `npm run build` strict 綠燈。詳見 `tests/INTEGRATION_REPORT.md`。
