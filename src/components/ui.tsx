@@ -26,6 +26,7 @@ export function Toast() {
 // ---------- 蓋章大印（五項全完成時） ----------
 export function BigStamp() {
   const lastStamped = useApp((s) => s.lastStamped)
+  const gold = useApp((s) => s.lastStampGold)
   const clear = useApp((s) => s.clearStampFlag)
   const [visible, setVisible] = useState(false)
   useEffect(() => {
@@ -43,9 +44,9 @@ export function BigStamp() {
   const label = `${d.getMonth() + 1}／${d.getDate()}`
   return (
     <div className="bigStamp" onClick={() => setVisible(false)}>
-      <div className="inner">
+      <div className={'inner' + (gold ? ' gold' : '')}>
         <div className="b1">済</div>
-        <div className="b2">{label}</div>
+        <div className="b2">{gold ? `金印 ${label}` : label}</div>
       </div>
     </div>
   )

@@ -48,6 +48,8 @@ test('五項修行全完成 → 蓋章、大印動畫、streak +1', async ({ pag
   await expect(stamp).toContainText('済')
   const d = new Date()
   await expect(stamp).toContainText(`${d.getMonth() + 1}／${d.getDate()}`)
+  // 蓋章當下尚未加練 → 大印為一般朱印（非金）
+  await expect(stamp.locator('.inner.gold')).toHaveCount(0)
   // 點擊可提前關閉
   await stamp.click()
   await expect(stamp).toBeHidden()
@@ -73,4 +75,32 @@ test('五項修行全完成 → 蓋章、大印動畫、streak +1', async ({ pag
   await expect(page.locator('.stampCell.today.hit')).toHaveCount(1)
   await expect(page.locator('.stampCell.today .hanko.gold')).toHaveCount(1)
   await expect(page.locator('.streakBadge')).toContainText('連続 1 日')
+})
+
+/**
+ * 金印大印：若「蓋章前」已做過任一加練，完成核心五項當下的大印 overlay
+ * 應同步升為金印（済＋金印字樣、.inner.gold）。
+ */
+test('蓋章前已加練 → 大印 overlay 同步金印', async ({ page }) => {
+  test.setTimeout(180_000)
+  await disableSpeechRecognition(page)
+  await gotoApp(page)
+
+  // 先做一項加練（文型ドリル 回想テスト → 看答案 即記入 pattern 活動）
+  await openExtra(page, /文型ドリル/)
+  await page.getByRole('button', { name: /回想テスト/ }).click()
+  await page.getByRole('button', { name: /看答案/ }).click()
+  await page.getByRole('button', { name: /返回/ }).click()
+
+  // 再完成核心五項 → 蓋章當下大印即為金印
+  await completeKanaRound(page)
+  await completeVocabRound(page)
+  await completeListenRound(page)
+  await completeSpeakSelf(page, 3)
+  await completeRead(page)
+
+  const stamp = page.locator('.bigStamp')
+  await expect(stamp).toBeVisible()
+  await expect(stamp.locator('.inner.gold')).toBeVisible()
+  await expect(stamp).toContainText('金印')
 })
