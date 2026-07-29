@@ -656,6 +656,25 @@ h2 {
   border-radius: 10px;
 }
 
+/* 漢字筆順動画（StrokeOrder） */
+.strokeOrder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  margin: 4px auto 12px;
+}
+.strokeOrderSvg {
+  fill: none;
+  stroke: var(--shu);
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  background: var(--washi);
+  border: 2px solid var(--washi2);
+  border-radius: 10px;
+}
+
 /* 会話（情境對話引導）泡泡 */
 .dlgBox {
   margin-top: 10px;

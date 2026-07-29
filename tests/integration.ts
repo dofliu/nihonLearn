@@ -24,6 +24,7 @@ import { scoreHandwriting, dilate, gradeOf } from '../src/lib/handwriting.ts'
 import { totalsByDay, totalsByFeature, featuresOnDay, activeDayCount, heatLevel, calendarCells } from '../src/lib/activity.ts'
 import { PATTERNS } from '../src/data/patterns.ts'
 import { poolFor, candidatesFor, buildItem, itemsFor, dailyPattern } from '../src/lib/patternDrill.ts'
+import { KANJI_STROKES, KANJI_STROKE_VIEWBOX } from '../src/data/kanjiStrokes.ts'
 
 let pass = 0
 let fail = 0
@@ -433,6 +434,29 @@ console.log('=== 5o. 文型ドリル（句型 × 已學單字） ===')
 
   ok('dailyPattern 在範圍內', [0, 1, 5, 13, 100].every((d) => PATTERNS.includes(dailyPattern(d))))
   ok('dailyPattern 每天輪替', dailyPattern(0).id !== dailyPattern(1).id)
+}
+
+console.log('=== 5p. 漢字筆順動画（KanjiVG stroke data） ===')
+{
+  // 與 data/kanjiWrite.ts WRITE_KANJI 同一套篩選邏輯（該檔 import 無副檔名，Node 無法直接載入，故此處重現判斷）
+  const SINGLE_KANJI = /^[々一-鿿]$/
+  const seen = new Set<string>()
+  const writeKanjiChars: string[] = []
+  for (const v of VOCAB) {
+    if (!v.kanji || !SINGLE_KANJI.test(v.kanji) || seen.has(v.kanji)) continue
+    seen.add(v.kanji)
+    writeKanjiChars.push(v.kanji)
+  }
+
+  ok('viewBox 為 109（KanjiVG 標準座標系）', KANJI_STROKE_VIEWBOX === 109)
+  ok('筆順資料非空', Object.keys(KANJI_STROKES).length > 0)
+  ok(
+    '書寫練習每個漢字都有筆順資料',
+    writeKanjiChars.every((ch) => Array.isArray(KANJI_STROKES[ch]) && KANJI_STROKES[ch].length > 0),
+  )
+  const allD = Object.values(KANJI_STROKES).flat()
+  ok('每畫皆為非空 SVG path 字串、以 M 開頭', allD.every((d) => typeof d === 'string' && /^M[\d.]/.test(d)))
+  ok('每畫皆互不相同（同一字內無重複筆畫）', Object.values(KANJI_STROKES).every((ds) => new Set(ds).size === ds.length))
 }
 
 console.log('=== 6. 資料完整性 ===')
