@@ -5,14 +5,14 @@
 > 設計原則不變：**正確性交給權威來源與程式驗證，AI 生成一律人工審核採用才入庫；
 > 使用者只做策展，不當正確性把關者。**
 
-最後更新：v3.20（移除 sidecar 相關前端 UI——手機為主、sidecar 對手機無用；後端與降級架構保留）。
+最後更新：v3.24（漢字筆順動画——依 KanjiVG 權威資料逐畫描繪動畫，補上 v3.16 的缺口）。
 
 ---
 
 ## 目前狀態
 
 - **程式碼**：Web/PWA 與 Android（Capacitor 殼）皆完成；CI（web 測試＋e2e＋Android `assembleDebug`）綠燈。
-- **測試**：`npm test` 157/157、`npm run test:e2e` 46/46、`sidecar/test_score.py` 4/4、`test_article.py` 13/13、`npm run build` strict 綠燈。
+- **測試**：`npm test` 176/176、`npm run test:e2e` 49/49、`sidecar/test_score.py` 4/4、`test_article.py` 13/13、`npm run build` strict 綠燈。
 - **尚未做**：Android 真機驗收（清單 `tests/MANUAL_QA-ANDROID.md`）與 Google Play 封閉測試——**未通過前勿送審**。
 
 ## 已完成里程碑（摘要）
@@ -30,6 +30,10 @@
 | 修正書寫描紅層級（不被格線蓋住）＋Android adaptive 圖示（鳥居 mipmap 直接生成） | v3.15 |
 | 漢字書寫練習（取自已驗證 60 個單漢字詞，沿用字形相似度評分） | v3.16 |
 | 學習活動記錄＋統計（Dexie v8 activityLog，成長頁日曆 heatmap 與統計，+α 選配不卡蓋章） | v3.17 |
+| 實機修正（書寫描紅層級、Android 桌面 mipmap 圖示）；漢字書寫練習擴充；標題安全區／聞き取り手動下一題／聽力分類中文化；読む短文選單中文主題化 | v3.15–v3.19 |
+| 移除前端 sidecar 相關 UI（手機為主場景）；詞庫擴充（N5 299→321） | v3.20 |
+| 文型ドリル（句型×已學單字組句，含回想テスト模式）；每日任務「加練輪替＋金印」獎勵與大印同步 | v3.21–v3.23.1 |
+| 漢字筆順動画（KanjiVG 權威資料逐畫描繪，`components/StrokeOrder.tsx`） | v3.24 |
 
 
 ## 後續接續工作（優先序）
@@ -43,11 +47,20 @@
 - 現況：`data/pitch.ts` 只放高信度東京式詞，pattern 由 `lib/pitch.ts` 規則生成（無正確性風險）。
 - 目標：接 **OJAD** 或字典資料源、**標註來源**後擴大重音道場詞庫。
 - 原則：**不可讓 LLM 直接生 accent 數字**（Dof 會發現錯誤）；每筆新詞查證來源、只標一個 accent 整數。
-- ⚠ 此雲端環境的 egress proxy 擋掉 OJAD／Wiktionary／字典（403），**無法在此查證**；需本機或提供資料才做。
+- ⚠ 此雲端環境的 egress proxy 擋掉 OJAD／Wiktionary／字典等一般網站（403），**無法在此查證**；需本機或提供資料才做。
+- 💡 v3.24 發現：egress proxy 對 `registry.npmjs.org`（`npm view`/`npm pack`）放行，一般 HTTPS（含
+  `unpkg.com`）則否。若有 npm 套件形式打包的重音／字典資料（仿 v3.24 用 `@madcat/kanjivg` 取得
+  KanjiVG 的做法），可比照：`npm pack` 下載、本機解包擷取所需子集成純資料檔，**不加入 package.json
+  相依性**。下次可先 `npm view`/`npm search` 找看看有無這類 OJAD／字典衍生封裝。
 
 ### 3. 漢字模式深化 〔內容深化〕
 - 短文提供漢字／假名雙版切換（目前部分短文已有 ruby）。
-- ~~假名書寫練習＋字形評分~~（v3.13）、~~漢字書寫練習~~（v3.16：`data/kanjiWrite.ts`，字集取自已驗證單漢字詞）；可續做**筆順動畫**（需筆順資料，此環境查證受限）。
+- ~~假名書寫練習＋字形評分~~（v3.13）、~~漢字書寫練習~~（v3.16：`data/kanjiWrite.ts`，字集取自已驗證單漢字詞）、
+  ~~筆順動畫~~（v3.24：`data/kanjiStrokes.ts`＋`components/StrokeOrder.tsx`，資料來自 KanjiVG CC BY-SA 3.0）。
+- 可續做：**筆順「正確性」評分**（目前書寫練習仍只評字形相似度，KanjiVG 已有的座標／順序可用來額外判斷
+  使用者下筆順序是否正確，而不只是形狀重疊——文案需誠實區分「筆順評分」vs.「字形參考」兩者）。
+- 若未來 `data/vocab.ts` 擴充新增的單漢字詞不在目前 60 字的 KanjiVG 擷取範圍內，需要重新用
+  `@madcat/kanjivg` 補擷取（`WriteView` 已對缺資料的字自動隱藏筆順按鈕，不會壞，但體驗會少一塊）。
 
 ### 4. 真聲學 GOP（發音評分天花板）〔進階、需 GPU〕
 - wav2vec2-CTC 日語音素模型＋強制對齊，逐音素後驗機率。

@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { KANA } from '../data/kana'
 import { WRITE_KANJI } from '../data/kanjiWrite'
+import { KANJI_STROKES } from '../data/kanjiStrokes'
 import { scoreHandwriting, type WriteScore } from '../lib/handwriting'
 import { saveWriteScore, writeBestMap, logActivity } from '../db/repo'
 import { speak } from '../audio/tts'
 import { toast } from '../components/ui'
+import { StrokeOrder } from '../components/StrokeOrder'
 
 const GRID = 32 // 評分光柵解析度（GRID×GRID）
 const CANVAS = 260 // 顯示畫布邏輯尺寸（px）
@@ -80,6 +82,7 @@ export function WriteView() {
   const [result, setResult] = useState<WriteScore | null>(null)
   const [best, setBest] = useState<Record<string, number>>({})
   const [hasInk, setHasInk] = useState(false)
+  const [showStroke, setShowStroke] = useState(false)
 
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const strokesRef = useRef<{ x: number; y: number }[][]>([])
@@ -216,6 +219,22 @@ export function WriteView() {
             🔊 唸這個音
           </button>
         </div>
+
+        {script === 'kanji' && KANJI_STROKES[cur.ch] && (
+          <div className="row center" style={{ marginBottom: 6 }}>
+            <button className="btn small ghost" onClick={() => setShowStroke((v) => !v)}>
+              {showStroke ? '▲ 收起筆順動画' : '▶ 看筆順動画'}
+            </button>
+          </div>
+        )}
+        {script === 'kanji' && showStroke && KANJI_STROKES[cur.ch] && (
+          <>
+            <StrokeOrder ch={cur.ch} />
+            <p className="sub center" style={{ marginTop: -6, marginBottom: 10 }}>
+              筆順資料來源：KanjiVG（CC BY-SA 3.0）
+            </p>
+          </>
+        )}
 
         <div className="writeWrap">
           {/* 底層：格線＋和紙底（不透明，必須在最下層，否則會蓋住描紅範本） */}

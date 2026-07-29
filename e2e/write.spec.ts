@@ -104,6 +104,34 @@ test.describe('假名書寫練習', () => {
     await expect(page.locator('main')).toContainText('/ 100')
   })
 
+  test('漢字模式：筆順動画可展開／收起，播完可重播', async ({ page }) => {
+    await gotoApp(page)
+    await navTo(page, 'かな')
+    await page.getByRole('button', { name: /書寫練習/ }).click()
+    await page.getByRole('button', { name: '漢字', exact: true }).click()
+
+    // 假名字集不顯示筆順按鈕
+    await page.getByRole('button', { name: 'ひらがな', exact: true }).click()
+    await expect(page.getByRole('button', { name: /筆順動画/ })).toHaveCount(0)
+    await page.getByRole('button', { name: '漢字', exact: true }).click()
+
+    const toggle = page.getByRole('button', { name: /看筆順動画/ })
+    await expect(toggle).toBeVisible()
+    await expect(page.locator('.strokeOrderSvg')).toHaveCount(0)
+
+    await toggle.click()
+    await expect(page.locator('.strokeOrderSvg path').first()).toBeVisible()
+    await expect(page.getByRole('button', { name: /收起筆順動画/ })).toBeVisible()
+    await expect(page.getByText('KanjiVG')).toBeVisible()
+
+    // 重播按鈕存在（播放中顯示「播放中…」並 disabled，之後恢復可按「▶ 重播筆順」）
+    await expect(page.locator('.strokeOrder button')).toBeVisible()
+
+    // 收起後 SVG 消失
+    await page.getByRole('button', { name: /收起筆順動画/ }).click()
+    await expect(page.locator('.strokeOrderSvg')).toHaveCount(0)
+  })
+
   test('沒寫就評分 → 提示先寫', async ({ page }) => {
     await gotoApp(page)
     await navTo(page, 'かな')

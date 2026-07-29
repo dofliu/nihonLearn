@@ -231,9 +231,21 @@ overlay 動畫」**（`components/ui.tsx BigStamp`）原本一律朱印。改為
 `.bigStamp .inner.gold`（與 `.hanko.gold` 同一套金色）並顯示「金印」字樣。純呈現層、與蓋章格金印
 判定同源。e2e `stamp.spec` 加：既有黃金路徑斷言大印非金；新增「蓋章前先加練 → 大印同步金印」。
 
-測試：`npm test` 171/171（對真原始碼）、`npm run test:e2e` 48/48（Playwright 瀏覽器點按，
-sidecar 與 Gemini API 以 page.route 攔截）、`sidecar/test_score.py` 4/4＋`test_article.py` 13/13、
-`npm run build` strict 綠燈。詳見 `tests/INTEGRATION_REPORT.md`。
+v3.24（漢字筆順動画）：漢字書寫練習加「▶ 看筆順動画」——依**權威資料源 KanjiVG**（CC BY-SA 3.0）
+逐畫描繪動畫，補上 v3.16 當時「想做筆順動畫、但無筆順資料」的缺口。新增 `data/kanjiStrokes.ts`
+（只擷取本 app 60 個 `WRITE_KANJI` 用到的字之筆畫 SVG path，依官方筆順編號排序，附來源與授權註記；
+**不經 LLM、不自行標註**——筆順正確性完全交給此資料源，符合「正確性交給權威來源」原則）；資料由
+npm 套件 `@madcat/kanjivg`（KanjiVG 的 CC BY-SA 3.0 打包版）本機一次性擷取產生，**未加入專案相依性**
+（`package.json` 不變，`kanjiStrokes.ts` 為純資料）。新增 `components/StrokeOrder.tsx`——SVG
+`stroke-dashoffset` 逐畫動畫（純 CSS transition＋setTimeout 排程，無額外套件），有重播按鈕；
+`WriteView` 漢字模式下顯示切換鈕與 KanjiVG 來源標註，未涵蓋到筆順資料的字（例如未來 VOCAB 擴充
+新增的單漢字詞）會自動不顯示按鈕（降級不中斷）。純呈現層動畫＋一份可驗證的權威資料，不動書寫評分邏輯。
+
+測試：`npm test` 176/176（對真原始碼，含新增 5p 漢字筆順資料完整性檢核：60 字皆有筆順、
+每畫皆為合法 SVG path 且互不重複）、`npm run test:e2e` 49/49（Playwright 瀏覽器點按，
+新增 write.spec 筆順動画展開/收起／SVG 出現一項；sidecar 與 Gemini API 以 page.route 攔截）、
+`sidecar/test_score.py` 4/4＋`test_article.py` 13/13、`npm run build` strict 綠燈。
+詳見 `tests/INTEGRATION_REPORT.md`。
 
 ---
 
