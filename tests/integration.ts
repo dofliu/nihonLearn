@@ -25,6 +25,7 @@ import { totalsByDay, totalsByFeature, featuresOnDay, activeDayCount, heatLevel,
 import { PATTERNS } from '../src/data/patterns.ts'
 import { poolFor, candidatesFor, buildItem, itemsFor, dailyPattern } from '../src/lib/patternDrill.ts'
 import { KANJI_STROKES, KANJI_STROKE_VIEWBOX } from '../src/data/kanjiStrokes.ts'
+import { strokeStart, refStrokeStarts, judgeStrokeOrder } from '../src/lib/strokeOrder.ts'
 
 let pass = 0
 let fail = 0
@@ -457,6 +458,44 @@ console.log('=== 5p. 漢字筆順動画（KanjiVG stroke data） ===')
   const allD = Object.values(KANJI_STROKES).flat()
   ok('每畫皆為非空 SVG path 字串、以 M 開頭', allD.every((d) => typeof d === 'string' && /^M[\d.]/.test(d)))
   ok('每畫皆互不相同（同一字內無重複筆畫）', Object.values(KANJI_STROKES).every((ds) => new Set(ds).size === ds.length))
+}
+
+console.log('=== 5q. 筆順順序粗略比對 ===')
+{
+  ok('strokeStart 解析 M 命令座標', strokeStart('M54.5,20c0.37,2.12,-0.5,2.25').x === 54.5)
+  ok('strokeStart y 座標正確', strokeStart('M54.5,20c0.37,2.12,-0.5,2.25').y === 20)
+
+  const paths = KANJI_STROKES['人'] // 2 畫：撇（左上起筆）→ 捺（中段起筆）
+  ok('人 有 2 畫筆順資料', paths.length === 2)
+  const starts = refStrokeStarts(paths, KANJI_STROKE_VIEWBOX)
+  ok('refStrokeStarts 正規化到 0..1', starts.every((p) => p.x >= 0 && p.x <= 1 && p.y >= 0 && p.y <= 1))
+
+  const CANVAS = 260
+  // 依官方順序下筆（正規化座標 × CANVAS 還原成使用者畫布座標）→ 應判定順序正確
+  const inOrder = starts.map((p) => [{ x: p.x * CANVAS, y: p.y * CANVAS }, { x: p.x * CANVAS + 5, y: p.y * CANVAS + 5 }])
+  const rOk = judgeStrokeOrder(inOrder, paths, CANVAS, KANJI_STROKE_VIEWBOX)
+  ok('依官方順序下筆 → verdict correct', rOk.verdict === 'correct')
+  ok('依官方順序下筆 → orderScore 100', rOk.orderScore === 100)
+
+  // 反過來下筆 → 順序不對
+  const reversed = [...inOrder].reverse()
+  const rBad = judgeStrokeOrder(reversed, paths, CANVAS, KANJI_STROKE_VIEWBOX)
+  ok('反順序下筆 → verdict out_of_order', rBad.verdict === 'out_of_order')
+  ok('反順序下筆 → orderScore 低於 100', rBad.orderScore < 100)
+
+  // 只畫 1 筆（範本 2 筆）→ 筆畫數不符
+  const rCount = judgeStrokeOrder([inOrder[0]], paths, CANVAS, KANJI_STROKE_VIEWBOX)
+  ok('筆畫數不同 → verdict count_mismatch', rCount.verdict === 'count_mismatch')
+
+  // 沒下筆 → unscored
+  const rEmpty = judgeStrokeOrder([], paths, CANVAS, KANJI_STROKE_VIEWBOX)
+  ok('沒下筆 → verdict unscored', rEmpty.verdict === 'unscored')
+
+  // 對全部有筆順資料的漢字：起筆點皆可解析為有限數字（資料完整性、不會產生 NaN）
+  const allFinite = Object.values(KANJI_STROKES).every((ds) =>
+    refStrokeStarts(ds, KANJI_STROKE_VIEWBOX).every((p) => Number.isFinite(p.x) && Number.isFinite(p.y)),
+  )
+  ok('全部筆順起筆點皆可解析（無 NaN）', allFinite)
 }
 
 console.log('=== 6. 資料完整性 ===')

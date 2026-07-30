@@ -132,6 +132,27 @@ test.describe('假名書寫練習', () => {
     await expect(page.locator('.strokeOrderSvg')).toHaveCount(0)
   })
 
+  test('漢字模式：只畫一筆評分 → 顯示筆順筆畫數不符提示', async ({ page }) => {
+    await gotoApp(page)
+    await navTo(page, 'かな')
+    await page.getByRole('button', { name: /書寫練習/ }).click()
+    await page.getByRole('button', { name: '漢字', exact: true }).click()
+
+    // 提示文字說明漢字模式會額外做筆順順序參考
+    await expect(page.locator('main')).toContainText('起筆點順序')
+
+    const canvas = page.locator('canvas.writeCanvas')
+    const box = (await canvas.boundingBox())!
+    // 練習字集所有漢字皆至少 2 畫，只畫 1 筆必定筆畫數不符
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height * 0.2)
+    await page.mouse.down()
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height * 0.8, { steps: 8 })
+    await page.mouse.up()
+    await page.getByRole('button', { name: '評分', exact: true }).click()
+    await expect(page.locator('.scoreBig')).toBeVisible()
+    await expect(page.locator('main')).toContainText('筆畫數不同')
+  })
+
   test('沒寫就評分 → 提示先寫', async ({ page }) => {
     await gotoApp(page)
     await navTo(page, 'かな')
