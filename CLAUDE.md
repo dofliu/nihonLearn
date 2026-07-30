@@ -247,6 +247,21 @@ npm 套件 `@madcat/kanjivg`（KanjiVG 的 CC BY-SA 3.0 打包版）本機一次
 `sidecar/test_score.py` 4/4＋`test_article.py` 13/13、`npm run build` strict 綠燈。
 詳見 `tests/INTEGRATION_REPORT.md`。
 
+v3.25（漢字筆順「順序」粗略比對，ROADMAP #3 續做）：v3.24 的筆順動畫只是示範播放，這次
+接著把已下筆的內容也拿來對照——新增 `lib/strokeOrder.ts` 純函式：從 KanjiVG 每一畫的 path
+取「起筆點」座標（`strokeStart`／`refStrokeStarts`，正規化到 0..1），與使用者 `WriteView` 本來
+就會依畫記錄的 `strokesRef`（每一筆畫獨立陣列，先前只用來光柵化，這次順便拿來比對）逐筆做最近點
+配對，再用最長遞增子序列（LIS）判斷「下筆順序」是否符合官方筆畫編號（`judgeStrokeOrder`）。
+**誠實定位維持不變**：只比對起筆點順序，不比對筆畫方向／彎曲路徑，所以評分後另外顯示一行獨立的
+「筆順」提示（✓ 符合官方筆順／△ 順序不同／筆畫數不同），與既有「字形相似度」分數並列但不混為一談
+（呼應 ROADMAP 提醒的「文案需誠實區分筆順評分 vs. 字形參考」）。只在漢字模式且該字有 `KANJI_STROKES`
+資料時計算；**不寫入 Dexie**（單純即時回饋，不動 schema／`writeScores`，維持小增量）。
+不經 LLM、零正確性風險（比對邏輯是幾何運算，資料仍全部來自 KanjiVG）。
+
+測試：`npm test` 187/187（新增 5q 筆順順序比對：正向/反向/筆畫數不符/未下筆四種情境＋全部
+`KANJI_STROKES` 起筆點可解析無 NaN 的資料完整性檢核）、`npm run test:e2e` 50/50（write.spec 新增
+「只畫一筆評分 → 顯示筆順筆畫數不符提示」）、`npm run build` strict 綠燈。
+
 ---
 
 ## ⭐ 本機實測任務（此專案轉到 Claude Code 的主因）
@@ -342,7 +357,7 @@ Claude Code 在本機可以真正跑起來、觀察、修正。建議依序進�
 
 ## 提交前檢查
 
-`npm run build`（strict 綠燈）＋ `npm test`（171/171）＋ `npm run test:e2e`（48/48）
+`npm run build`（strict 綠燈）＋ `npm test`（187/187）＋ `npm run test:e2e`（50/50）
 ＋（動到 sidecar 時）`python sidecar/test_score.py` 與 `python sidecar/test_article.py`。
 新功能盡量補測：純邏輯進 `tests/integration.ts`，UI 流程進 `e2e/*.spec.ts`（共用步驟放
 `e2e/helpers.ts`），後端進 `test_score.py`。

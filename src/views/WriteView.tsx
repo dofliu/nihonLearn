@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { KANA } from '../data/kana'
 import { WRITE_KANJI } from '../data/kanjiWrite'
-import { KANJI_STROKES } from '../data/kanjiStrokes'
+import { KANJI_STROKES, KANJI_STROKE_VIEWBOX } from '../data/kanjiStrokes'
 import { scoreHandwriting, type WriteScore } from '../lib/handwriting'
+import { judgeStrokeOrder, type StrokeOrderResult } from '../lib/strokeOrder'
 import { saveWriteScore, writeBestMap, logActivity } from '../db/repo'
 import { speak } from '../audio/tts'
 import { toast } from '../components/ui'
@@ -80,6 +81,7 @@ export function WriteView() {
   const [wmode, setWmode] = useState<WMode>('trace')
   const [idx, setIdx] = useState(0)
   const [result, setResult] = useState<WriteScore | null>(null)
+  const [strokeResult, setStrokeResult] = useState<StrokeOrderResult | null>(null)
   const [best, setBest] = useState<Record<string, number>>({})
   const [hasInk, setHasInk] = useState(false)
   const [showStroke, setShowStroke] = useState(false)
@@ -111,6 +113,7 @@ export function WriteView() {
     }
     strokesRef.current = []
     setResult(null)
+    setStrokeResult(null)
     setHasInk(false)
   }, [])
 
@@ -165,6 +168,10 @@ export function WriteView() {
     const user = rasterStrokes(strokesRef.current)
     const r = scoreHandwriting(ref, user, GRID)
     setResult(r)
+    const refStrokes = script === 'kanji' ? KANJI_STROKES[cur.ch] : undefined
+    setStrokeResult(
+      refStrokes ? judgeStrokeOrder(strokesRef.current, refStrokes, CANVAS, KANJI_STROKE_VIEWBOX) : null,
+    )
     void (async () => {
       const b = await saveWriteScore(cur.ch, r.score)
       setBest((m) => ({ ...m, [cur.ch]: b }))
@@ -205,7 +212,8 @@ export function WriteView() {
         </div>
         <p className="hint" style={{ marginTop: 8 }}>
           用手指或滑鼠寫在方格裡，按「評分」看<b>字形相似度</b>。
-          這是形狀參考分數（比對你的筆跡覆蓋範本字形），<b>不是筆順評分</b>。
+          這是形狀參考分數（比對你的筆跡覆蓋範本字形），<b>不是精確筆順評分</b>。
+          {script === 'kanji' && '（漢字模式會額外依官方筆順資料的起筆點順序，粗略提示下筆先後是否正確）'}
         </p>
       </div>
 
@@ -266,6 +274,16 @@ export function WriteView() {
               {Math.round(result.precision * 100)}%）
               {result.score >= 80 ? '　漂亮！' : result.score >= 60 ? '　不錯，再工整一點' : '　再多描幾次'}
             </p>
+            {strokeResult && (
+              <p className="sub center strokeOrderNote">
+                {strokeResult.verdict === 'correct' &&
+                  '筆順 ✓ 依起筆順序比對，符合官方筆順（僅供參考，非精確路徑評分）'}
+                {strokeResult.verdict === 'out_of_order' &&
+                  '筆順 △ 起筆順序和官方筆順不同（依起筆點粗略比對，僅供參考）'}
+                {strokeResult.verdict === 'count_mismatch' &&
+                  `筆順：你畫了 ${strokeResult.userCount} 筆，範本共 ${strokeResult.refCount} 筆——筆畫數不同`}
+              </p>
+            )}
             <div className="row between">
               <button className="btn small ghost" onClick={clear}>
                 再寫一次
