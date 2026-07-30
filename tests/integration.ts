@@ -25,7 +25,7 @@ import { totalsByDay, totalsByFeature, featuresOnDay, activeDayCount, heatLevel,
 import { PATTERNS } from '../src/data/patterns.ts'
 import { poolFor, candidatesFor, buildItem, itemsFor, dailyPattern } from '../src/lib/patternDrill.ts'
 import { KANJI_STROKES, KANJI_STROKE_VIEWBOX } from '../src/data/kanjiStrokes.ts'
-import { strokeStart, refStrokeStarts, judgeStrokeOrder } from '../src/lib/strokeOrder.ts'
+import { strokeStart, refStrokeStarts, judgeStrokeOrder, pathEnd, strokeVector } from '../src/lib/strokeOrder.ts'
 
 let pass = 0
 let fail = 0
@@ -496,6 +496,60 @@ console.log('=== 5q. 筆順順序粗略比對 ===')
     refStrokeStarts(ds, KANJI_STROKE_VIEWBOX).every((p) => Number.isFinite(p.x) && Number.isFinite(p.y)),
   )
   ok('全部筆順起筆點皆可解析（無 NaN）', allFinite)
+}
+
+console.log('=== 5r. 筆順「行筆方向」粗略比對 ===')
+{
+  ok('pathEnd 解析純 c（相對）路徑收筆座標', pathEnd('M10,10c5,5,10,10,20,20').x === 30)
+  ok('pathEnd 相對路徑 y 座標正確', pathEnd('M10,10c5,5,10,10,20,20').y === 30)
+  ok('pathEnd 解析絕對 C 命令收筆座標', pathEnd('M10,10C12,12,15,15,40,10').x === 40)
+  ok('pathEnd 對無法解析的片段仍回傳有限座標', Number.isFinite(pathEnd('M5,5').x))
+
+  const paths = KANJI_STROKES['人'] // 2 畫：撇（左上→左下）、捺（中段→右下）
+  const CANVAS = 260
+  const scale = CANVAS / KANJI_STROKE_VIEWBOX
+
+  // 完全依範本「起筆→收筆」方向下筆（同向量等比縮放）→ cosine 應為 1、方向應判定相符
+  const sameDir = paths.map((p) => {
+    const s = strokeStart(p)
+    const e = pathEnd(p)
+    return [{ x: s.x * scale, y: s.y * scale }, { x: e.x * scale, y: e.y * scale }]
+  })
+  const rDir = judgeStrokeOrder(sameDir, paths, CANVAS, KANJI_STROKE_VIEWBOX)
+  ok('依範本方向下筆 → directionVerdict match', rDir.directionVerdict === 'match')
+  ok('依範本方向下筆 → directionScore 100', rDir.directionScore === 100)
+
+  // 從範本起筆點下筆、但往反方向拉（同一起點配對到同一畫，只是行進方向相反）→ 方向應判定明顯不同
+  const reversedDir = paths.map((p) => {
+    const s = strokeStart(p)
+    const v = strokeVector(p)
+    return [{ x: s.x * scale, y: s.y * scale }, { x: (s.x - v.x) * scale, y: (s.y - v.y) * scale }]
+  })
+  const rBadDir = judgeStrokeOrder(reversedDir, paths, CANVAS, KANJI_STROKE_VIEWBOX)
+  ok('反方向下筆 → directionVerdict mismatch', rBadDir.directionVerdict === 'mismatch')
+  ok('反方向下筆 → directionScore 為 0', rBadDir.directionScore === 0)
+
+  // 只點一下（單點，無行進方向）→ 無法判斷方向
+  const tapOnly = paths.map((p) => {
+    const s = strokeStart(p)
+    return [{ x: s.x * scale, y: s.y * scale }]
+  })
+  const rTap = judgeStrokeOrder(tapOnly, paths, CANVAS, KANJI_STROKE_VIEWBOX)
+  ok('單點下筆（無行進方向）→ directionVerdict unscored', rTap.directionVerdict === 'unscored')
+  ok('單點下筆 → directionScore 為 NaN', Number.isNaN(rTap.directionScore))
+
+  // 沒下筆 → 方向也 unscored（承 5q 的 unscored 情境）
+  const rEmptyDir = judgeStrokeOrder([], paths, CANVAS, KANJI_STROKE_VIEWBOX)
+  ok('沒下筆 → directionVerdict unscored', rEmptyDir.directionVerdict === 'unscored')
+
+  // 資料完整性：全部筆順的方向向量皆可解析為有限數字（不含 NaN、Infinity）
+  const allVecFinite = Object.values(KANJI_STROKES).every((ds) =>
+    ds.every((p) => {
+      const v = strokeVector(p)
+      return Number.isFinite(v.x) && Number.isFinite(v.y)
+    }),
+  )
+  ok('全部筆畫方向向量皆可解析（無 NaN）', allVecFinite)
 }
 
 console.log('=== 6. 資料完整性 ===')
