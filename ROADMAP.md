@@ -5,15 +5,16 @@
 > 設計原則不變：**正確性交給權威來源與程式驗證，AI 生成一律人工審核採用才入庫；
 > 使用者只做策展，不當正確性把關者。**
 
-最後更新：v3.25（漢字筆順「順序」粗略比對——依 KanjiVG 起筆點順序判斷下筆先後是否符合官方筆順，
-與字形相似度分數並列顯示、誠實區分兩者）。
+最後更新：v3.26（漢字筆順「行筆方向」粗略比對——接續 v3.25 起筆點順序，再依 KanjiVG 每畫
+「起筆→收筆」向量 cosine 相似度比對行筆方向是否大致相符，與「筆順」「字形相似度」三行提示並列
+但不混為一談）。
 
 ---
 
 ## 目前狀態
 
 - **程式碼**：Web/PWA 與 Android（Capacitor 殼）皆完成；CI（web 測試＋e2e＋Android `assembleDebug`）綠燈。
-- **測試**：`npm test` 176/176、`npm run test:e2e` 49/49、`sidecar/test_score.py` 4/4、`test_article.py` 13/13、`npm run build` strict 綠燈。
+- **測試**：`npm test` 199/199、`npm run test:e2e` 51/51、`sidecar/test_score.py` 4/4、`test_article.py` 13/13、`npm run build` strict 綠燈。
 - **尚未做**：Android 真機驗收（清單 `tests/MANUAL_QA-ANDROID.md`）與 Google Play 封閉測試——**未通過前勿送審**。
 
 ## 已完成里程碑（摘要）
@@ -36,6 +37,7 @@
 | 文型ドリル（句型×已學單字組句，含回想テスト模式）；每日任務「加練輪替＋金印」獎勵與大印同步 | v3.21–v3.23.1 |
 | 漢字筆順動画（KanjiVG 權威資料逐畫描繪，`components/StrokeOrder.tsx`） | v3.24 |
 | 漢字筆順「順序」粗略比對（起筆點＋LIS 判斷下筆順序，`lib/strokeOrder.ts`，即時提示不寫入 Dexie） | v3.25 |
+| 漢字筆順「行筆方向」粗略比對（`pathEnd`／`strokeVector` cosine 相似度，與筆順/字形提示並列） | v3.26 |
 
 
 ## 後續接續工作（優先序）
@@ -61,10 +63,12 @@
   ~~筆順動畫~~（v3.24：`data/kanjiStrokes.ts`＋`components/StrokeOrder.tsx`，資料來自 KanjiVG CC BY-SA 3.0）、
   ~~筆順「順序」粗略比對~~（v3.25：`lib/strokeOrder.ts`，起筆點最近配對＋LIS，判斷下筆先後順序是否符合
   官方筆順；只看順序不看路徑方向，文案已誠實區分「筆順」vs.「字形相似度」兩行提示）。
-- 可續做：**筆畫方向／路徑比對**（v3.25 只比對起筆點順序，尚未比對每一筆的行進方向與彎曲路徑——
-  可用 `strokesRef` 的完整折線與 KanjiVG path 的終點/中段取樣點做更細緻比對，但要留意過度嚴格會打擊
-  初學者信心，且仍須維持「順序/方向參考，非精確路徑評分」的誠實文案）；筆順比對結果目前不持久化，
-  若要在成長頁呈現「筆順正確率」歷史趨勢，需另開 Dexie schema（version 9）並補 `e2e/db.spec.ts` 版本斷言。
+- ~~筆畫方向比對~~（v3.26：`pathEnd`／`strokeVector` 取每畫「起筆→收筆」向量，cosine 相似度比對
+  行筆方向，`WriteView` 另開一行「方向」提示，與「筆順」「字形相似度」並列不混為一談）。
+- 可續做：**筆畫路徑比對**（v3.26 仍只比對起訖點連線方向，未比對彎曲路徑本身——可用 `strokesRef`
+  完整折線與 KanjiVG path 的中段取樣點做更細緻比對，但要留意過度嚴格會打擊初學者信心，且仍須維持
+  「方向參考，非精確路徑評分」的誠實文案）；筆順/方向比對結果目前不持久化，若要在成長頁呈現
+  「筆順正確率」歷史趨勢，需另開 Dexie schema（version 9）並補 `e2e/db.spec.ts` 版本斷言。
 - 若未來 `data/vocab.ts` 擴充新增的單漢字詞不在目前 60 字的 KanjiVG 擷取範圍內，需要重新用
   `@madcat/kanjivg` 補擷取（`WriteView` 已對缺資料的字自動隱藏筆順按鈕與順序比對，不會壞，但體驗會少一塊）。
 

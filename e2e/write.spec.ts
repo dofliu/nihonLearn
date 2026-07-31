@@ -153,6 +153,30 @@ test.describe('假名書寫練習', () => {
     await expect(page.locator('main')).toContainText('筆畫數不同')
   })
 
+  test('漢字模式：畫筆畫後評分 → 顯示行筆方向粗略提示', async ({ page }) => {
+    await gotoApp(page)
+    await navTo(page, 'かな')
+    await page.getByRole('button', { name: /書寫練習/ }).click()
+    await page.getByRole('button', { name: '漢字', exact: true }).click()
+
+    const canvas = page.locator('canvas.writeCanvas')
+    const box = (await canvas.boundingBox())!
+    // 畫兩筆有明確行進方向的筆畫（非單點），讓方向比對有值可算
+    await page.mouse.move(box.x + box.width * 0.3, box.y + box.height * 0.2)
+    await page.mouse.down()
+    await page.mouse.move(box.x + box.width * 0.7, box.y + box.height * 0.8, { steps: 8 })
+    await page.mouse.up()
+    await page.mouse.move(box.x + box.width * 0.7, box.y + box.height * 0.2)
+    await page.mouse.down()
+    await page.mouse.move(box.x + box.width * 0.3, box.y + box.height * 0.8, { steps: 8 })
+    await page.mouse.up()
+    await page.getByRole('button', { name: '評分', exact: true }).click()
+
+    // 不論配對到哪個verdict（match/rough/mismatch），都會顯示一行「方向」提示（僅供參考）
+    await expect(page.locator('main')).toContainText('方向')
+    await expect(page.locator('main')).toContainText('僅供參考')
+  })
+
   test('沒寫就評分 → 提示先寫', async ({ page }) => {
     await gotoApp(page)
     await navTo(page, 'かな')
