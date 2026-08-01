@@ -262,6 +262,21 @@ v3.25（漢字筆順「順序」粗略比對，ROADMAP #3 續做）：v3.24 的�
 `KANJI_STROKES` 起筆點可解析無 NaN 的資料完整性檢核）、`npm run test:e2e` 50/50（write.spec 新增
 「只畫一筆評分 → 顯示筆順筆畫數不符提示」）、`npm run build` strict 綠燈。
 
+v3.26（漢字筆順「行筆方向」粗略比對，ROADMAP #3 續做）：v3.25 只比對起筆點順序，這次接著補上
+ROADMAP 點名的「筆畫方向」——`lib/strokeOrder.ts` 新增 `pathEnd`（解析 KanjiVG path 的 M/C/S/c/s
+命令走到收筆的絕對座標）與 `strokeVector`（該畫「起筆→收筆」向量），`judgeStrokeOrder` 對每個已配對
+的使用者筆畫，用向量 cosine 相似度和範本畫比對，回傳 `directionScore`（0-100）與
+`directionVerdict`（match／rough／mismatch／unscored）。**誠實定位延續 v3.25**：只比對起訖點連線
+方向，不比對彎曲路徑本身，所以 `WriteView` 在既有「筆順」提示下方**另開一行**「方向」提示
+（✓ 大致相符／△ 有落差／✗ 明顯不同，可能寫反方向），與「筆順」「字形相似度」三者並列但不混為一談，
+提示文案皆標「僅供參考、非精確路徑評分」。不寫入 Dexie（沿用 v3.25 即時回饋、不動 schema）；
+不經 LLM、零正確性風險（純幾何運算，資料仍全部來自 KanjiVG）。
+
+測試：`npm test` 199/199（新增 5r 行筆方向比對：`pathEnd` 相對/絕對命令解析、依範本方向下筆→match、
+反方向下筆→mismatch、單點下筆/未下筆→unscored 四種情境＋全部 `KANJI_STROKES` 方向向量可解析無 NaN
+的資料完整性檢核）、`npm run test:e2e` 51/51（write.spec 新增「畫筆畫後評分 → 顯示行筆方向粗略提示」）、
+`npm run build` strict 綠燈。
+
 v3.27（段落聽解細節題，ROADMAP #5 續做）：聞き取り「段落對話」原本每篇短文只有一題大意／場景理解題，
 這次加細節題（時間／數量／人物）補足 JLPT 課題理解常考的細節提問——`data/passages.ts` `Passage` 加
 `detailQuiz?: PassageQuiz[]`（與既有 `quiz` 互補，可有多題），為 6 篇短文（じこしょうかい／まいにちの
