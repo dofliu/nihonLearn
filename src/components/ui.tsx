@@ -23,6 +23,22 @@ export function Toast() {
   return <div className={'toast' + (show ? ' show' : '')}>{msg}</div>
 }
 
+// ---------- 進度條（測驗／聞き取り／音→字 等多題流程共用） ----------
+export function ProgressBar({ current, total }: { current: number; total: number }) {
+  const pct = total > 0 ? Math.min(100, Math.max(0, (current / total) * 100)) : 0
+  return (
+    <div
+      className="progressBar"
+      role="progressbar"
+      aria-valuenow={current}
+      aria-valuemin={0}
+      aria-valuemax={total}
+    >
+      <div className="progressBarFill" style={{ width: `${pct}%` }} />
+    </div>
+  )
+}
+
 // ---------- 蓋章大印（五項全完成時） ----------
 export function BigStamp() {
   const lastStamped = useApp((s) => s.lastStamped)
