@@ -35,6 +35,10 @@
 | **v3.18** | **實機 UI 微調**：標題避開系統狀態列（safe-area）並移除英文副標；聞き取り答完不自動跳題、日文對照停留到按「下一題」；聽力四型分類標題全中文化（JLPT 題型名保留小 tag） |
 | **v3.19** | **読む短文選單中文主題**：読む頁分級短文按鈕改「日文標題＋中文主題」兩行，初學者一眼看懂是哪個情境 |
 | **v3.20** | **移除 sidecar 相關前端 UI**：手機為主、sidecar 需 5090＋內網穿透才連得到，對手機使用者無用——拿掉設定頁「語音設定／Sidecar 位址」與読む頁「NHK 時事読み物」；後端與降級架構全部保留（桌機同源仍可自動偵測 VOICEVOX） |
+| **v3.21–v3.23.1** | **文型ドリル（句型練習）**：固定 N5 句型 × 已學單字組句，含「回想テスト」主動產出模式；每日任務加「加練輪替」曝光＋做過加練當日蓋「金印」（大印同步） |
+| **v3.24–v3.26** | **漢字筆順**：`KanjiVG`（CC BY-SA 3.0）逐畫動畫 → 下筆順序粗略比對（起筆點＋LIS）→ 行筆方向粗略比對（cosine 相似度），三行提示皆誠實標「參考、非精確評分」 |
+| **v3.27** | **段落聽解細節題**：6 篇短文加時間／數量／人物細節題，答案逐字對照原文（程式驗證非人工聲稱） |
+| **v3.28** | **作答視覺回饋**：N5 測驗／聞き取り四型／五十音音→字與複習卡共用動畫進度條＋選對/選錯 pop/shake/徽章動畫 |
 
 連續天數與已學假名可從 v1 一鍵匯入，不歸零。
 
@@ -68,8 +72,9 @@ python test_article.py   # NHK 文章解析（fixture HTML）
 
 ## 設定入口
 
-**點頁首標題「日本語の道」** 打開設定頁，內含：語音來源、Sidecar 位址、
-**AI 生成（Gemini）金鑰**、漢字模式、v1 匯入／v2 匯出。
+**點頁首標題「日本語の道」** 打開設定頁，內含：**AI 生成（Gemini）金鑰**、
+顯示設定（漢字モード）、v1 匯入／v2 匯出。（v3.20 起移除語音來源／Sidecar 位址等桌機限定設定，
+手機為主要使用場景；後端與降級架構仍保留，桌機同源時自動偵測。）
 
 ## AI 生成（Gemini 直連）
 
@@ -89,15 +94,21 @@ python test_article.py   # NHK 文章解析（fixture HTML）
 
 ```
 src/
-  data/        內容（kana 142・vocab ~300 N5・sentences・pairs・pitch・passages）— 唯一事實來源
-  db/          Dexie schema(v8) + repo（任務計數、蓋章、卡片、發音紀錄、生成句、文章、TTS 快取、測驗結果、段落理解題）
+  data/        內容（kana 142・vocab ~321 N5・sentences・pairs・pitch・passages・kaiwa・dialogues・
+               patterns・kanjiWrite・kanjiStrokes）— 唯一事實來源
+  db/          Dexie schema(v8) + repo（任務計數、蓋章、卡片、發音紀錄、生成句、文章、TTS 快取、
+               測驗結果、段落理解題、書寫評分、活動記錄）
   srs/         FSRS 排程封裝（新卡 / 評級 / 到期 / 定著判定）
   audio/       tts（VOICEVOX ▸ 原生 ▸ Web Speech 門面 + Dexie 快取）、scorer（whisper ▸ 原生/Web ASR ▸ 自評）
   lib/         sidecar（base URL 抽象）、llm（Gemini 直連 + 對話）、llmParse（純解析）、content（生成 client + i+1 已學詞）、
-               articles（NHK 導入）、vocabGate（詞彙隨假名解鎖）、quiz（N5 模擬測驗出題）、karaoke（朗讀逐字上色）、coverage（覆蓋率檢核）、
+               listening（聽力理解＋JLPT 題型出題）、articles（NHK 導入）、vocabGate（詞彙隨假名解鎖）、
+               quiz（N5 模擬測驗出題）、karaoke（朗讀逐字上色）、furigana（漢字↔假名對齊）、
+               handwriting（手寫字形評分）、strokeOrder（KanjiVG 筆順順序/方向比對）、
+               patternDrill（句型×已學單字組句）、activity（學習活動統計）、coverage（覆蓋率檢核）、
                pitch、date、importV1
-  views/       Today / Kana / Listen(含 Pitch) / Speak / Read / Progress / Review / Quiz / Tutor
-  components/  Nav、ui（toast、蓋章大印）、VocabCard
+  views/       Today / Kana(含 Write) / Listen(含 Pitch) / Speak(含 Dialogue) / Read / Progress /
+               Review / Quiz / Tutor / Pattern
+  components/  Nav、ui（toast、蓋章大印、進度條）、VocabCard、Ruby、Karaoke、StrokeOrder
 sidecar/       FastAPI（5090）：/health /tts /speakers /score /content /article/*
 android/       Capacitor Android 專案（appId com.dof.nihongomichi）
 docs/          ANDROID_RELEASE_PLAN、PRIVACY_POLICY、PLAY_LISTING
@@ -114,6 +125,10 @@ docs/          ANDROID_RELEASE_PLAN、PRIVACY_POLICY、PLAY_LISTING
 - **跟讀三段式評分**：whisper（5090）→ 原生/瀏覽器 ASR → 自評，附 mora 級逐拍診斷（促音漏發、濁音清化上色）。
 - **情境對話引導（会話）**：跟店員、家人、情人、同學、朋友、廠商來一段對話——對方的話自動朗讀，輪到你照句子說出來（可先聽手本），計入每日「口」任務。全為教科書等級固定基本句。
 - **假名／漢字書寫練習（描紅／空白默寫）**：かな道場「✍ 書寫練習」用手指或滑鼠書寫，系統以**字形相似度**評分（比對筆跡覆蓋範本、precision/recall→F1）。ひらがな／カタカナ／漢字三字集（漢字取自已驗證的單漢字詞）。誠實標示為形狀參考、非筆順評分；最佳分持久化。
+- **漢字筆順（KanjiVG 權威資料）**：漢字書寫可看「筆順動畫」逐畫描繪；評分時再疊加**筆順順序**（起筆點＋最長遞增子序列判斷下筆先後）與**行筆方向**（起訖點向量 cosine 相似度）兩行粗略比對，與字形相似度分數並列但誠實標示「僅供參考、非精確路徑評分」，資料全部來自 KanjiVG（CC BY-SA 3.0），不經 LLM。
+- **文型ドリル（句型練習）**：固定 N5 教科書句型（〜をください／〜はいくらですか…）× 已學過的詞彙自動組句，換不同單字反覆練習；「🎯 回想テスト」模式先隱藏日文答案讓你主動說出來再自評，加深記憶。句型與詞彙皆已驗證、不經 LLM。
+- **學習活動記錄**：每次練習（含 +α 選配）記進 `activityLog`，成長頁顯示連續天數＋近 70 日練習日曆 heatmap＋各功能累計次數；核心五項蓋章日若又做了任一加練，蓋章格與大印 overlay 一併升級為「金印」。
+- **作答視覺回饋**：N5 測驗／聞き取り四型／五十音音→字與複習卡，作答進度改用動畫進度條呈現；選對/選錯選項有 pop-in／shake 進場動畫與 ✓／✗ 徽章，回饋更直覺（純呈現層，遵循 `prefers-reduced-motion` 無障礙開關）。
 - **漢字モード＝漢字＋假名注音**：開啟後詞彙卡、跟讀句、單字帳、聽力揭曉都顯示漢字並在上方標注假名（由已驗證的假名欄自動對齊、程式驗證正確性），初學者也能直接唸。
 - **分級閱讀 + 時事**：靜態短文＋**NHK やさしいニュース 導入**（注音繼承 NHK 人工標註，LLM 只補中文對照），中文對照可整篇切換。
 - **AI 內容生成 + 審核佇列**：Gemini 依已學詞彙生成候選（每句 ≤1 新詞）＋程式覆蓋率檢核；持久化佇列，退回前不消失；採用才入庫。
@@ -127,8 +142,8 @@ docs/          ANDROID_RELEASE_PLAN、PRIVACY_POLICY、PLAY_LISTING
 | 層級 | 指令 | 結果 |
 |--|--|--|
 | 建置（strict） | `npm run build` | ✅ 綠燈，PWA SW 生成 |
-| 前端邏輯 | `npm test` | ✅ 157 / 157 |
-| 瀏覽器 E2E | `npm run test:e2e` | ✅ 46 / 46 |
+| 前端邏輯 | `npm test` | ✅ 202 / 202 |
+| 瀏覽器 E2E | `npm run test:e2e` | ✅ 51 / 51 |
 | 後端評分 | `python sidecar/test_score.py` | ✅ 4 / 4 |
 | 後端文章解析 | `python sidecar/test_article.py` | ✅ 13 / 13 |
 | Android 殼可編譯 | GitHub Actions `android` job（`gradlew assembleDebug`） | ✅ |
@@ -147,14 +162,18 @@ docs/          ANDROID_RELEASE_PLAN、PRIVACY_POLICY、PLAY_LISTING
 
 1. **Android 真機 QA ＋ Google Play 封閉測試**（上架關鍵路徑；清單見 `tests/MANUAL_QA-ANDROID.md`）。
 2. **pitch accent 詞庫擴充**（接 OJAD／字典來源、標註出處；不讓 LLM 生 accent 數字）。
-3. **漢字模式深化**（短文漢字/假名雙版、vocab 書寫練習）。
+3. **漢字模式深化**（短文漢字/假名雙版；漢字筆順已做動畫＋順序＋方向比對，可續做筆畫路徑比對）。
 4. **真聲學 GOP**（wav2vec2-CTC 音素模型＋強制對齊，逐音素評分）— 發音評分天花板。
-5. **聽力題型續強化**（段落細節題、商業/旅遊單句；素材仍走已驗證資料或「LLM 只生中文」）。
+5. **聽力題型續強化**（段落細節題已做 6 篇，可續擴其餘短文；商業/旅遊單句；素材仍走已驗證資料或「LLM 只生中文」）。
+6. **動畫／視覺輔助續做**（作答回饋已做六處，可延伸到文型ドリル／情境對話／書寫評分結果）。
 
 已完成：~~測驗模組~~（v3.4）、~~AI 助教~~（v3.6）、~~vocab i+1~~（v3.6）、
 ~~JLPT 聴解題型~~（v3.9）、~~AI 段落理解題~~（v3.10）、~~情境對話與漢字注音~~（v3.11）、
 ~~專屬 Logo 與假名書寫與詞庫~~（v3.12–v3.14）、~~描紅與圖示修正~~（v3.15）、
-~~漢字書寫練習~~（v3.16）、~~學習活動記錄與統計~~（v3.17）。
+~~漢字書寫練習~~（v3.16）、~~學習活動記錄與統計~~（v3.17）、~~読む短文中文主題~~（v3.19）、
+~~移除 sidecar 前端 UI~~（v3.20）、~~文型ドリル與金印~~（v3.21–v3.23.1）、
+~~漢字筆順動画/順序/方向比對~~（v3.24–v3.26）、~~段落聽解細節題~~（v3.27）、
+~~作答視覺回饋~~（v3.28）。
 
 
 ## 文件索引

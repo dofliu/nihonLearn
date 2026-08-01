@@ -37,6 +37,10 @@ Started as a v1 Artifact, productized into a PWA (v2), and wrapped with Capacito
 | **v3.18** | **On-device UI polish**: the header respects the system status-bar safe area (and drops the English subtitle); listening no longer auto-advances — the Japanese reveal stays until you tap "next"; the four listening category titles are all in Chinese (the JLPT type name kept as a small tag) |
 | **v3.19** | **Chinese topics on the reading menu**: graded-passage buttons on the Read page now show a two-line "Japanese title + Chinese topic" so beginners can tell which scenario each passage is |
 | **v3.20** | **Remove sidecar-facing UI**: the app is used mainly on phones, where the sidecar (needs the 5090 + a tunnel) is unreachable and useless — drop the Settings "Voice / Sidecar URL" cards and the Read page "NHK news import"; the backend and graceful-degradation architecture are fully kept (desktop same-origin still auto-detects VOICEVOX) |
+| **v3.21–v3.23.1** | **Pattern drill**: fixed N5 sentence patterns × learned words auto-compose sentences, plus an "active recall" mode; the daily-extras card now rotates which extra it highlights, and completing any extra on a stamped day upgrades the seal (and its overlay) to gold |
+| **v3.24–v3.26** | **Kanji stroke order**: `KanjiVG` (CC BY-SA 3.0) stroke-by-stroke animation → rough stroke-order check (start points + longest increasing subsequence) → rough stroke-direction check (start→end vector cosine similarity), all three hints honestly labeled "reference only, not precise grading" |
+| **v3.27** | **Paragraph-listening detail questions**: 6 passages gain time/quantity/person detail questions, with answers verified to appear verbatim in the source text (program-checked, not just claimed) |
+| **v3.28** | **Answer feedback UI**: a shared animated progress bar plus pop-in/shake + ✓/✗ badge feedback for the N5 quiz, all four kikitori types, and the kana ear-quiz/review screens |
 
 Streak days and learned kana can be imported from v1 with one tap — they don't reset.
 
@@ -70,8 +74,10 @@ low barrier over high intensity. When there is no unlockable new word for the da
 
 ## Settings entry
 
-**Tap the header title "日本語の道"** to open Settings: voice source, sidecar URL,
-**AI generation (Gemini) key**, kanji mode, v1 import / v2 export.
+**Tap the header title "日本語の道"** to open Settings: **AI generation (Gemini) key**,
+display settings (kanji mode), v1 import / v2 export. (As of v3.20 the desktop-only
+voice-source / sidecar-URL settings were removed since phones are the primary use case;
+the backend and fallback architecture are unchanged and still auto-detect on desktop same-origin.)
 
 ## AI generation (direct Gemini)
 
@@ -90,15 +96,21 @@ demo content is used and nothing breaks. All generated content goes through the 
 
 ```
 src/
-  data/        content (kana 142 · vocab ~300 N5 · sentences · pairs · pitch · passages · kaiwa) — single source of truth
-  db/          Dexie schema(v8) + repo (task counts, stamps, cards, pronunciation records, generated sentences, articles, TTS cache, quiz results, paragraph questions)
+  data/        content (kana 142 · vocab ~321 N5 · sentences · pairs · pitch · passages · kaiwa ·
+               dialogues · patterns · kanjiWrite · kanjiStrokes) — single source of truth
+  db/          Dexie schema(v8) + repo (task counts, stamps, cards, pronunciation records, generated
+               sentences, articles, TTS cache, quiz results, paragraph questions, writing scores, activity log)
   srs/         FSRS scheduling wrapper (new card / review / due / mastery)
   audio/       tts (VOICEVOX ▸ native ▸ Web Speech facade + Dexie cache), scorer (whisper ▸ native/Web ASR ▸ self-rating)
   lib/         sidecar (base-URL abstraction), llm (direct Gemini + chat), llmParse (pure parsing), content (generation client + i+1 learned words),
-               listening (comprehension + JLPT question generation), articles (NHK import), vocabGate (kana-gated unlock), quiz (N5 mock quiz), karaoke (read-along), coverage,
+               listening (comprehension + JLPT question generation), articles (NHK import), vocabGate (kana-gated unlock),
+               quiz (N5 mock quiz), karaoke (read-along), furigana (kanji/kana alignment),
+               handwriting (glyph-shape scoring), strokeOrder (KanjiVG order/direction checks),
+               patternDrill (pattern × learned-word composition), activity (learning-activity stats), coverage,
                pitch, date, importV1
-  views/       Today / Kana / Listen(incl. Pitch) / Speak / Read / Progress / Review / Quiz / Tutor
-  components/  Nav, ui (toast, seal stamp), VocabCard
+  views/       Today / Kana(incl. Write) / Listen(incl. Pitch) / Speak(incl. Dialogue) / Read / Progress /
+               Review / Quiz / Tutor / Pattern
+  components/  Nav, ui (toast, seal stamp, progress bar), VocabCard, Ruby, Karaoke, StrokeOrder
 sidecar/       FastAPI (5090): /health /tts /speakers /score /content /article/*
 android/       Capacitor Android project (appId com.dof.nihongomichi)
 docs/          ANDROID_RELEASE_PLAN, PRIVACY_POLICY, PLAY_LISTING
@@ -114,6 +126,10 @@ docs/          ANDROID_RELEASE_PLAN, PRIVACY_POLICY, PLAY_LISTING
 - **Leveled reading by situation**: passages grouped into basic / travel / daily / business, with Chinese gloss and read-along highlighting.
 - **Three-stage shadowing scoring**: whisper (5090) → native/browser ASR → self-rating, with mora-level per-beat diagnostics (dropped geminates, devoiced voiced sounds highlighted).
 - **Kana writing practice (trace / blank)**: in the kana dojo "✍ writing", draw with finger or mouse; the system scores by **glyph-shape similarity** (your ink coverage vs. the template, precision/recall → F1). Honestly labeled as a shape reference, not stroke-order grading; best score persisted.
+- **Kanji stroke order (KanjiVG authoritative data)**: kanji writing practice can show a "stroke-order animation" drawn stroke by stroke; scoring also overlays a rough **stroke-order check** (start points + longest increasing subsequence to judge drawing order) and a rough **stroke-direction check** (start→end vector cosine similarity), shown alongside the glyph-shape score but honestly labeled "reference only, not precise path grading" — all data from KanjiVG (CC BY-SA 3.0), no LLM involved.
+- **Pattern drill**: fixed N5 textbook sentence patterns (〜をください／〜はいくらですか…) auto-compose with your learned vocabulary, cycling different words for repeated practice; a "🎯 active recall" mode hides the Japanese answer so you produce it yourself before checking, for deeper retention. Patterns and vocab are both verified, no LLM.
+- **Learning activity log**: every practice session (including +α extras) is logged to `activityLog`; the progress page shows your streak, a 70-day practice-calendar heatmap, and per-feature totals; completing any extra on a day you also stamped the core five upgrades that day's seal (and its overlay) to gold.
+- **Answer feedback UI**: the N5 quiz, all four kikitori types, and the kana ear-quiz/review screens show progress as an animated bar; correct/incorrect options get pop-in/shake entrance animation and a ✓/✗ badge for more intuitive feedback (presentation-layer only, respects `prefers-reduced-motion`).
 - **Guided situational dialogues (kaiwa)**: role-play with a clerk, family member, partner, classmate, friend, or business vendor — the partner's lines are spoken automatically; on your turn, read your line aloud (model audio available). Counts toward the daily "mouth" task. All textbook-level fixed sentences.
 - **Kanji mode = kanji + kana furigana**: vocab cards, shadowing sentences, the word list, and listening reveals show kanji with kana annotated above (auto-aligned from the verified kana field, program-verified) — readable even for beginners.
 - **Leveled reading + current events**: static passages + **NHK Easy News import** (furigana inherited from NHK's human annotation; the LLM only adds the Chinese gloss), with a whole-passage gloss toggle.
@@ -128,8 +144,8 @@ docs/          ANDROID_RELEASE_PLAN, PRIVACY_POLICY, PLAY_LISTING
 | Layer | Command | Result |
 |--|--|--|
 | Build (strict) | `npm run build` | ✅ green, PWA SW generated |
-| Front-end logic | `npm test` | ✅ 157 / 157 |
-| Browser E2E | `npm run test:e2e` | ✅ 46 / 46 |
+| Front-end logic | `npm test` | ✅ 202 / 202 |
+| Browser E2E | `npm run test:e2e` | ✅ 51 / 51 |
 | Backend scoring | `python sidecar/test_score.py` | ✅ 4 / 4 |
 | Backend article parsing | `python sidecar/test_article.py` | ✅ 13 / 13 |
 | Android shell compiles | GitHub Actions `android` job (`gradlew assembleDebug`) | ✅ |
@@ -148,11 +164,12 @@ See **[`ROADMAP.md`](ROADMAP.md)** for the full follow-up work and hand-off note
 
 1. **Android device QA + Google Play closed testing** (critical path to release; checklist in `tests/MANUAL_QA-ANDROID.md`).
 2. **Pitch-accent lexicon expansion** (via OJAD / dictionary sources, with attribution; never let the LLM generate accent numbers).
-3. **Deeper kanji mode** (kanji/kana dual versions of passages, vocab writing practice).
+3. **Deeper kanji mode** (kanji/kana dual versions of passages; stroke order now has animation + order + direction checks — stroke-path comparison could follow).
 4. **True acoustic GOP** (wav2vec2-CTC phoneme model + forced alignment, per-phoneme scoring) — the pronunciation-scoring ceiling.
-5. **More listening question types** (paragraph detail questions, business/travel single sentences; material still from verified data or "LLM writes Chinese only").
+5. **More listening question types** (6 passages now have detail questions — extend to the rest; business/travel single sentences; material still from verified data or "LLM writes Chinese only").
+6. **More animation / visual polish** (answer feedback now covers six flows — could extend to the pattern drill, dialogue practice, or writing-score results).
 
-Done: ~~quiz module~~ (v3.4), ~~AI tutor~~ (v3.6), ~~vocab i+1~~ (v3.6), ~~JLPT listening types~~ (v3.9), ~~AI paragraph questions~~ (v3.10), ~~dialogues & kanji furigana~~ (v3.11), ~~dedicated logo & kana writing & vocab expansion~~ (v3.12–v3.14), ~~trace layer & launcher icon fixes~~ (v3.15), ~~kanji writing practice~~ (v3.16), ~~learning activity log & stats~~ (v3.17).
+Done: ~~quiz module~~ (v3.4), ~~AI tutor~~ (v3.6), ~~vocab i+1~~ (v3.6), ~~JLPT listening types~~ (v3.9), ~~AI paragraph questions~~ (v3.10), ~~dialogues & kanji furigana~~ (v3.11), ~~dedicated logo & kana writing & vocab expansion~~ (v3.12–v3.14), ~~trace layer & launcher icon fixes~~ (v3.15), ~~kanji writing practice~~ (v3.16), ~~learning activity log & stats~~ (v3.17), ~~Chinese topics on the reading menu~~ (v3.19), ~~removed sidecar-facing UI~~ (v3.20), ~~pattern drill & gold seal~~ (v3.21–v3.23.1), ~~kanji stroke-order animation/order/direction~~ (v3.24–v3.26), ~~paragraph-listening detail questions~~ (v3.27), ~~answer feedback UI~~ (v3.28).
 
 
 ## Doc index
