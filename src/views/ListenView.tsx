@@ -216,7 +216,7 @@ function buildParaPool(userQs: UserListenQ[] = []): ParaItem[] {
   const out: ParaItem[] = []
   for (const p of PASSAGES) {
     const extra = byPassage.get(p.id) ?? []
-    if (!p.quiz && extra.length === 0) continue
+    if (!p.quiz && !p.detailQuiz?.length && extra.length === 0) continue
     const readings = p.lines.map((l) => l.read || stripTags(l.jp))
     const base = {
       title: p.title.split(' ─ ')[1]?.split('（')[0] ?? p.title,
@@ -226,6 +226,9 @@ function buildParaPool(userQs: UserListenQ[] = []): ParaItem[] {
     if (p.quiz) {
       out.push({ ...base, id: p.id, q: p.quiz.q, answer: p.quiz.answer, options: p.quiz.options })
     }
+    p.detailQuiz?.forEach((dq, i) => {
+      out.push({ ...base, id: `${p.id}:d${i}`, q: dq.q, answer: dq.answer, options: dq.options })
+    })
     extra.forEach((u, i) => {
       out.push({ ...base, id: `${p.id}:u${u.id ?? i}`, q: u.q, answer: u.answer, options: u.options })
     })

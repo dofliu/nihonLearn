@@ -21,6 +21,12 @@ export interface Passage {
   ruby?: boolean
   lines: PassageLine[]
   quiz?: PassageQuiz
+  /**
+   * 細節理解題（時間/數量/人物等，同樣中文選擇題）。
+   * 與 quiz（大意/場景）互補、可有多題；答案文字必須直接出現在該篇 zh 台詞中
+   * （tests/integration.ts 會逐條核對），維持「答案由短文內容直接支持」原則。
+   */
+  detailQuiz?: PassageQuiz[]
 }
 
 export const PASSAGES: Passage[] = [
@@ -40,6 +46,13 @@ export const PASSAGES: Passage[] = [
       options: ['正在學日文', '是日本人', '討厭動漫', '是老師'],
       answer: '正在學日文',
     },
+    detailQuiz: [
+      {
+        q: '這個人的名字是？',
+        options: ['Dof', '田中', '陽子', '健太'],
+        answer: 'Dof',
+      },
+    ],
   },
   {
     id: 'p2',
@@ -56,6 +69,13 @@ export const PASSAGES: Passage[] = [
       options: ['喝咖啡', '跑步', '看電視', '睡到中午'],
       answer: '喝咖啡',
     },
+    detailQuiz: [
+      {
+        q: '這個人每天學多久日文？',
+        options: ['十分鐘', '一小時', '三十分鐘', '五分鐘'],
+        answer: '十分鐘',
+      },
+    ],
   },
   {
     id: 'p3',
@@ -101,6 +121,18 @@ export const PASSAGES: Passage[] = [
       options: ['便利商店', '機場', '醫院', '學校'],
       answer: '便利商店',
     },
+    detailQuiz: [
+      {
+        q: '買了幾個飯糰？',
+        options: ['兩個', '一個', '三個', '沒有買'],
+        answer: '兩個',
+      },
+      {
+        q: '總共花了多少錢？',
+        options: ['五百日圓', '一千日圓', '兩百日圓', '五十日圓'],
+        answer: '五百日圓',
+      },
+    ],
   },
   {
     id: 'p5',
@@ -118,6 +150,18 @@ export const PASSAGES: Passage[] = [
       options: ['看電影和吃拉麵', '加班工作', '去醫院', '搬家'],
       answer: '看電影和吃拉麵',
     },
+    detailQuiz: [
+      {
+        q: '中午吃了什麼？',
+        options: ['拉麵', '壽司', '咖哩', '漢堡'],
+        answer: '拉麵',
+      },
+      {
+        q: '晚上做了什麼？',
+        options: ['在家看書', '出去唱歌', '加班', '睡了一整天'],
+        answer: '在家看書',
+      },
+    ],
   },
   {
     id: 'p6',
@@ -196,6 +240,18 @@ export const PASSAGES: Passage[] = [
       options: ['問路', '點餐', '打電話預約', '自我介紹'],
       answer: '問路',
     },
+    detailQuiz: [
+      {
+        q: '要在第幾個轉角右轉？',
+        options: ['第二個', '第一個', '第三個', '不用轉彎'],
+        answer: '第二個',
+      },
+      {
+        q: '走路大約要多久？',
+        options: ['十分鐘', '一小時', '五分鐘', '三十分鐘'],
+        answer: '十分鐘',
+      },
+    ],
   },
 
   // ── 生活（応用会話・全假名）──
@@ -246,6 +302,18 @@ export const PASSAGES: Passage[] = [
       options: ['打電話預約', '問路', '結帳', '自我介紹'],
       answer: '打電話預約',
     },
+    detailQuiz: [
+      {
+        q: '預約明天幾點？',
+        options: ['六點', '七點', '五點', '八點'],
+        answer: '六點',
+      },
+      {
+        q: '一共幾位？',
+        options: ['兩位', '一位', '三位', '四位'],
+        answer: '兩位',
+      },
+    ],
   },
 
   // ── 商業（応用会話・全假名・僅用最基本的固定敬語）──

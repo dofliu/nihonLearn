@@ -262,20 +262,18 @@ v3.25（漢字筆順「順序」粗略比對，ROADMAP #3 續做）：v3.24 的�
 `KANJI_STROKES` 起筆點可解析無 NaN 的資料完整性檢核）、`npm run test:e2e` 50/50（write.spec 新增
 「只畫一筆評分 → 顯示筆順筆畫數不符提示」）、`npm run build` strict 綠燈。
 
-v3.26（漢字筆順「行筆方向」粗略比對，ROADMAP #3 續做）：v3.25 只比對起筆點順序，這次接著補上
-ROADMAP 點名的「筆畫方向」——`lib/strokeOrder.ts` 新增 `pathEnd`（解析 KanjiVG path 的 M/C/S/c/s
-命令走到收筆的絕對座標）與 `strokeVector`（該畫「起筆→收筆」向量），`judgeStrokeOrder` 對每個已配對
-的使用者筆畫，用向量 cosine 相似度和範本畫比對，回傳 `directionScore`（0-100）與
-`directionVerdict`（match／rough／mismatch／unscored）。**誠實定位延續 v3.25**：只比對起訖點連線
-方向，不比對彎曲路徑本身，所以 `WriteView` 在既有「筆順」提示下方**另開一行**「方向」提示
-（✓ 大致相符／△ 有落差／✗ 明顯不同，可能寫反方向），與「筆順」「字形相似度」三者並列但不混為一談，
-提示文案皆標「僅供參考、非精確路徑評分」。不寫入 Dexie（沿用 v3.25 即時回饋、不動 schema）；
-不經 LLM、零正確性風險（純幾何運算，資料仍全部來自 KanjiVG）。
+v3.27（段落聽解細節題，ROADMAP #5 續做）：聞き取り「段落對話」原本每篇短文只有一題大意／場景理解題，
+這次加細節題（時間／數量／人物）補足 JLPT 課題理解常考的細節提問——`data/passages.ts` `Passage` 加
+`detailQuiz?: PassageQuiz[]`（與既有 `quiz` 互補，可有多題），為 6 篇短文（じこしょうかい／まいにちの
+しゅうかん／コンビニで かいもの／たのしい しゅうまつ／みちを きく／でんわで よやく）各加 1～2 題，
+問法皆是「幾個／多少錢／幾點／第幾個」這類短文本身就直接寫明的細節（例如買了幾個飯糰、預約明天幾點）。
+**正確性用程式驗證而非人工聲稱**：新增測試逐條核對每題的 `answer` 文字必須逐字出現在該篇 `lines` 的
+`zh` 台詞拼接字串中，確保「答案由短文內容直接支持」不是空話。`views/ListenView.tsx` 的 `buildParaPool`
+把 `detailQuiz` 的每一題攤平併入既有段落理解題池（與 `quiz`／AI 採用題同池），不新增 UI 分頁、沿用
+「段落對話」既有畫面與隨機出題邏輯。不經 LLM、零正確性風險（純既有資料延伸＋程式驗證）。
 
-測試：`npm test` 199/199（新增 5r 行筆方向比對：`pathEnd` 相對/絕對命令解析、依範本方向下筆→match、
-反方向下筆→mismatch、單點下筆/未下筆→unscored 四種情境＋全部 `KANJI_STROKES` 方向向量可解析無 NaN
-的資料完整性檢核）、`npm run test:e2e` 51/51（write.spec 新增「畫筆畫後評分 → 顯示行筆方向粗略提示」）、
-`npm run build` strict 綠燈。
+測試：`npm test` 190/190（新增 5h 細節理解題結構＋逐字答案支持性檢核）、`npm run test:e2e` 50/50
+（既有段落聽解測試涵蓋新題池、無需新增流程）、`npm run build` strict 綠燈。
 
 v3.28（作答視覺回饋：進度條＋正解/錯解動畫）：使用者方向「動畫與視覺輔助」的小增量——App 內所有
 「多題連續作答」流程（N5 模擬測驗、聞き取り四型、五十音音→字、五十音複習卡）過去只用文字
@@ -386,7 +384,7 @@ Claude Code 在本機可以真正跑起來、觀察、修正。建議依序進�
 
 ## 提交前檢查
 
-`npm run build`（strict 綠燈）＋ `npm test`（187/187）＋ `npm run test:e2e`（50/50）
+`npm run build`（strict 綠燈）＋ `npm test`（190/190）＋ `npm run test:e2e`（50/50）
 ＋（動到 sidecar 時）`python sidecar/test_score.py` 與 `python sidecar/test_article.py`。
 新功能盡量補測：純邏輯進 `tests/integration.ts`，UI 流程進 `e2e/*.spec.ts`（共用步驟放
 `e2e/helpers.ts`），後端進 `test_score.py`。

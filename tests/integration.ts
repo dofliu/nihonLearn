@@ -236,6 +236,20 @@ console.log('=== 5h. 短文分類與段落理解題 ===')
   ok('有理解題的短文 ≥ 8 篇', withQuiz.length >= 8)
   ok('理解題四選項且含正解', withQuiz.every((p) => p.quiz!.options.length === 4 && p.quiz!.options.includes(p.quiz!.answer)))
   ok('四個分類都有短文', PASSAGE_CATS.every((c) => PASSAGES.some((p) => p.cat === c)))
+
+  const withDetail = PASSAGES.filter((p) => p.detailQuiz?.length)
+  ok('有細節理解題的短文 ≥ 5 篇', withDetail.length >= 5)
+  ok(
+    '細節理解題四選項且含正解',
+    withDetail.every((p) => p.detailQuiz!.every((dq) => dq.options.length === 4 && dq.options.includes(dq.answer))),
+  )
+  ok(
+    '細節理解題答案由短文 zh 台詞直接支持（逐字出現）',
+    withDetail.every((p) => {
+      const zhText = p.lines.map((l) => l.zh).join('')
+      return p.detailQuiz!.every((dq) => zhText.includes(dq.answer))
+    }),
+  )
 }
 
 console.log('=== 5i. JLPT 題型：即時応答・発話表現 ===')
