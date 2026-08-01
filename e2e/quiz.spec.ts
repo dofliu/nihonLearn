@@ -18,15 +18,21 @@ test.describe('N5 模擬測驗', () => {
     await expect(home).toContainText('可出題詞庫')
     await home.getByRole('button', { name: '開始測驗' }).click()
 
+    // 進度條隨題號更新（動畫視覺輔助）
+    await expect(page.locator('.progressBar[aria-valuenow="1"]')).toBeVisible()
+
     // 作答 10 題：選擇題點第一個選項；並べ替え點完所有字塊
     for (let i = 1; i <= 10; i++) {
       const eyebrow = page.locator('.card .eyebrow')
       await expect(eyebrow).toContainText(`${i} / 10`)
+      await expect(page.locator('.progressBar')).toHaveAttribute('aria-valuenow', String(i))
       const isListen = (await eyebrow.textContent())?.includes('聞き取り')
       const opts = page.locator('button.qopt')
       const tiles = page.locator('button.qtile')
       if (await opts.count()) {
         await opts.first().click()
+        // 作答回饋動畫：正解/錯解各有一個徽章 class（v3.28）
+        await expect(page.locator('button.qopt.ok, button.qopt.ng').first()).toBeVisible()
         // 聽力題：答完顯示日文對照（v3.11）
         if (isListen) await expect(page.locator('.card .sent').first()).toBeVisible()
       } else {

@@ -5,7 +5,7 @@ import { ensureCard, gradeCard, incNewIntro, getToday, DAILY_NEW_LIMIT } from '.
 import { isDue, isMastered, type GradeKey } from '../srs/scheduler'
 import { speak } from '../audio/tts'
 import { useApp } from '../state/store'
-import { toast } from '../components/ui'
+import { toast, ProgressBar } from '../components/ui'
 import { WriteView } from './WriteView'
 
 type Mode = 'home' | 'session' | 'ear' | 'write'
@@ -103,6 +103,7 @@ export function KanaView() {
         <div className="eyebrow">
           {idx + 1} / {queue.length}　{learnedSet.has(k.id) ? '復習' : '新しい字'}
         </div>
+        <ProgressBar current={idx + 1} total={queue.length} />
         <div className="kanaFace">{k.ch}</div>
         <div className="kanaMeta">{k.script === 'hiragana' ? 'ひらがな' : 'カタカナ'}</div>
         <div className="reveal">{revealed ? k.ro : ''}</div>
@@ -255,6 +256,7 @@ function EarQuiz({
   return (
     <div className="card">
       <div className="eyebrow">音 → 字　{n} / 8</div>
+      <ProgressBar current={n} total={8} />
       <p className="sub">聽發音，選出正確的假名。</p>
       <div className="row center" style={{ margin: '10px 0 14px' }}>
         <button className="btn red" onClick={() => speak(ans.ch, 0.85)}>

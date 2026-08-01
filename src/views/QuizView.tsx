@@ -4,7 +4,7 @@ import { db } from '../db/schema'
 import { saveQuizResult, weakWordCounts, logActivity } from '../db/repo'
 import { generateQuiz, MIN_POOL, type QuizQuestion } from '../lib/quiz'
 import { speak } from '../audio/tts'
-import { toast } from '../components/ui'
+import { toast, ProgressBar } from '../components/ui'
 import { RubyText } from '../components/Ruby'
 import { useApp } from '../state/store'
 
@@ -169,6 +169,7 @@ export function QuizView({ onDone }: { onDone: () => void }) {
         <div className="eyebrow">
           {idx + 1} / {qs.length}　{KIND_LABEL[q.kind]}
         </div>
+        <ProgressBar current={idx + 1} total={qs.length} />
 
         {q.kind === 'listen' ? (
           <>

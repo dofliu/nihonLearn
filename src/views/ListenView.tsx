@@ -25,7 +25,7 @@ import { RubyText } from '../components/Ruby'
 import { hasKanji } from '../lib/furigana'
 import { speak } from '../audio/tts'
 import { useApp } from '../state/store'
-import { toast } from '../components/ui'
+import { toast, ProgressBar } from '../components/ui'
 import { PitchView } from './PitchView'
 
 interface Round {
@@ -452,6 +452,7 @@ function ResponseQuiz({ onBack }: { onBack: () => void }) {
           返回
         </button>
       </div>
+      <ProgressBar current={n} total={qs.length} />
       <p className="sub center" style={{ marginTop: 2 }}>聽對方說了什麼，選出你該怎麼回應。</p>
       <div className="row center" style={{ margin: '6px 0 12px' }}>
         <button className="btn red" onClick={() => speak(q.play, rate)}>
@@ -535,6 +536,7 @@ function ExpressionQuiz({ onBack }: { onBack: () => void }) {
           返回
         </button>
       </div>
+      <ProgressBar current={n} total={qs.length} />
       <p className="sub center" style={{ margin: '10px 0 4px', fontSize: 16 }}>
         {q.situationZh}
       </p>
@@ -618,6 +620,7 @@ function SentenceQuiz({ onBack }: { onBack: () => void }) {
           返回
         </button>
       </div>
+      <ProgressBar current={n} total={qs.length} />
       <div className="row center" style={{ margin: '6px 0 14px' }}>
         <button className="btn red" onClick={() => speak(q.play, rate)}>
           🔊 再聽一次
@@ -712,6 +715,7 @@ function ParagraphQuiz({ onBack }: { onBack: () => void }) {
           返回
         </button>
       </div>
+      <ProgressBar current={n} total={items.length} />
       <div className="row center" style={{ margin: '8px 0 12px' }}>
         <button className="btn red" onClick={() => speak(it.play, rate)}>
           ▶ 播放對話

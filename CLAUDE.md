@@ -275,6 +275,20 @@ v3.27（段落聽解細節題，ROADMAP #5 續做）：聞き取り「段落對�
 測試：`npm test` 190/190（新增 5h 細節理解題結構＋逐字答案支持性檢核）、`npm run test:e2e` 50/50
 （既有段落聽解測試涵蓋新題池、無需新增流程）、`npm run build` strict 綠燈。
 
+v3.28（作答視覺回饋：進度條＋正解/錯解動畫）：使用者方向「動畫與視覺輔助」的小增量——App 內所有
+「多題連續作答」流程（N5 模擬測驗、聞き取り四型、五十音音→字、五十音複習卡）過去只用文字
+「第 n / total 題」呈現進度，這次加上共用的**動畫進度條**元件（`components/ui.tsx ProgressBar`，
+純呈現、`role="progressbar"`＋`aria-value*`，寬度隨題號 `transition` 平滑過渡）套用到六處作答畫面
+（`QuizView`、`ListenView` 的即時応答／発話表現／聞き取り／段落聽解、`KanaView` 的音→字挑戰與複習卡）。
+另外選對/選錯選項（`.qopt.ok`/`.qopt.ng`，本來就用在同六處）加上**進場動畫**——答對輕微 pop-in、
+答錯 shake 抖動、右上角動畫淡入 ✓／✗ 徽章，讓對錯回饋更直覺（純 CSS `@keyframes`，沿用既有全域
+`prefers-reduced-motion: reduce` 一律停用動畫的無障礙開關，不需另外處理）。**純呈現層**：無新邏輯、
+無新資料、不動 Dexie schema、零正確性風險——只加了共用元件與 CSS，六處呼叫端各一行改動。
+
+測試：`npm test` 199/199（不受影響，純 UI 元件與 CSS，無純函式邏輯變動）、`npm run test:e2e`
+（quiz.spec 新增進度條 `aria-valuenow` 隨題號更新、以及作答後 `.qopt.ok`/`.qopt.ng` 徽章出現的斷言）、
+`npm run build` strict 綠燈。
+
 ---
 
 ## ⭐ 本機實測任務（此專案轉到 Claude Code 的主因）
