@@ -724,6 +724,15 @@ h2 {
   opacity: 0.75;
   margin-top: 2px;
 }
+/* 自由対話（AI 角色扮演）每回合的中文小提示 */
+.dlgHint {
+  font-size: 12.5px;
+  line-height: 1.6;
+  margin-top: 6px;
+  padding-top: 5px;
+  border-top: 1px dashed var(--washi2);
+  color: var(--ai);
+}
 .jlptMenu {
   display: flex;
   flex-direction: column;

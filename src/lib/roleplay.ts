@@ -1,0 +1,101 @@
+/**
+ * 自由対話（AI 角色扮演）的純邏輯：場景組裝、system prompt、對話歷史轉換。
+ *
+ * 定位（沿用 AI 助教 v3.6 立下的先例）：這是使用者主動觸發、一次性、當下自己看的
+ * 生成式互動——AI 產出的日文**僅供參考、不寫入學習庫、不進 SRS**，因此不走
+ * `needs_review` 審核佇列（那套是給「會被重複看到、需策展」的教材用的）。
+ *
+ * 場景設定（對象、情境、開場白）全部沿用**已驗證**的固定腳本 `data/dialogues.ts`，
+ * 所以對話的第一句永遠是教科書等級的正確日文；只有後續回合由 Gemini 即時生成。
+ *
+ * 無依賴（不碰 window / Capacitor / Dexie），供 Node 測試 import。
+ */
+import { DIALOGUES } from '../data/dialogues.ts'
+import type { ChatMsg, RoleplayTurn } from './llmParse.ts'
+
+export interface RoleplayScene {
+  id: string
+  title: string
+  partner: string // 對方的稱呼（如「便利商店店員」）
+  partnerTag: string
+  scene: string // 場景說明（中文）
+  opening: string // 開場白日文（取自已驗證腳本的第一句）
+  openingZh: string
+}
+
+/** 可用場景＝固定腳本中「由對方先開口」的場景（開場白才有已驗證來源）。 */
+export const ROLEPLAY_SCENES: RoleplayScene[] = DIALOGUES.filter(
+  (d) => d.lines[0]?.role === 'a',
+).map((d) => ({
+  id: d.id,
+  title: d.title,
+  partner: d.partner,
+  partnerTag: d.partnerTag,
+  scene: d.scene,
+  opening: d.lines[0].jp,
+  openingZh: d.lines[0].zh,
+}))
+
+export function sceneById(id: string): RoleplayScene | undefined {
+  return ROLEPLAY_SCENES.find((s) => s.id === id)
+}
+
+/** 一則對話氣泡：對方（AI 生成或已驗證開場白）或你（自己打的字）。 */
+export type RoleplayEntry =
+  | { who: 'partner'; jp: string; zh: string; hint?: string }
+  | { who: 'me'; jp: string }
+
+/** 每場對話的回合上限（避免無限聊下去、也控制 API 用量）。 */
+export const MAX_TURNS = 8
+
+/**
+ * system prompt：把場景與「已學詞彙」交代給 Gemini，並要求固定 JSON 欄位。
+ * 明確禁止杜撰重音（沿用專案紅線），要求短句、以平假名為主。
+ */
+export function buildRoleplaySystem(sc: RoleplayScene, known: string[]): string {
+  const list = known.slice(0, 120).join('、')
+  return (
+    `你在一個日語學習 App 裡扮演「${sc.partner}」，跟一位中文母語、剛學完五十音的日語初學者對話。` +
+    `場景：${sc.scene}\n` +
+    '規則：' +
+    '(1) 每次只回「一句」日文台詞，N5 程度、簡短（15 字以內）、以平假名為主，必要時用空白斷詞；' +
+    '(2) 盡量只用學習者「已學過的詞」，非用新詞不可時要簡單常見；' +
+    '(3) 配合學習者的回應自然推進對話，不要一次講太多、不要換場景；' +
+    '(4) hint 用繁體中文，針對學習者「剛剛那一句」給一行小提示（用詞是否恰當、有沒有更道地的說法、' +
+    '或鼓勵）；學習者若用中文或看不懂，就在 hint 提示可以怎麼說；' +
+    '(5) 不要杜撰重音（アクセント）或艱深敬語，沒把握就用最基本的說法；' +
+    '(6) 只輸出 JSON，不要任何解說或 markdown：' +
+    '{"jp":"日文台詞","zh":"中文翻譯","hint":"中文小提示"}' +
+    `\n學習者已學過的詞彙：${list || '（尚無，請用最基礎的詞）'}`
+  )
+}
+
+/**
+ * 對話紀錄 → Gemini 多輪 contents。對方的回合以 JSON 字串回填（與要求的輸出格式一致，
+ * 讓模型延續同樣的格式）；開場白（無 zh/hint 以外欄位）同樣照 JSON 格式送出。
+ */
+export function roleplayHistory(entries: RoleplayEntry[]): ChatMsg[] {
+  return entries.map((e) =>
+    e.who === 'me'
+      ? { role: 'user' as const, text: e.jp }
+      : {
+          role: 'model' as const,
+          text: JSON.stringify({ jp: e.jp, zh: e.zh, hint: e.hint ?? '' }),
+        },
+  )
+}
+
+/** 你已經說了幾句（回合數，用來判斷是否到上限）。 */
+export function myTurnCount(entries: RoleplayEntry[]): number {
+  return entries.filter((e) => e.who === 'me').length
+}
+
+/** 是否已達回合上限（達到後只留「結束／再來一次」）。 */
+export function isRoleplayOver(entries: RoleplayEntry[]): boolean {
+  return myTurnCount(entries) >= MAX_TURNS
+}
+
+/** AI 回合 → 對話氣泡（型別轉換，集中一處方便測試）。 */
+export function entryFromTurn(t: RoleplayTurn): RoleplayEntry {
+  return { who: 'partner', jp: t.jp, zh: t.zh, hint: t.hint }
+}
