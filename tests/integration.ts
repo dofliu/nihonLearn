@@ -26,6 +26,7 @@ import { PATTERNS } from '../src/data/patterns.ts'
 import { poolFor, candidatesFor, buildItem, itemsFor, dailyPattern } from '../src/lib/patternDrill.ts'
 import { KANJI_STROKES, KANJI_STROKE_VIEWBOX } from '../src/data/kanjiStrokes.ts'
 import { strokeStart, refStrokeStarts, judgeStrokeOrder, pathEnd, strokeVector } from '../src/lib/strokeOrder.ts'
+import { sentencePrompts, patternPrompts, tutorPrompts, pickPrompt, buildQuizSystem, buildQuizUser, parseCritique, VERDICT_LABEL } from '../src/lib/tutorQuiz.ts'
 
 let pass = 0
 let fail = 0
@@ -564,6 +565,78 @@ console.log('=== 5r. 筆順「行筆方向」粗略比對 ===')
     }),
   )
   ok('全部筆畫方向向量皆可解析（無 NaN）', allVecFinite)
+}
+
+console.log('=== 5s. AI 助教「考我」出題與講評解析 ===')
+{
+  // 題目與參考答案一律來自已驗證資料（日文不由 LLM 生），這裡逐條核對來源
+  const sp = sentencePrompts()
+  ok('例句題非空', sp.length >= 10)
+  ok(
+    '例句題只取壱／弐級（参・物語句不出）',
+    sp.every((p) => {
+      const s = SENTS.find((x) => `sent:${x.id}` === p.id)
+      return !!s && (s.lv === 1 || s.lv === 2)
+    }),
+  )
+  ok(
+    '例句題的中文題目與參考答案逐字取自 data/sentences',
+    sp.every((p) => {
+      const s = SENTS.find((x) => `sent:${x.id}` === p.id)
+      return !!s && s.zh === p.zh && s.jp === p.answer && (s.alt ?? undefined) === p.alt
+    }),
+  )
+
+  const learned = new Set(VOCAB.slice(0, 30).map((v) => v.jp))
+  const pp = patternPrompts(learned)
+  ok('句型題非空', pp.length >= 6)
+  ok('每個句型最多取 3 題', PATTERNS.every((p) => pp.filter((x) => x.id.startsWith(`pat:${p.id}:`)).length <= 3))
+  ok(
+    '句型題由「句型模板 × 已驗證詞」組成（可還原）',
+    pp.every((p) => {
+      const [, pid, word] = p.id.split(':')
+      const pat = PATTERNS.find((x) => x.id === pid)
+      const v = VOCAB.find((x) => x.jp === word)
+      return !!pat && !!v && p.answer === `${pat.pre}${v.jp}${pat.post}` && p.zh === `${pat.zhPre}${v.zh}${pat.zhPost}`
+    }),
+  )
+  ok('句型題 tag 為句型標籤', pp.every((p) => PATTERNS.some((x) => x.label === p.tag)))
+
+  const pool = tutorPrompts(learned)
+  ok('題庫＝例句題＋句型題', pool.length === sp.length + pp.length)
+  ok('題目 id 唯一', new Set(pool.map((p) => p.id)).size === pool.length)
+  ok('每題都有中文題目與日文參考答案', pool.every((p) => p.zh.trim() && p.answer.trim() && p.tag.trim()))
+
+  // 抽題：不重複上一題；題庫只剩一題時只好重複；空題庫回 null
+  ok('抽題落在題庫內', pool.includes(pickPrompt(pool, null, () => 0.5)!))
+  const first = pickPrompt(pool, null, () => 0)!
+  ok('換一題不會抽到同一題', pickPrompt(pool, first.id, () => 0)!.id !== first.id)
+  ok('rng 回 1（邊界）也不會越界', pickPrompt(pool, null, () => 1) !== null)
+  ok('只剩一題時允許重複', pickPrompt([pool[0]], pool[0].id)!.id === pool[0].id)
+  ok('空題庫回 null', pickPrompt([], null) === null)
+
+  // 講評 prompt：帶題目/參考答案/作答與已學詞，且守住紅線（只講中文、不杜撰重音）
+  const sys = buildQuizSystem(['みず', 'たべる'])
+  ok('system 帶入已學詞', sys.includes('みず') && sys.includes('たべる'))
+  ok('system 要求繁體中文講評', sys.includes('繁體中文'))
+  ok('system 要求開頭評價記號', sys.includes('✅') && sys.includes('△') && sys.includes('❌'))
+  ok('system 禁止杜撰重音', sys.includes('不要杜撰重音'))
+  ok('system 允許參考答案以外的正確說法', sys.includes('不要硬要他照抄'))
+  ok('無已學詞時有 fallback 說明', buildQuizSystem([]).includes('尚無'))
+  const user = buildQuizUser(pool[0], '  みずを ください。 ')
+  ok('user 帶入題目與參考答案', user.includes(pool[0].zh) && user.includes(pool[0].answer))
+  ok('user 帶入作答（已 trim）', user.includes('學習者的作答：みずを ください。\n'))
+
+  // 講評解析（寬鬆：沒照格式只是少了徽章，內容照樣顯示）
+  ok('✅ → ok', parseCritique('✅ 很好，完全表達到了。').verdict === 'ok')
+  ok('△ → soso', parseCritique('△：助詞可以改成を。').verdict === 'soso')
+  ok('❌ → ng', parseCritique('❌ 這句意思沒傳達到。').verdict === 'ng')
+  ok('⚠️（含變體選擇符）→ soso', parseCritique('⚠️ 差一點').verdict === 'soso')
+  ok('記號後的標點被清掉', parseCritique('✅：很好').body === '很好')
+  ok('無記號 → unknown 但保留全文', parseCritique('寫得不錯喔').verdict === 'unknown' && parseCritique('寫得不錯喔').body === '寫得不錯喔')
+  ok('空字串 → unknown 且 body 空', parseCritique('').verdict === 'unknown' && parseCritique('').body === '')
+  ok('前後空白會被 trim', parseCritique('  ✅ 好  ').body === '好')
+  ok('VERDICT_LABEL 三種評價都有文案、unknown 為空', VERDICT_LABEL.ok && VERDICT_LABEL.soso && VERDICT_LABEL.ng && VERDICT_LABEL.unknown === '')
 }
 
 console.log('=== 6. 資料完整性 ===')

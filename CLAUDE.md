@@ -40,7 +40,7 @@ src/
   db/         schema(Dexie v8)・repo（任務計數、蓋章、卡片、發音紀錄、生成句）
   srs/        scheduler：ts-fsrs 封裝（newCard/review/isDue/isMastered）
   audio/      tts（VOICEVOX▸原生▸WebSpeech 門面 + 逐字 boundary 回呼）・scorer（相似度 + ASR + whisper 錄音 + mora 型別）
-  lib/        date・importV1（v1→v2 遷移 + 備份匯出）・content（生成 client + 持久化審核佇列 + 採用）・listening（聽力理解＋JLPT 題型出題，純函式）・articles（NHK Easy 導入 client + 採用）・llm（Gemini 直連 + 金鑰/模型本機儲存）・llmParse（Gemini 回應純解析）・coverage（覆蓋率檢核，無依賴）・pitch（mora 切分 + 東京式 pattern）・sidecar（base URL 抽象 + probeHealth）・vocabGate（詞彙隨假名解鎖，純函式）・quiz（N5 模擬測驗出題，純函式）・karaoke（朗讀逐字上色對齊，純函式）・furigana（漢字↔假名注音對齊，純函式）・handwriting（手寫字形相似度評分，純函式）・activity（學習活動統計，純函式）・patternDrill（句型×已學單字組句，純函式）
+  lib/        date・importV1（v1→v2 遷移 + 備份匯出）・content（生成 client + 持久化審核佇列 + 採用）・listening（聽力理解＋JLPT 題型出題，純函式）・articles（NHK Easy 導入 client + 採用）・llm（Gemini 直連 + 金鑰/模型本機儲存）・llmParse（Gemini 回應純解析）・coverage（覆蓋率檢核，無依賴）・pitch（mora 切分 + 東京式 pattern）・sidecar（base URL 抽象 + probeHealth）・vocabGate（詞彙隨假名解鎖，純函式）・quiz（N5 模擬測驗出題，純函式）・karaoke（朗讀逐字上色對齊，純函式）・furigana（漢字↔假名注音對齊，純函式）・handwriting（手寫字形相似度評分，純函式）・activity（學習活動統計，純函式）・patternDrill（句型×已學單字組句，純函式）・tutorQuiz（助教「考我」出題＋講評 prompt/解析，純函式）
   state/      store（zustand：今日/streak/rate/tts/showKanji）
   views/      Today・Kana(含 Write 書寫練習)・Listen(含 Pitch)・Speak(含 Dialogue 会話)・Read・Progress・Review・Pattern(文型ドリル)
   components/ Nav・ui(toast/大印)・VocabCard
@@ -315,6 +315,28 @@ v3.28（作答視覺回饋：進度條＋正解/錯解動畫）：使用者方�
 （quiz.spec 新增進度條 `aria-valuenow` 隨題號更新、以及作答後 `.qopt.ok`/`.qopt.ng` 徽章出現的斷言）、
 `npm run build` strict 綠燈。
 
+v3.30（AI 助教「考我」模式）：ROADMAP「🔴 互動深化」第 2 步——`TutorView` 由單一聊天畫面改成
+兩個分頁（`.lvTabs`）：**💬 問問題**（原有自由聊天，行為不變）與**🎯 考我**（新的主動產出練習）。
+考我流程：助教給一個**中文情境題**（例「請給我這個」）→ 你自己用日文打一句 → 揭曉**教材參考答案**
+並附 AI 中文講評。**責任分工是本次的重點**（延續 v3.10「LLM 只生中文」）：題目與參考答案
+**全部來自已驗證資料**——`data/sentences` 的壱／弐級例句，加上 `data/patterns` × 已學 VOCAB 由
+`lib/patternDrill` 組出的句型例句（每句型最多 3 題）——**日文一律不由 LLM 生成**；LLM 只負責用
+**中文**講評你寫的那句（哪裡好、助詞可怎麼調），是使用者自己能判讀的語言。純邏輯抽
+`lib/tutorQuiz.ts`（`sentencePrompts`／`patternPrompts`／`tutorPrompts` 出題、`pickPrompt` 抽題
+不重複上一題、`buildQuizSystem`／`buildQuizUser` 組 prompt、`parseCritique` 解析開頭評價記號
+✅／△／❌ → 徽章，沒照格式只是少徽章、講評照樣顯示）。
+**降級不中斷**：無 Gemini 金鑰時「考我」照樣能練（出題 → 自己想 → 「看參考答案」自評），
+只是少了 AI 講評——這也讓沒設金鑰的人第一次在助教頁有東西可練。**AI 講評僅供參考、不寫入學習庫、
+不進 SRS、不計入每日蓋章**（比照 AI 助教 v3.6 的定位，故不走 `needs_review` 審核佇列）。
+漢字モード開啟且參考答案有 `alt` 時用既有 `RubyText` 顯示注音。不動 Dexie schema、不動蓋章判定。
+（與 PR #37 的 v3.29「自由対話」為同期兩支獨立分支、各自延伸自 v3.28，互不依賴。）
+
+測試：`npm test` 234/234（新增 5s 考我出題與講評解析共 35 項：例句題只取壱／弐級且中文題目與
+參考答案逐字對照 `data/sentences`、句型題可由「句型模板×已驗證詞」還原、每句型上限 3 題、
+抽題不重複上一題／邊界 rng／空題庫、prompt 含已學詞與「不要杜撰重音」紅線、`parseCritique`
+八種容錯情境）、`npm run test:e2e` 53/53（tutor.spec 新增兩項：無金鑰也能出題→看參考答案→換一題；
+有金鑰作答→中文講評＋✅ 徽章＋參考答案揭曉）、`npm run build` strict 綠燈。
+
 ---
 
 ## ⭐ 本機實測任務（此專案轉到 Claude Code 的主因）
@@ -410,7 +432,7 @@ Claude Code 在本機可以真正跑起來、觀察、修正。建議依序進�
 
 ## 提交前檢查
 
-`npm run build`（strict 綠燈）＋ `npm test`（190/190）＋ `npm run test:e2e`（50/50）
+`npm run build`（strict 綠燈）＋ `npm test`（234/234）＋ `npm run test:e2e`（53/53）
 ＋（動到 sidecar 時）`python sidecar/test_score.py` 與 `python sidecar/test_article.py`。
 新功能盡量補測：純邏輯進 `tests/integration.ts`，UI 流程進 `e2e/*.spec.ts`（共用步驟放
 `e2e/helpers.ts`），後端進 `test_score.py`。
