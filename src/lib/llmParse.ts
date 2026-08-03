@@ -59,6 +59,36 @@ export function parseListenQuestions(raw: unknown): ListenQCandidate[] {
   return out
 }
 
+/** 自由對話（角色扮演）的一回合：對方台詞＋中文翻譯＋對你上一句的中文小提示。 */
+export interface RoleplayTurn {
+  jp: string // 對方的日文台詞（AI 生成，僅供參考、不入庫）
+  zh: string // 中文翻譯
+  hint: string // 中文小提示（用詞是否恰當／更道地的說法）
+}
+
+/**
+ * 純解析 Gemini 的角色扮演回合。容錯：接受物件或（含 ``` 圍欄的）JSON 字串、
+ * 陣列取第一筆；`jp` 為必要欄位，`zh`/`hint` 缺少時以空字串補。解析不出 → null，
+ * 由呼叫端提示重試（不入庫、不進 SRS）。無 Capacitor/瀏覽器依賴。
+ */
+export function parseRoleplayTurn(raw: unknown): RoleplayTurn | null {
+  let obj: unknown = raw
+  if (typeof obj === 'string') {
+    try {
+      obj = JSON.parse(stripJsonFences(obj))
+    } catch {
+      return null
+    }
+  }
+  if (Array.isArray(obj)) obj = obj[0]
+  if (!obj || typeof obj !== 'object') return null
+  const it = obj as { jp?: unknown; zh?: unknown; hint?: unknown }
+  const str = (v: unknown) => (typeof v === 'string' ? v.trim() : '')
+  const jp = str(it.jp)
+  if (!jp) return null
+  return { jp, zh: str(it.zh), hint: str(it.hint) }
+}
+
 /** 從 Gemini 回應抽出文字（candidates[0].content.parts[].text）。 */
 export function extractText(data: unknown): string {
   const d = data as {

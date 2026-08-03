@@ -40,9 +40,9 @@ src/
   db/         schema(Dexie v8)・repo（任務計數、蓋章、卡片、發音紀錄、生成句）
   srs/        scheduler：ts-fsrs 封裝（newCard/review/isDue/isMastered）
   audio/      tts（VOICEVOX▸原生▸WebSpeech 門面 + 逐字 boundary 回呼）・scorer（相似度 + ASR + whisper 錄音 + mora 型別）
-  lib/        date・importV1（v1→v2 遷移 + 備份匯出）・content（生成 client + 持久化審核佇列 + 採用）・listening（聽力理解＋JLPT 題型出題，純函式）・articles（NHK Easy 導入 client + 採用）・llm（Gemini 直連 + 金鑰/模型本機儲存）・llmParse（Gemini 回應純解析）・coverage（覆蓋率檢核，無依賴）・pitch（mora 切分 + 東京式 pattern）・sidecar（base URL 抽象 + probeHealth）・vocabGate（詞彙隨假名解鎖，純函式）・quiz（N5 模擬測驗出題，純函式）・karaoke（朗讀逐字上色對齊，純函式）・furigana（漢字↔假名注音對齊，純函式）・handwriting（手寫字形相似度評分，純函式）・activity（學習活動統計，純函式）・patternDrill（句型×已學單字組句，純函式）・tutorQuiz（助教「考我」出題＋講評 prompt/解析，純函式）
+  lib/        date・importV1（v1→v2 遷移 + 備份匯出）・content（生成 client + 持久化審核佇列 + 採用）・listening（聽力理解＋JLPT 題型出題，純函式）・articles（NHK Easy 導入 client + 採用）・llm（Gemini 直連 + 金鑰/模型本機儲存）・llmParse（Gemini 回應純解析）・coverage（覆蓋率檢核，無依賴）・pitch（mora 切分 + 東京式 pattern）・sidecar（base URL 抽象 + probeHealth）・vocabGate（詞彙隨假名解鎖，純函式）・quiz（N5 模擬測驗出題，純函式）・karaoke（朗讀逐字上色對齊，純函式）・furigana（漢字↔假名注音對齊，純函式）・handwriting（手寫字形相似度評分，純函式）・activity（學習活動統計，純函式）・patternDrill（句型×已學單字組句，純函式）・roleplay（自由対話場景/prompt/歷史組裝，純函式）・tutorQuiz（助教「考我」出題＋講評 prompt/解析，純函式）
   state/      store（zustand：今日/streak/rate/tts/showKanji）
-  views/      Today・Kana(含 Write 書寫練習)・Listen(含 Pitch)・Speak(含 Dialogue 会話)・Read・Progress・Review・Pattern(文型ドリル)
+  views/      Today・Kana(含 Write 書寫練習)・Listen(含 Pitch)・Speak(含 Dialogue 会話＋Roleplay 自由対話)・Read・Progress・Review・Pattern(文型ドリル)
   components/ Nav・ui(toast/大印)・VocabCard
 sidecar/      FastAPI：/health /tts /speakers /score /content /article/*；article.py（NHK Easy 解析，純函式）；mock_voicevox.py（假 engine）；test_score.py・test_article.py
 tests/        integration.ts（npm test）・INTEGRATION_REPORT.md・MANUAL_QA.md
@@ -315,6 +315,26 @@ v3.28（作答視覺回饋：進度條＋正解/錯解動畫）：使用者方�
 （quiz.spec 新增進度條 `aria-valuenow` 隨題號更新、以及作答後 `.qopt.ok`/`.qopt.ng` 徽章出現的斷言）、
 `npm run build` strict 綠燈。
 
+v3.29（自由対話：AI 角色扮演，文字輸入版）：ROADMAP「🔴 互動深化」第 1 步——話す▸会話分頁
+新增「🗣 自由対話（AI 角色扮演）」入口（`views/RoleplayView.tsx`）。**場景沿用已驗證的
+`data/dialogues.ts`**（對象／情境／開場白皆取自固定腳本的第一句，所以對話第一句永遠是教科書等級
+正確日文），但**沒有稿子**：你自己打日文 → Gemini 扮演對方即時回一句，並附一行中文小提示
+（用詞恰不恰當、有沒有更道地的說法）。純邏輯抽 `lib/roleplay.ts`（`ROLEPLAY_SCENES` 由 DIALOGUES
+推導、`buildRoleplaySystem` 組 system prompt 並 grounding 在 `personalKnownWords()` 已學詞、
+`roleplayHistory` 把氣泡轉成 Gemini 多輪 contents、`MAX_TURNS`＝8 回合上限），回應解析放
+`lib/llmParse.ts` `parseRoleplayTurn`（容錯：物件／含 ``` 圍欄的 JSON 字串／陣列取首，缺 zh/hint 補空，
+解析不出回 null → toast 提示重說、輸入保留、對話不被污染）；`lib/llm.ts` 加 `chatGeminiJSON`
+（多輪＋`responseMimeType: application/json`）。**定位比照 AI 助教 v3.6**：使用者主動觸發的一次性
+互動，AI 生成日文**僅供參考、不寫入學習庫、不進 SRS、不計入每日蓋章**（純加練），故不走
+`needs_review` 審核佇列。**無金鑰優雅降級**：只顯示「請去設定填金鑰」，固定腳本会話照常可用。
+UI 沿用既有 `.dlgBox/.dlgBubble` 氣泡樣式，只加一個 `.dlgHint`（中文小提示）樣式。
+
+測試：`npm test` 230/230（新增 5s 自由対話純邏輯：開場白逐字取自已驗證腳本、system prompt 帶入
+場景/對象/已學詞且含「只輸出 JSON」「不要杜撰重音」紅線、歷史角色對映與 JSON 回填、回合上限、
+`parseRoleplayTurn` 六種容錯情境）、`npm run test:e2e` 54/54（新增 `roleplay.spec.ts` 三項：無金鑰降級、
+選場景→打字→AI 回話＋小提示＋回合數遞增、AI 格式壞掉時提示重試且輸入保留；Gemini 以 page.route 攔截）、
+`npm run build` strict 綠燈。
+
 v3.30（AI 助教「考我」模式）：ROADMAP「🔴 互動深化」第 2 步——`TutorView` 由單一聊天畫面改成
 兩個分頁（`.lvTabs`）：**💬 問問題**（原有自由聊天，行為不變）與**🎯 考我**（新的主動產出練習）。
 考我流程：助教給一個**中文情境題**（例「請給我這個」）→ 你自己用日文打一句 → 揭曉**教材參考答案**
@@ -329,12 +349,12 @@ v3.30（AI 助教「考我」模式）：ROADMAP「🔴 互動深化」第 2 步
 只是少了 AI 講評——這也讓沒設金鑰的人第一次在助教頁有東西可練。**AI 講評僅供參考、不寫入學習庫、
 不進 SRS、不計入每日蓋章**（比照 AI 助教 v3.6 的定位，故不走 `needs_review` 審核佇列）。
 漢字モード開啟且參考答案有 `alt` 時用既有 `RubyText` 顯示注音。不動 Dexie schema、不動蓋章判定。
-（與 PR #37 的 v3.29「自由対話」為同期兩支獨立分支、各自延伸自 v3.28，互不依賴。）
+（與 v3.29「自由対話」為同期兩支獨立分支、各自延伸自 v3.28，互不依賴；v3.29 先合併，本版於分支上併入 main 後重跑全測。）
 
-測試：`npm test` 234/234（新增 5s 考我出題與講評解析共 35 項：例句題只取壱／弐級且中文題目與
+測試：`npm test` 262/262（新增 5t 考我出題與講評解析共 35 項：例句題只取壱／弐級且中文題目與
 參考答案逐字對照 `data/sentences`、句型題可由「句型模板×已驗證詞」還原、每句型上限 3 題、
 抽題不重複上一題／邊界 rng／空題庫、prompt 含已學詞與「不要杜撰重音」紅線、`parseCritique`
-八種容錯情境）、`npm run test:e2e` 53/53（tutor.spec 新增兩項：無金鑰也能出題→看參考答案→換一題；
+八種容錯情境）、`npm run test:e2e` 56/56（tutor.spec 新增兩項：無金鑰也能出題→看參考答案→換一題；
 有金鑰作答→中文講評＋✅ 徽章＋參考答案揭曉）、`npm run build` strict 綠燈。
 
 ---
@@ -432,7 +452,7 @@ Claude Code 在本機可以真正跑起來、觀察、修正。建議依序進�
 
 ## 提交前檢查
 
-`npm run build`（strict 綠燈）＋ `npm test`（234/234）＋ `npm run test:e2e`（53/53）
+`npm run build`（strict 綠燈）＋ `npm test`（262/262）＋ `npm run test:e2e`（56/56）
 ＋（動到 sidecar 時）`python sidecar/test_score.py` 與 `python sidecar/test_article.py`。
 新功能盡量補測：純邏輯進 `tests/integration.ts`，UI 流程進 `e2e/*.spec.ts`（共用步驟放
 `e2e/helpers.ts`），後端進 `test_score.py`。
