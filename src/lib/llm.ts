@@ -124,6 +124,17 @@ export async function chatGemini(system: string, history: ChatMsg[]): Promise<st
   return text
 }
 
+/** 多輪對話但要求 JSON 回應（角色扮演回合）。無金鑰 → 'no-key'；解析失敗 → 'gemini-bad-json'。 */
+export async function chatGeminiJSON(system: string, history: ChatMsg[]): Promise<unknown> {
+  const text = await callGemini(system, chatContents(history), true)
+  if (!text) throw new Error('gemini-empty')
+  try {
+    return JSON.parse(stripJsonFences(text))
+  } catch {
+    throw new Error('gemini-bad-json')
+  }
+}
+
 /** 設定頁「測試」用：小請求驗證金鑰可用。 */
 export async function probeGemini(): Promise<{ ok: boolean; error?: string }> {
   try {

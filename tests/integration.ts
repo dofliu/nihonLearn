@@ -11,7 +11,18 @@ import { newCard, review, isDue, isMastered } from '../src/srs/scheduler.ts'
 import { analyzeCoverage } from '../src/lib/coverage.ts'
 import { normalizeBase, joinApi, ttsCacheKey } from '../src/lib/sidecar.ts'
 import { gatingChars, isVocabUnlocked } from '../src/lib/vocabGate.ts'
-import { stripJsonFences, extractText, chatContents, parseListenQuestions } from '../src/lib/llmParse.ts'
+import { stripJsonFences, extractText, chatContents, parseListenQuestions, parseRoleplayTurn } from '../src/lib/llmParse.ts'
+import {
+  ROLEPLAY_SCENES,
+  sceneById,
+  buildRoleplaySystem,
+  roleplayHistory,
+  myTurnCount,
+  isRoleplayOver,
+  entryFromTurn,
+  MAX_TURNS,
+  type RoleplayEntry,
+} from '../src/lib/roleplay.ts'
 import { generateQuiz, seededRng, MIN_POOL } from '../src/lib/quiz.ts'
 import { karaokeChars, activeCharIndices } from '../src/lib/karaoke.ts'
 import { listeningQuestions, pickParagraphs, responseQuestions, expressionQuestions, LISTEN_MIN_POOL, type ListenItem } from '../src/lib/listening.ts'
@@ -564,6 +575,65 @@ console.log('=== 5r. 筆順「行筆方向」粗略比對 ===')
     }),
   )
   ok('全部筆畫方向向量皆可解析（無 NaN）', allVecFinite)
+}
+
+console.log('=== 5s. 自由対話（AI 角色扮演）純邏輯 ===')
+{
+  // 場景沿用已驗證腳本：開場白必須逐字等於該段對話的第一句（且由對方先開口）
+  ok('可用場景非空', ROLEPLAY_SCENES.length >= 5)
+  ok('場景 id 唯一', new Set(ROLEPLAY_SCENES.map((s) => s.id)).size === ROLEPLAY_SCENES.length)
+  const openingsVerified = ROLEPLAY_SCENES.every((s) => {
+    const d = DIALOGUES.find((x) => x.id === s.id)
+    return !!d && d.lines[0].role === 'a' && d.lines[0].jp === s.opening && d.lines[0].zh === s.openingZh
+  })
+  ok('開場白逐字取自已驗證腳本第一句', openingsVerified)
+  ok('開場白全假名（無漢字）', ROLEPLAY_SCENES.every((s) => !hasKanji(s.opening)))
+  ok('每個場景都有對象與情境說明', ROLEPLAY_SCENES.every((s) => s.partner && s.scene && s.title))
+  ok('sceneById 取得得到', sceneById(ROLEPLAY_SCENES[0].id)?.title === ROLEPLAY_SCENES[0].title)
+  ok('sceneById 不存在回 undefined', sceneById('no-such-scene') === undefined)
+
+  // system prompt：帶場景／對象／已學詞，且守住「只輸出 JSON、不杜撰重音」的紅線
+  const sys = buildRoleplaySystem(ROLEPLAY_SCENES[0], ['みず', 'たべる'])
+  ok('system 帶入對象', sys.includes(ROLEPLAY_SCENES[0].partner))
+  ok('system 帶入場景說明', sys.includes(ROLEPLAY_SCENES[0].scene))
+  ok('system 帶入已學詞', sys.includes('みず') && sys.includes('たべる'))
+  ok('system 要求只輸出 JSON', sys.includes('只輸出 JSON') && sys.includes('"hint"'))
+  ok('system 禁止杜撰重音', sys.includes('不要杜撰重音'))
+  const sysNoWords = buildRoleplaySystem(ROLEPLAY_SCENES[0], [])
+  ok('無已學詞時有 fallback 說明', sysNoWords.includes('尚無'))
+
+  // 對話歷史 → Gemini contents（對方回合以 JSON 字串回填，維持輸出格式）
+  const entries: RoleplayEntry[] = [
+    { who: 'partner', jp: 'いらっしゃいませ。', zh: '歡迎光臨。' },
+    { who: 'me', jp: 'みずを ください。' },
+    { who: 'partner', jp: 'はい、どうぞ。', zh: '好的，請。', hint: '很自然！' },
+  ]
+  const hist = roleplayHistory(entries)
+  ok('歷史長度一致', hist.length === 3)
+  ok('我方對映 user 且原文不變', hist[1].role === 'user' && hist[1].text === 'みずを ください。')
+  ok('對方對映 model', hist[0].role === 'model' && hist[2].role === 'model')
+  const firstJson = JSON.parse(hist[0].text) as { jp: string; zh: string; hint: string }
+  ok('對方回合為合法 JSON 且欄位齊全', firstJson.jp === 'いらっしゃいませ。' && firstJson.zh === '歡迎光臨。' && firstJson.hint === '')
+
+  ok('myTurnCount 只算我方', myTurnCount(entries) === 1)
+  ok('未達上限不結束', !isRoleplayOver(entries))
+  const full: RoleplayEntry[] = Array.from({ length: MAX_TURNS }, () => ({ who: 'me' as const, jp: 'はい。' }))
+  ok('達回合上限即結束', isRoleplayOver(full))
+
+  // 回合解析（容錯）
+  const t1 = parseRoleplayTurn({ jp: 'なんめいさまですか。', zh: '請問幾位？', hint: '可以說ふたりです。' })
+  ok('解析物件回合', t1?.jp === 'なんめいさまですか。' && t1?.hint === '可以說ふたりです。')
+  const t2 = parseRoleplayTurn('```json\n{"jp":"はい。","zh":"好的","hint":"不錯"}\n```')
+  ok('解析含 ``` 圍欄的 JSON 字串', t2?.jp === 'はい。' && t2?.zh === '好的')
+  const t3 = parseRoleplayTurn([{ jp: 'どうぞ。' }])
+  ok('陣列取第一筆、缺 zh/hint 補空字串', t3?.jp === 'どうぞ。' && t3?.zh === '' && t3?.hint === '')
+  ok('缺 jp → null', parseRoleplayTurn({ zh: '只有中文' }) === null)
+  ok('jp 空白 → null', parseRoleplayTurn({ jp: '   ' }) === null)
+  ok('非 JSON 字串 → null', parseRoleplayTurn('抱歉我不知道') === null)
+  ok('null/數字 → null', parseRoleplayTurn(null) === null && parseRoleplayTurn(42) === null)
+
+  const e = entryFromTurn({ jp: 'はい。', zh: '好的', hint: '很好' })
+  ok('entryFromTurn 產生對方氣泡', e.who === 'partner' && e.jp === 'はい。')
 }
 
 console.log('=== 6. 資料完整性 ===')

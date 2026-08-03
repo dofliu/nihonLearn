@@ -3,14 +3,20 @@ import { DIALOGUES, PARTNER_TAGS, type Dialogue, type PartnerTag } from '../data
 import { speak } from '../audio/tts'
 import { useApp } from '../state/store'
 import { toast } from '../components/ui'
+import { RoleplayView } from './RoleplayView'
 
 /**
  * 情境對話引導（会話）：選場景 → 逐句進行。
  * 對方（role a）的台詞自動朗讀；輪到你（role b）時看句子唸出來（可先聽手本），
  * 按「唸完了」進下一句並計入每日「口」任務。素材全為已驗證的固定基本句。
+ *
+ * 另有「自由対話」（`RoleplayView`）：同樣的場景但沒有稿子，由 AI 扮演對方即時回話——
+ * 屬純加練，AI 生成內容僅供參考、不入庫、不計入蓋章；無金鑰時本頁固定腳本照常可用。
  */
 export function DialogueView() {
   const [dlg, setDlg] = useState<Dialogue | null>(null)
+  const [free, setFree] = useState(false)
+  if (free) return <RoleplayView onBack={() => setFree(false)} />
   if (dlg) return <DialoguePlay dlg={dlg} onBack={() => setDlg(null)} />
   return (
     <>
@@ -21,6 +27,21 @@ export function DialogueView() {
           選一個場景，跟<b>店員・家人・情人・同學・朋友・廠商</b>來一段對話。
           對方的話會自動唸給你聽；輪到你時，照著句子說出來（可先聽手本）。
         </p>
+      </div>
+      <div className="card">
+        <div className="row between">
+          <div>
+            <div className="sent" style={{ fontSize: 19 }}>
+              🗣 自由対話（AI 角色扮演）
+            </div>
+            <div className="sub" style={{ marginTop: 2 }}>
+              沒有稿子——你自己打日文，AI 扮演對方回話並給中文小提示（加練、不計蓋章）。
+            </div>
+          </div>
+          <button className="btn small ghost" onClick={() => setFree(true)}>
+            試す ▶
+          </button>
+        </div>
       </div>
       {PARTNER_TAGS.map((tag) => {
         const list = DIALOGUES.filter((d) => d.partnerTag === tag)
