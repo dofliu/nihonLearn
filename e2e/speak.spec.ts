@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test'
+import { test, expect, type Page } from '@playwright/test'
 import {
   gotoApp,
   navTo,
@@ -134,5 +134,74 @@ test.describe('話す：跟讀與評分降級', () => {
     await expect(page.locator('main')).toContainText('示範候選')
     // 不應出現原本的 JSON 解析錯誤
     await expect(page.locator('.toast')).not.toContainText('is not valid json')
+  })
+})
+
+// ───────────────────── 跟讀後的即時追問（AI，選配加練） ─────────────────────
+
+function geminiText(text: string) {
+  return { candidates: [{ content: { parts: [{ text }] } }] }
+}
+
+async function setKey(page: Page) {
+  await page.evaluate(() => localStorage.setItem('nihongo-michi:geminiKey', 'test-key'))
+}
+
+test.describe('話す：跟讀＋即時追問', () => {
+  test('未設金鑰：只顯示說明，跟讀與自評不受影響（降級不中斷）', async ({ page }) => {
+    await disableSpeechRecognition(page)
+    await gotoApp(page)
+    await navTo(page, '話す')
+
+    await expect(page.locator('main')).toContainText('追問 ─ AI に聞かれる')
+    await expect(page.locator('main')).toContainText('填入 Gemini 金鑰')
+    await expect(page.getByRole('button', { name: '🤖 追問一句' })).toHaveCount(0)
+
+    // 跟讀自評照常可用
+    await page.locator('button.micBtn').click()
+    await page.getByRole('button', { name: '◎ 很像' }).click()
+    await expect(page.locator('.scoreBig')).toContainText('◎')
+  })
+
+  test('有金鑰：AI 追問 → 自己組句回答 → 中文講評＋徽章；換句子後重置', async ({ page }) => {
+    let calls = 0
+    await page.route('**/generativelanguage.googleapis.com/**', (route) => {
+      calls += 1
+      // 第 1、3 次是「追問」（JSON），第 2 次是「講評」（純文字）
+      const json =
+        calls === 2
+          ? geminiText('✅ 回答得很自然，助詞也對。')
+          : geminiText(`{"jp":"なにが すきですか。","zh":"你喜歡什麼？"}`)
+      return route.fulfill({ json })
+    })
+    await disableSpeechRecognition(page)
+    await gotoApp(page)
+    await setKey(page)
+    await navTo(page, '話す')
+
+    await page.getByRole('button', { name: '🤖 追問一句' }).click()
+    await expect(page.locator('.followUpQ')).toContainText('なにが すきですか。', {
+      timeout: 10_000,
+    })
+    await expect(page.locator('main')).toContainText('你喜歡什麼？')
+    await expect(page.locator('main')).toContainText('僅供參考')
+    await expect(page.locator('main .chip', { hasText: '1 / 3' })).toBeVisible()
+
+    // 自己打日文回答 → 中文講評與解析出的評價徽章
+    await page.locator('input[placeholder="用日文回答…"]').fill('みずが すきです。')
+    await page.getByRole('button', { name: '送出回答' }).click()
+    await expect(page.locator('main')).toContainText('回答得很自然', { timeout: 10_000 })
+    await expect(page.locator('main')).toContainText('✅ 表達到了')
+
+    // 再追問一句 → 次數累計
+    await page.getByRole('button', { name: '再追問一句 →' }).click()
+    await expect(page.locator('main .chip', { hasText: '2 / 3' })).toBeVisible({
+      timeout: 10_000,
+    })
+
+    // 換下一句例句 → 追問區重置（回到「追問一句」按鈕）
+    await page.getByRole('button', { name: '次の句 →' }).click()
+    await expect(page.getByRole('button', { name: '🤖 追問一句' })).toBeVisible()
+    await expect(page.locator('.followUpQ')).toHaveCount(0)
   })
 })

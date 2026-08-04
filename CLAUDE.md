@@ -40,10 +40,10 @@ src/
   db/         schema(Dexie v8)・repo（任務計數、蓋章、卡片、發音紀錄、生成句）
   srs/        scheduler：ts-fsrs 封裝（newCard/review/isDue/isMastered）
   audio/      tts（VOICEVOX▸原生▸WebSpeech 門面 + 逐字 boundary 回呼）・scorer（相似度 + ASR + whisper 錄音 + mora 型別）
-  lib/        date・importV1（v1→v2 遷移 + 備份匯出）・content（生成 client + 持久化審核佇列 + 採用）・listening（聽力理解＋JLPT 題型出題，純函式）・articles（NHK Easy 導入 client + 採用）・llm（Gemini 直連 + 金鑰/模型本機儲存）・llmParse（Gemini 回應純解析）・coverage（覆蓋率檢核，無依賴）・pitch（mora 切分 + 東京式 pattern）・sidecar（base URL 抽象 + probeHealth）・vocabGate（詞彙隨假名解鎖，純函式）・quiz（N5 模擬測驗出題，純函式）・karaoke（朗讀逐字上色對齊，純函式）・furigana（漢字↔假名注音對齊，純函式）・handwriting（手寫字形相似度評分，純函式）・activity（學習活動統計，純函式）・patternDrill（句型×已學單字組句，純函式）・roleplay（自由対話場景/prompt/歷史組裝，純函式）・tutorQuiz（助教「考我」出題＋講評 prompt/解析，純函式）
+  lib/        date・importV1（v1→v2 遷移 + 備份匯出）・content（生成 client + 持久化審核佇列 + 採用）・listening（聽力理解＋JLPT 題型出題，純函式）・articles（NHK Easy 導入 client + 採用）・llm（Gemini 直連 + 金鑰/模型本機儲存）・llmParse（Gemini 回應純解析）・coverage（覆蓋率檢核，無依賴）・pitch（mora 切分 + 東京式 pattern）・sidecar（base URL 抽象 + probeHealth）・vocabGate（詞彙隨假名解鎖，純函式）・quiz（N5 模擬測驗出題，純函式）・karaoke（朗讀逐字上色對齊，純函式）・furigana（漢字↔假名注音對齊，純函式）・handwriting（手寫字形相似度評分，純函式）・activity（學習活動統計，純函式）・patternDrill（句型×已學單字組句，純函式）・roleplay（自由対話場景/prompt/歷史組裝，純函式）・tutorQuiz（助教「考我」出題＋講評 prompt/解析，純函式）・followUp（跟讀後 AI 追問 prompt/解析，純函式）
   state/      store（zustand：今日/streak/rate/tts/showKanji）
   views/      Today・Kana(含 Write 書寫練習)・Listen(含 Pitch)・Speak(含 Dialogue 会話＋Roleplay 自由対話)・Read・Progress・Review・Pattern(文型ドリル)
-  components/ Nav・ui(toast/大印)・VocabCard
+  components/ Nav・ui(toast/大印/進度條)・VocabCard・Karaoke・Ruby・StrokeOrder・FollowUp(跟讀追問)
 sidecar/      FastAPI：/health /tts /speakers /score /content /article/*；article.py（NHK Easy 解析，純函式）；mock_voicevox.py（假 engine）；test_score.py・test_article.py
 tests/        integration.ts（npm test）・INTEGRATION_REPORT.md・MANUAL_QA.md
 e2e/          Playwright 端到端測試（npm run test:e2e）・helpers.ts（共用步驟）
@@ -357,6 +357,28 @@ v3.30（AI 助教「考我」模式）：ROADMAP「🔴 互動深化」第 2 步
 八種容錯情境）、`npm run test:e2e` 56/56（tutor.spec 新增兩項：無金鑰也能出題→看參考答案→換一題；
 有金鑰作答→中文講評＋✅ 徽章＋參考答案揭曉）、`npm run build` strict 綠燈。
 
+v3.31（跟讀＋即時追問）：ROADMAP「🔴 互動深化」第 3 步——`SpeakView` 跟読分頁在例句卡下方新增
+「追問 ─ AI に聞かれる」卡（`components/FollowUp.tsx`）：跟讀完一句**已驗證教材例句**後按
+「🤖 追問一句」，Gemini 針對**那句的情境**追問一句簡單日文（N5、15 字內、以平假名為主），
+你必須**臨場自己組句**打日文回答（沒有稿子），再拿到一段**中文**講評（沿用
+`lib/tutorQuiz parseCritique` 的 ✅／△／❌ 徽章）。純邏輯抽 `lib/followUp.ts`
+（`buildAskSystem`／`buildAskUser` 追問 prompt、`parseFollowUpQuestion` 容錯解析——物件／含 ```
+圍欄的 JSON 字串／陣列取首，缺 `zh` 補空、缺 `jp` 回 null → toast 提示再按一次；
+`buildReplySystem`／`buildReplyUser` 講評 prompt，明說「這題沒有標準答案」故評的是通不通、
+不與某個參考答案比對；`MAX_FOLLOWUPS`＝同一句最多追問 3 次）。**定位比照 v3.6／v3.29／v3.30**：
+使用者主動觸發的一次性互動，AI 生成的日文問句與講評**僅供參考、不寫入學習庫、不進 SRS、
+不計入「口」任務與每日蓋章**（純選配加練，故不走 `needs_review` 審核佇列），卡片上有顯眼免責提示
+並點明「上方教材例句才是已驗證的說法」。**無金鑰優雅降級**：整塊只顯示一行說明（去設定填金鑰），
+跟讀、評分、自評降級鏈完全不受影響。換下一句例句時追問區自動重置（追問綁在當下那句的情境）。
+不動 Dexie schema、不動蓋章判定、不新增 CSS（沿用既有 `.card/.sent/.hint/.chip` 樣式）。
+
+測試：`npm test` 289/289（新增 5u 追問純邏輯 27 項：prompt 帶入例句與已學詞、含「只問一句」
+「不要換話題」「不要杜撰重音」「只輸出 JSON」紅線、`parseFollowUpQuestion` 十種容錯情境、
+講評 prompt 說明沒有標準答案且記號格式接得上 `parseCritique`、user 訊息 trim 與無中文翻譯時
+不產生空括號）、`npm run test:e2e` 58/58（speak.spec 新增兩項：無金鑰只顯示說明且自評照常可用；
+有金鑰追問→作答→中文講評＋徽章→再追問次數累計→換句子後重置；Gemini 以 page.route 依呼叫序
+分別回 JSON 追問句與純文字講評）、`npm run build` strict 綠燈。
+
 ---
 
 ## ⭐ 本機實測任務（此專案轉到 Claude Code 的主因）
@@ -452,7 +474,7 @@ Claude Code 在本機可以真正跑起來、觀察、修正。建議依序進�
 
 ## 提交前檢查
 
-`npm run build`（strict 綠燈）＋ `npm test`（262/262）＋ `npm run test:e2e`（56/56）
+`npm run build`（strict 綠燈）＋ `npm test`（289/289）＋ `npm run test:e2e`（58/58）
 ＋（動到 sidecar 時）`python sidecar/test_score.py` 與 `python sidecar/test_article.py`。
 新功能盡量補測：純邏輯進 `tests/integration.ts`，UI 流程進 `e2e/*.spec.ts`（共用步驟放
 `e2e/helpers.ts`），後端進 `test_score.py`。

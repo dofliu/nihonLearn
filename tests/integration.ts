@@ -38,6 +38,14 @@ import { poolFor, candidatesFor, buildItem, itemsFor, dailyPattern } from '../sr
 import { KANJI_STROKES, KANJI_STROKE_VIEWBOX } from '../src/data/kanjiStrokes.ts'
 import { strokeStart, refStrokeStarts, judgeStrokeOrder, pathEnd, strokeVector } from '../src/lib/strokeOrder.ts'
 import { sentencePrompts, patternPrompts, tutorPrompts, pickPrompt, buildQuizSystem, buildQuizUser, parseCritique, VERDICT_LABEL } from '../src/lib/tutorQuiz.ts'
+import {
+  buildAskSystem,
+  buildAskUser,
+  parseFollowUpQuestion,
+  buildReplySystem,
+  buildReplyUser,
+  MAX_FOLLOWUPS,
+} from '../src/lib/followUp.ts'
 
 let pass = 0
 let fail = 0
@@ -707,6 +715,62 @@ console.log('=== 5t. AI 助教「考我」出題與講評解析 ===')
   ok('空字串 → unknown 且 body 空', parseCritique('').verdict === 'unknown' && parseCritique('').body === '')
   ok('前後空白會被 trim', parseCritique('  ✅ 好  ').body === '好')
   ok('VERDICT_LABEL 三種評價都有文案、unknown 為空', VERDICT_LABEL.ok && VERDICT_LABEL.soso && VERDICT_LABEL.ng && VERDICT_LABEL.unknown === '')
+}
+
+console.log('=== 5u. 跟讀「即時追問」純邏輯 ===')
+{
+  const sent = SENTS[0]
+
+  // 追問 prompt：帶入剛跟讀的已驗證例句與已學詞，守住紅線
+  const asys = buildAskSystem(['みず', 'たべる'])
+  ok('追問 system 帶入已學詞', asys.includes('みず') && asys.includes('たべる'))
+  ok('追問 system 要求只問一句、N5 程度', asys.includes('只問「一句」') && asys.includes('N5'))
+  ok('追問 system 要求貼合例句情境', asys.includes('不要換話題'))
+  ok('追問 system 禁止杜撰重音', asys.includes('不要杜撰重音'))
+  ok('追問 system 要求只輸出 JSON', asys.includes('只輸出 JSON') && asys.includes('"jp"'))
+  ok('無已學詞時有 fallback 說明', buildAskSystem([]).includes('尚無'))
+  const auser = buildAskUser(sent)
+  ok('追問 user 帶入例句原文與中文', auser.includes(sent.jp) && auser.includes(sent.zh))
+
+  // 追問句解析（容錯，比照 parseRoleplayTurn）
+  ok(
+    '物件可解析',
+    parseFollowUpQuestion({ jp: 'なにが すきですか。', zh: '你喜歡什麼？' })?.jp ===
+      'なにが すきですか。',
+  )
+  ok(
+    'JSON 字串可解析',
+    parseFollowUpQuestion('{"jp":"どこへ いきますか。","zh":"你要去哪裡？"}')?.zh ===
+      '你要去哪裡？',
+  )
+  ok(
+    '含 ``` 圍欄的字串可解析',
+    parseFollowUpQuestion('```json\n{"jp":"はい、どうぞ。","zh":"好的，請。"}\n```')?.jp ===
+      'はい、どうぞ。',
+  )
+  ok('陣列取第一筆', parseFollowUpQuestion([{ jp: 'いくつ ですか。' }, { jp: 'x' }])?.jp === 'いくつ ですか。')
+  ok('缺 zh 補空字串', parseFollowUpQuestion({ jp: 'いくつ ですか。' })?.zh === '')
+  ok('缺 jp → null', parseFollowUpQuestion({ zh: '只有中文' }) === null)
+  ok('jp 只有空白 → null', parseFollowUpQuestion({ jp: '   ' }) === null)
+  ok('壞掉的字串 → null', parseFollowUpQuestion('not json at all') === null)
+  ok('null/數字 → null', parseFollowUpQuestion(null) === null && parseFollowUpQuestion(42) === null)
+  ok('前後空白會被 trim', parseFollowUpQuestion({ jp: '  はい。 ', zh: ' 好 ' })?.jp === 'はい。')
+
+  // 講評 prompt：沒有標準答案，評的是「通不通」；記號格式與 parseCritique 相同
+  const rsys = buildReplySystem(['みず'])
+  ok('講評 system 帶入已學詞', rsys.includes('みず'))
+  ok('講評 system 說明沒有標準答案', rsys.includes('沒有標準答案'))
+  ok('講評 system 要求繁體中文', rsys.includes('繁體中文'))
+  ok('講評 system 要求開頭評價記號', rsys.includes('✅') && rsys.includes('△') && rsys.includes('❌'))
+  ok('講評 system 禁止杜撰重音', rsys.includes('不要杜撰重音'))
+  const ruser = buildReplyUser({ jp: 'なにが すきですか。', zh: '你喜歡什麼？' }, '  みずが すきです。 ')
+  ok('講評 user 帶入追問句與中文', ruser.includes('なにが すきですか。') && ruser.includes('你喜歡什麼？'))
+  ok('講評 user 帶入回答（已 trim）', ruser.includes('學習者的回答：みずが すきです。\n'))
+  ok('沒有中文翻譯時不會多出空括號', !buildReplyUser({ jp: 'はい。', zh: '' }, 'はい').includes('（）'))
+
+  // 講評解析沿用 tutorQuiz（同一套記號），確認接得上
+  ok('AI 講評可被 parseCritique 解析出徽章', parseCritique('✅ 回答得很自然。').verdict === 'ok')
+  ok('追問次數上限為正整數', Number.isInteger(MAX_FOLLOWUPS) && MAX_FOLLOWUPS > 0)
 }
 
 console.log('=== 6. 資料完整性 ===')
