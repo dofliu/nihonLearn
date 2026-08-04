@@ -14,6 +14,7 @@ import { useApp } from '../state/store'
 import { toast } from '../components/ui'
 import { Karaoke } from '../components/Karaoke'
 import { RubyText } from '../components/Ruby'
+import { FollowUp } from '../components/FollowUp'
 import { hasKanji } from '../lib/furigana'
 import { DialogueView } from './DialogueView'
 
@@ -311,6 +312,9 @@ export function SpeakView({ onOpenReview }: { onOpenReview: () => void }) {
           </button>
         </div>
       </div>
+
+      {/* 跟讀後的即時追問（選配加練；AI 生成僅供參考、不入庫、不計蓋章） */}
+      <FollowUp sent={sent} />
         </>
       )}
     </>
