@@ -39,6 +39,14 @@ import { KANJI_STROKES, KANJI_STROKE_VIEWBOX } from '../src/data/kanjiStrokes.ts
 import { strokeStart, refStrokeStarts, judgeStrokeOrder, pathEnd, strokeVector } from '../src/lib/strokeOrder.ts'
 import { sentencePrompts, patternPrompts, tutorPrompts, pickPrompt, buildQuizSystem, buildQuizUser, parseCritique, VERDICT_LABEL } from '../src/lib/tutorQuiz.ts'
 import {
+  normJa,
+  lookupVocab,
+  checkShape,
+  shapeSummary,
+  buildComposeSystem,
+  buildComposeUser,
+} from '../src/lib/patternCompose.ts'
+import {
   buildAskSystem,
   buildAskUser,
   parseFollowUpQuestion,
@@ -771,6 +779,97 @@ console.log('=== 5u. 跟讀「即時追問」純邏輯 ===')
   // 講評解析沿用 tutorQuiz（同一套記號），確認接得上
   ok('AI 講評可被 parseCritique 解析出徽章', parseCritique('✅ 回答得很自然。').verdict === 'ok')
   ok('追問次數上限為正整數', Number.isInteger(MAX_FOLLOWUPS) && MAX_FOLLOWUPS > 0)
+}
+
+console.log('=== 5v. 文型ドリル「自由造句」檢核與講評 ===')
+{
+  const kudasai = PATTERNS.find((p) => p.id === 'kudasai')!
+  const doko = PATTERNS.find((p) => p.id === 'doko')!
+
+  // 正規化：空白與句讀不影響比對
+  ok('normJa 去半形/全形空白', normJa('みず を  ください') === 'みずをください')
+  ok('normJa 去句讀', normJa('みずを ください。') === 'みずをください')
+  ok('normJa 對空值安全', normJa('') === '' && normJa('　 。') === '')
+
+  // 基本檢核：句型骨架
+  const c1 = checkShape(kudasai, 'みずを ください。')
+  ok('骨架正確 → ok', c1.ok && c1.hasPre && c1.hasPost)
+  ok('抽出填入的詞', c1.slot === 'みず')
+  ok('填入的詞對得上詞庫', c1.word?.jp === 'みず')
+  ok('填入的詞屬於此句型分類', c1.inCats)
+  ok('未提供 learned → learned 為 false', c1.learned === false)
+  ok('提供 learned 時可判定已學過', checkShape(kudasai, 'みずをください', new Set(['みず'])).learned)
+
+  // 沒用到句型 → 不 ok
+  ok('缺接續 → 不 ok', !checkShape(kudasai, 'みずです').ok)
+  ok('接續在錯的位置 → 不 ok', !checkShape(kudasai, 'を ください みず').ok)
+  ok('只有接續沒有填空 → 不 ok', !checkShape(kudasai, 'を ください').ok)
+  ok('空作答 → 不 ok 且 slot 空', (() => { const c = checkShape(kudasai, '  '); return !c.ok && c.slot === '' })())
+  ok('用錯句型的接續 → 不 ok', !checkShape(doko, 'みずを ください').ok)
+
+  // 漢字寫法也查得到（比對假名與漢字正寫）
+  ok('漢字作答可對回詞庫', checkShape(kudasai, '水を ください').word?.jp === 'みず')
+  ok('lookupVocab 吃假名', lookupVocab('みず')?.zh === VOCAB.find((v) => v.jp === 'みず')!.zh)
+  ok('lookupVocab 吃漢字', lookupVocab('水')?.jp === 'みず')
+  ok('lookupVocab 查無 → null', lookupVocab('ぜったいにない') === null && lookupVocab('') === null)
+
+  // 詞庫外的詞：句型仍算對，但不宣稱那個詞的正確性
+  const c2 = checkShape(kudasai, 'パスタを ください')
+  ok('詞庫外的詞 → 句型仍 ok', c2.ok && c2.slot === 'パスタ')
+  ok('詞庫外的詞 → word 為 null 且不宣稱分類', c2.word === null && !c2.inCats)
+
+  // 分類外的詞（語意可能不通）：可偵測，交給使用者自己想
+  const outCat = VOCAB.find((v) => !kudasai.cats.includes(v.cat))!
+  const c3 = checkShape(kudasai, `${outCat.jp}を ください`)
+  ok('分類外的詞 → word 對得上但 inCats 為 false', c3.word?.jp === outCat.jp && !c3.inCats)
+
+  // 一致性：**已驗證資料組出的每一句**送回檢核都必須通過（程式驗證，非口頭聲稱）
+  let bad = 0
+  for (const p of PATTERNS)
+    for (const w of poolFor(p)) {
+      const it = buildItem(p, w)
+      const ck = checkShape(p, it.jp)
+      if (!ck.ok || ck.word?.jp !== w.jp || !ck.inCats) bad++
+      if (it.alt) {
+        const ca = checkShape(p, it.alt)
+        if (!ca.ok || ca.word?.jp !== w.jp) bad++
+      }
+    }
+  ok('全句型×詞的組句皆通過自我檢核（含漢字寫法）', bad === 0)
+
+  // 摘要文字：四種情境都要有話可說，且不空
+  ok('摘要：空作答', shapeSummary(kudasai, checkShape(kudasai, '')).includes('還沒'))
+  ok('摘要：骨架不符', shapeSummary(kudasai, checkShape(kudasai, 'みずです')).includes('接續'))
+  ok('摘要：詞庫外', shapeSummary(kudasai, c2).includes('詞庫'))
+  ok('摘要：正確填空', shapeSummary(kudasai, c1).includes('みず'))
+  ok(
+    '摘要皆非空字串',
+    ['', 'みずです', 'パスタを ください', 'みずを ください'].every(
+      (a) => shapeSummary(kudasai, checkShape(kudasai, a)).length > 0,
+    ),
+  )
+
+  // 講評 prompt：只生中文、記號格式接得上 parseCritique、紅線齊全
+  const csys = buildComposeSystem(['みず', 'コーヒー'])
+  ok('造句 system 帶入已學詞', csys.includes('みず') && csys.includes('コーヒー'))
+  ok('造句 system 要求繁體中文', csys.includes('繁體中文'))
+  ok('造句 system 要求開頭評價記號', csys.includes('✅') && csys.includes('△') && csys.includes('❌'))
+  ok('造句 system 禁止杜撰重音', csys.includes('不要杜撰重音'))
+  ok('造句 system 允許自由挑詞', csys.includes('自由挑詞'))
+  ok('無已學詞時有 fallback 說明', buildComposeSystem([]).includes('尚無'))
+
+  const cuser = buildComposeUser(kudasai, '  コーヒーを ください  ', ['みずを ください（請給我水）'], c1)
+  ok('造句 user 帶入句型與中文', cuser.includes('〜を ください') && cuser.includes('請給我〜'))
+  ok('造句 user 帶入教材例句', cuser.includes('みずを ください（請給我水）'))
+  ok('造句 user 帶入作答（已 trim）', cuser.includes('學習者自己造的句子：コーヒーを ください\n'))
+  ok('造句 user 帶入程式檢核結果', cuser.includes('程式檢核：') && cuser.includes('「みず」'))
+  ok('無例句時不產生空的例句行', !buildComposeUser(kudasai, 'みずをください').includes('教材例句：'))
+  ok('例句取前 3 句', buildComposeUser(kudasai, 'x', ['a', 'b', 'c', 'd']).includes('a ／ b ／ c'))
+  ok('例句不超過 3 句', !buildComposeUser(kudasai, 'x', ['a', 'b', 'c', 'd']).includes('d'))
+
+  // 講評沿用 tutorQuiz 的記號解析
+  ok('造句講評可被 parseCritique 解析', parseCritique('✅ 句型用對了。').verdict === 'ok')
+  ok('沒照格式也照樣顯示正文', parseCritique('句型用對了。').body === '句型用對了。')
 }
 
 console.log('=== 6. 資料完整性 ===')
