@@ -531,6 +531,29 @@ h2 {
   gap: 8px;
   margin-top: 10px;
 }
+/* 自由造句：程式檢核結果（✓／✗ 兩行 + 說明） */
+.composeCk {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--washi);
+  border: 1px solid var(--washi2);
+}
+.composeCk .ckLine {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.9;
+}
+.composeCk .ckLine.ok {
+  color: var(--take);
+}
+.composeCk .ckLine.ng {
+  color: var(--shu);
+}
+.composeCk .ckLine b {
+  font-size: 16px;
+}
+
 /* 回想テスト：中文題目大字置中 */
 .recallZh {
   text-align: center;

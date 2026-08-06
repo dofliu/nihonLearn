@@ -40,9 +40,9 @@ src/
   db/         schema(Dexie v8)・repo（任務計數、蓋章、卡片、發音紀錄、生成句）
   srs/        scheduler：ts-fsrs 封裝（newCard/review/isDue/isMastered）
   audio/      tts（VOICEVOX▸原生▸WebSpeech 門面 + 逐字 boundary 回呼）・scorer（相似度 + ASR + whisper 錄音 + mora 型別）
-  lib/        date・importV1（v1→v2 遷移 + 備份匯出）・content（生成 client + 持久化審核佇列 + 採用）・listening（聽力理解＋JLPT 題型出題，純函式）・articles（NHK Easy 導入 client + 採用）・llm（Gemini 直連 + 金鑰/模型本機儲存）・llmParse（Gemini 回應純解析）・coverage（覆蓋率檢核，無依賴）・pitch（mora 切分 + 東京式 pattern）・sidecar（base URL 抽象 + probeHealth）・vocabGate（詞彙隨假名解鎖，純函式）・quiz（N5 模擬測驗出題，純函式）・karaoke（朗讀逐字上色對齊，純函式）・furigana（漢字↔假名注音對齊，純函式）・handwriting（手寫字形相似度評分，純函式）・activity（學習活動統計，純函式）・patternDrill（句型×已學單字組句，純函式）・roleplay（自由対話場景/prompt/歷史組裝，純函式）・tutorQuiz（助教「考我」出題＋講評 prompt/解析，純函式）・followUp（跟讀後 AI 追問 prompt/解析，純函式）
+  lib/        date・importV1（v1→v2 遷移 + 備份匯出）・content（生成 client + 持久化審核佇列 + 採用）・listening（聽力理解＋JLPT 題型出題，純函式）・articles（NHK Easy 導入 client + 採用）・llm（Gemini 直連 + 金鑰/模型本機儲存）・llmParse（Gemini 回應純解析）・coverage（覆蓋率檢核，無依賴）・pitch（mora 切分 + 東京式 pattern）・sidecar（base URL 抽象 + probeHealth）・vocabGate（詞彙隨假名解鎖，純函式）・quiz（N5 模擬測驗出題，純函式）・karaoke（朗讀逐字上色對齊，純函式）・furigana（漢字↔假名注音對齊，純函式）・handwriting（手寫字形相似度評分，純函式）・activity（學習活動統計，純函式）・patternDrill（句型×已學單字組句，純函式）・roleplay（自由対話場景/prompt/歷史組裝，純函式）・tutorQuiz（助教「考我」出題＋講評 prompt/解析，純函式）・followUp（跟讀後 AI 追問 prompt/解析，純函式）・patternCompose（自由造句句型骨架程式檢核＋講評 prompt，純函式）
   state/      store（zustand：今日/streak/rate/tts/showKanji）
-  views/      Today・Kana(含 Write 書寫練習)・Listen(含 Pitch)・Speak(含 Dialogue 会話＋Roleplay 自由対話)・Read・Progress・Review・Pattern(文型ドリル)
+  views/      Today・Kana(含 Write 書寫練習)・Listen(含 Pitch)・Speak(含 Dialogue 会話＋Roleplay 自由対話)・Read・Progress・Review・Pattern(文型ドリル，含自由造句)
   components/ Nav・ui(toast/大印/進度條)・VocabCard・Karaoke・Ruby・StrokeOrder・FollowUp(跟讀追問)
 sidecar/      FastAPI：/health /tts /speakers /score /content /article/*；article.py（NHK Easy 解析，純函式）；mock_voicevox.py（假 engine）；test_score.py・test_article.py
 tests/        integration.ts（npm test）・INTEGRATION_REPORT.md・MANUAL_QA.md
@@ -379,6 +379,28 @@ v3.31（跟讀＋即時追問）：ROADMAP「🔴 互動深化」第 3 步——
 有金鑰追問→作答→中文講評＋徽章→再追問次數累計→換句子後重置；Gemini 以 page.route 依呼叫序
 分別回 JSON 追問句與純文字講評）、`npm run build` strict 綠燈。
 
+v3.32（文型ドリル「自由造句」：程式檢核＋AI 中文講評）：ROADMAP「🔴 互動深化」第 4 步——
+`PatternView` 由兩模式加為三模式（`.modeRow` 加「✍ 自由造句」）：練習／回想テスト都是「填給定的詞」，
+自由造句則是**自己挑一個詞**、用該句型打出完整日文句子。責任分工是本次重點（延續 v3.10／v3.30）：
+**句型骨架與填空詞由程式檢核**（新純函式 `lib/patternCompose.ts`）——`normJa` 正規化（去空白與句讀，
+讓「みずをください。」與「みず を ください」等價）、`checkShape` 判斷句型接續 `pre`/`post` 是否落在
+正確位置並抽出中間填入的部分、`lookupVocab` 以**假名或漢字正寫**查已驗證 `data/vocab`（故「水を ください」
+也認得出是「みず」）、再標記該詞是否已 FSRS 學過與是否落在此句型允許的分類；`shapeSummary` 產出一句話
+中文摘要。**純字串比對、零正確性風險，且無 Gemini 金鑰時照樣有回饋**（降級不中斷——這是刻意的設計，
+讓沒設金鑰的人也真的能練「自由產出」）。LLM 只負責用**中文**講評自然度與助詞（`buildComposeSystem`／
+`buildComposeUser`，講評沿用 `tutorQuiz parseCritique` 的 ✅／△／❌ 徽章），且 user 訊息會把程式檢核結果
+一併帶入。定位比照 v3.6／v3.29／v3.30／v3.31：**僅供參考、不寫入學習庫、不進 SRS、不計入蓋章**
+（選配加練，練了 `logActivity('pattern')`），故不走 `needs_review` 審核佇列；講評卡有顯眼免責提示。
+連線失敗時 toast 明說「上面的句型檢核仍然有效」。不動 Dexie schema、不動蓋章判定；CSS 只加 `.composeCk`。
+
+測試：`npm test` 331/331（新增 5v 自由造句共 42 項：`normJa` 三種正規化、骨架正確／缺接續／接續位置錯／
+只有接續沒填空／空作答／用錯句型六種情境、漢字作答可對回詞庫、詞庫外的詞「句型仍算對但不宣稱該詞」、
+分類外的詞可偵測、**全 PATTERNS×詞池組出的每一句（含漢字寫法）送回 `checkShape` 皆須通過自我檢核**
+的一致性驗證、摘要四情境皆非空、prompt 含已學詞與「不要杜撰重音」「允許自由挑詞」紅線與例句上限 3 句）、
+`npm run test:e2e` 60/60（pattern.spec 新增兩項：無金鑰時用錯句型→接續檢核標紅、再造一句→清空、
+正確造句→兩行皆綠且認出填入的詞＋記入学習記録；有金鑰時額外出現中文講評＋✅ 徽章＋免責提示）、
+`npm run build` strict 綠燈。
+
 ---
 
 ## ⭐ 本機實測任務（此專案轉到 Claude Code 的主因）
@@ -474,7 +496,7 @@ Claude Code 在本機可以真正跑起來、觀察、修正。建議依序進�
 
 ## 提交前檢查
 
-`npm run build`（strict 綠燈）＋ `npm test`（289/289）＋ `npm run test:e2e`（58/58）
+`npm run build`（strict 綠燈）＋ `npm test`（331/331）＋ `npm run test:e2e`（60/60）
 ＋（動到 sidecar 時）`python sidecar/test_score.py` 與 `python sidecar/test_article.py`。
 新功能盡量補測：純邏輯進 `tests/integration.ts`，UI 流程進 `e2e/*.spec.ts`（共用步驟放
 `e2e/helpers.ts`），後端進 `test_score.py`。
