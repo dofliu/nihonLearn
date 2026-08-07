@@ -5,7 +5,11 @@
 > 設計原則不變：**正確性交給權威來源與程式驗證，AI 生成一律人工審核採用才入庫；
 > 使用者只做策展，不當正確性把關者。**
 
-最後更新：v3.32（文型ドリル「自由造句」——「🔴 互動深化」第 4 步。文型ドリル加第三個模式「✍ 自由造句」：
+最後更新：v3.33（自由対話「用說的」——「🔴 互動深化」第 5 步的第一個子步驟。`RoleplayView` 補上麥克風輸入
+（`lib/voiceInput.ts` 純函式＋`audio/scorer.ts` 只轉寫不評分的 `recognizeSpeech()`＋共用元件
+`components/VoiceInput.tsx`），與早已有的 TTS 湊成「聽 AI 說 → 自己說回去」；辨識結果**只填進輸入框、
+不自動送出**（ASR 會聽錯，讓使用者確認／修改），無語音辨識能力時整顆鈕不顯示、打字照常）。
+前一版 v3.32（文型ドリル「自由造句」——「🔴 互動深化」第 4 步。文型ドリル加第三個模式「✍ 自由造句」：
 自己挑詞用該句型造一句完整日文，**句型骨架與填空詞由程式檢核**（`lib/patternCompose.ts`，純字串比對＋
 已驗證詞庫查詢，**無金鑰照樣有回饋**），有 Gemini 金鑰時再加一段**中文**講評；僅供參考、不入庫、不卡蓋章）。
 前一版 v3.31（跟讀＋即時追問——第 3 步。跟読分頁例句卡下方「追問 ─ AI に聞かれる」：AI 針對當下那句
@@ -73,7 +77,23 @@ v3.28，互不依賴，已依序合併入 main。
    `pattern` 這個 key 底下計數，故金印判定沿用既有 pattern 行為）；③無金鑰時的檢核結果目前不持久化，
    若要在成長頁看「造句練習次數／句型正確率」需另開 Dexie schema（version 9）並同步 `e2e/db.spec.ts`。
 5. **（較長期）語音來回對話**：把步驟 1 的角色扮演接上麥克風＋TTS（沿用既有 ASR/TTS pipeline），
-   做成真正口語互動。範圍較大，建議拆成多夜（先文字、後語音；先單場景、後多場景）。
+   做成真正口語互動。範圍較大，拆成多夜進行。
+   - ~~**第一子步：自由対話語音輸入**~~（v3.33 完成：`lib/voiceInput.ts`＋`audio/scorer.ts`
+     `recognizeSpeech()`／`speechInputAvailable()`＋共用元件 `components/VoiceInput.tsx`；
+     AI 回話的 TTS 朗讀 v3.29 就有，所以現在已是「聽 → 說」的來回）。
+     **刻意保留的設計**：辨識結果**只填進輸入框、不自動送出**——ASR 會聽錯（初學者發音尤其），
+     讓使用者看得到系統聽成什麼並可修改，避免污染對話紀錄。無 ASR 時麥克風鈕不顯示（打字照常）。
+   - **可續做的小增量**（依建議順序）：
+     ①**把 `VoiceInput` 複用到另外三處作答輸入**——助教「考我」（`TutorView`）、跟讀追問
+     （`components/FollowUp.tsx`）、文型ドリル自由造句（`PatternView`）。元件已抽好，
+     每處只要 `<VoiceInput onText={(t) => setInput((c) => mergeSpoken(c, t))} />` 一行＋補 e2e
+     （用 `e2e/helpers.ts` 的 `fakeSpeechRecognition`）。這是目前 CP 值最高的一夜份。
+     ②**「說完自動送出」選項**：目前一律要按送る。若要做成可切換的免持模式，需想清楚辨識錯誤
+     時的補救（例如送出前倒數 2 秒可取消），不要預設開啟。
+     ③**真機驗證**：容器內只能用假的 `SpeechRecognition`；Android 原生走 Capacitor
+     `speech-recognition`（`recognizeSpeech()` 已接、與跟讀共用同一條降級鏈），權限流程與
+     日語辨識品質需真機確認，可併入 `tests/MANUAL_QA-ANDROID.md`。
+     ④**AI 回話的朗讀速度／重播**：目前自動朗讀一次（用全域 rate），可加「🔊 再聽一次／慢速」。
 
 **這些步驟共同的安全護欄**（沿用 AI 助教 v3.6 已立下的先例，勿另創新規則）：
 - 自由生成的日文對話／回饋內容**僅供參考、不寫入學習庫、不進 SRS**——這類是使用者主動觸發的
@@ -92,7 +112,7 @@ v3.28，互不依賴，已依序合併入 main。
 ## 目前狀態
 
 - **程式碼**：Web/PWA 與 Android（Capacitor 殼）皆完成；CI（web 測試＋e2e＋Android `assembleDebug`）綠燈。
-- **測試**：`npm test` 331/331、`npm run test:e2e` 60/60、`sidecar/test_score.py` 4/4、`test_article.py` 13/13、`npm run build` strict 綠燈。
+- **測試**：`npm test` 354/354、`npm run test:e2e` 63/63、`sidecar/test_score.py` 4/4、`test_article.py` 13/13、`npm run build` strict 綠燈。
 - **尚未做**：Android 真機驗收（清單 `tests/MANUAL_QA-ANDROID.md`）與 Google Play 封閉測試——**未通過前勿送審**。
 
 ## 已完成里程碑（摘要）
@@ -122,6 +142,7 @@ v3.28，互不依賴，已依序合併入 main。
 | AI 助教「考我」模式（`lib/tutorQuiz.ts`）：已驗證資料出中文情境題、你自己造句，LLM 只生中文講評；無金鑰可自評 | v3.30 |
 | 跟讀＋即時追問（`lib/followUp.ts`＋`components/FollowUp.tsx`）：AI 順著已驗證例句情境追問一句，你臨場組句回答＋中文講評 | v3.31 |
 | 文型ドリル「自由造句」（`lib/patternCompose.ts`）：自己挑詞造句，句型骨架與填空詞由程式檢核（無金鑰亦可），LLM 只生中文講評 | v3.32 |
+| 自由対話「用說的」（`lib/voiceInput.ts`＋`components/VoiceInput.tsx`）：麥克風輸入，辨識結果先填輸入框可改再送；無 ASR 時鈕不顯示 | v3.33 |
 
 
 ## 後續接續工作（優先序）

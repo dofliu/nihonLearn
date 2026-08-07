@@ -17,9 +17,9 @@ Capacitor 7.6（Android 殼）。
 真機／真服務項目（原生語音、真 VOICEVOX/whisper、真 Gemini 生成品質、PWA 安裝離線、
 Android 裝置），見 `MANUAL_QA.md` 與 `MANUAL_QA-ANDROID.md`——未在真機/真服務跑過的一律不打勾。
 
-## 瀏覽器 E2E（46 項，Playwright 對真 dev server 點按）
+## 瀏覽器 E2E（63 項，Playwright 對真 dev server 點按）
 
-`e2e/`，14 個 spec 檔，執行：`npm run test:e2e`（容器/CI 用 `PW_CHROMIUM_PATH` 指定預裝 Chromium）。
+`e2e/`，15 個 spec 檔，執行：`npm run test:e2e`（容器/CI 用 `PW_CHROMIUM_PATH` 指定預裝 Chromium）。
 sidecar 與 Gemini API 皆以 `page.route` 攔截，不需真服務。
 
 ### v2 基線 E2E
@@ -60,6 +60,11 @@ sidecar 與 Gemini API 皆以 `page.route` 攔截，不需真服務。
   字形評分→最佳分持久化）、**描紅層級守衛**（範本不被格線蓋住）。
 - **activity.spec**：學習活動記錄（練習後 activityLog 寫入、成長頁日曆 heatmap 與項目統計、
   +α 選配不卡蓋章）。
+- **roleplay.spec**：自由対話（無金鑰降級、選場景→打字→AI 回話＋中文小提示、格式壞掉時提示重試）
+  與**語音輸入**（`helpers.ts` 的 `fakeSpeechRecognition` 注入假 `window.SpeechRecognition`：
+  說兩次併進輸入框且不自動送出、沒聽到聲音時 toast 提示且輸入保留、無 ASR 時麥克風鈕不顯示）。
+
+> 上列為重點摘要，非全部 spec 逐條清單；實際項數以 `npm run test:e2e` 輸出為準。
 
 ### E2E 抓到並修正的 bug
 
@@ -67,7 +72,7 @@ sidecar 與 Gemini API 皆以 `page.route` 攔截，不需真服務。
   導致測驗直接從第 2 題開始（第一題被跳過、發音播兩次）。已用 ref 守衛修正。
 - `WriteView` 書寫描紅範本被格線層（`.writeGuide`）蓋住：DOM 層級重排修正。
 
-## 前端邏輯（171 項，直接對原始碼執行）
+## 前端邏輯（354 項，直接對原始碼執行）
 
 `tests/integration.ts`，Node 22 `--experimental-strip-types` 直跑 `.ts`。
 
@@ -94,7 +99,17 @@ sidecar 與 Gemini API 皆以 `page.route` 攔截，不需真服務。
 - **furigana**：漢字↔假名注音對齊（全 SENTS/VOCAB 重組還原原字串保證、無 innerHTML）。
 - **handwriting**：字形相似度評分（precision/recall→F1、空白/全塗邊界值、膨脹容差）。
 - **activity**：學習活動統計（totalsByDay/Feature、calendarCells、heatLevel 門檻、activeDayCount）。
-- **資料擴充驗證**：vocab 299 詞唯一性、kaiwa/dialogues 資料完整性、kanjiWrite 字集來自 vocab 驗證。
+- **資料擴充驗證**：vocab 詞條唯一性、kaiwa/dialogues 資料完整性、kanjiWrite 字集來自 vocab 驗證。
+
+### v3.21–v3.33 新增
+
+- **patternDrill／patternCompose**：句型×已學單字組句、自由造句的骨架程式檢核（含「組出的每一句
+  送回檢核皆須通過」的一致性驗證）。
+- **strokeOrder**：漢字筆順起筆點順序（LIS）與行筆方向（cosine）粗略比對，含 KanjiVG 資料完整性檢核。
+- **roleplay／tutorQuiz／followUp**：自由対話、助教「考我」、跟讀追問的 prompt 組裝與回應容錯解析
+  （紅線字串如「不要杜撰重音」「只輸出 JSON」皆有斷言）。
+- **voiceInput**（v3.33）：語音輸入候選挑選（取第一個非空）、空白正規化（含全形空白/換行）、
+  與輸入框合併（先打一半再用說的補）、ASR 錯誤碼→繁中提示（除「取消」外一律附打字退路）。
 
 ## 後端 /score mora 診斷（4 項）
 

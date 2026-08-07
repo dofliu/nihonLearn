@@ -46,6 +46,38 @@ export async function disableSpeechRecognition(page: Page) {
   })
 }
 
+/**
+ * 注入假的瀏覽器語音辨識（`window.SpeechRecognition`），讓「用說的」路徑可被 e2e 測試。
+ * 依序回傳 transcripts 的每一句；佇列用完或該句為空字串時觸發 `no-speech` 錯誤。
+ * 需在 gotoApp 之前呼叫。
+ */
+export async function fakeSpeechRecognition(page: Page, transcripts: string[]) {
+  await page.addInitScript((txts: string[]) => {
+    const queue = txts.slice()
+    class FakeSpeechRecognition {
+      lang = ''
+      interimResults = false
+      maxAlternatives = 1
+      onresult: ((e: unknown) => void) | null = null
+      onerror: ((e: unknown) => void) | null = null
+      start() {
+        setTimeout(() => {
+          const t = queue.shift()
+          if (!t) {
+            this.onerror?.({ error: 'no-speech' })
+            return
+          }
+          this.onresult?.({ results: [[{ transcript: t }]] })
+        }, 20)
+      }
+    }
+    Object.defineProperty(window, 'SpeechRecognition', {
+      configurable: true,
+      value: FakeSpeechRecognition,
+    })
+  }, transcripts)
+}
+
 /** 完成一整輪假名 SRS（全部按「記得」），結束回到道場首頁 */
 export async function completeKanaRound(page: Page) {
   await navTo(page, 'かな')
