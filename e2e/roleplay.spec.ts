@@ -1,5 +1,10 @@
 import { test, expect, type Page } from '@playwright/test'
-import { gotoApp, navTo } from './helpers'
+import {
+  gotoApp,
+  navTo,
+  fakeSpeechRecognition,
+  disableSpeechRecognition,
+} from './helpers'
 
 function geminiText(text: string) {
   return { candidates: [{ content: { parts: [{ text }] } }] }
@@ -71,6 +76,73 @@ test.describe('自由対話（AI 角色扮演）', () => {
     await input.press('Enter')
     await expect(page.locator('main')).toContainText('さんびゃくえん', { timeout: 10_000 })
     await expect(eyebrow).toContainText('2 / 8 回合')
+  })
+
+  test('用說的：辨識結果先填進輸入框（可再補說／改字後才送出）', async ({ page }) => {
+    await page.route('**/generativelanguage.googleapis.com/**', (route) =>
+      route.fulfill({
+        json: geminiText(
+          JSON.stringify({ jp: 'はい、どうぞ。', zh: '好的，請。', hint: '很自然！' }),
+        ),
+      }),
+    )
+    await fakeSpeechRecognition(page, ['おにぎりを ください', 'ふたつ'])
+    await gotoApp(page)
+    await setKey(page)
+    await openRoleplay(page)
+    await page.getByRole('button', { name: '話す ▶' }).first().click()
+
+    const input = page.locator('input[placeholder="用日文回一句…"]')
+    const mic = page.getByRole('button', { name: '🎤 用說的' })
+    await expect(mic).toBeVisible()
+    await expect(page.locator('main')).toContainText('會先填進輸入框')
+
+    // 說第一句 → 進輸入框，尚未送出（對話中還沒有我方氣泡）
+    await mic.click()
+    await expect(input).toHaveValue('おにぎりを ください', { timeout: 10_000 })
+    await expect(page.locator('.dlgBubble.me')).toHaveCount(0)
+
+    // 再說一次 → 併到後面（先說一半再補的情境）
+    await mic.click()
+    await expect(input).toHaveValue('おにぎりを ください ふたつ', { timeout: 10_000 })
+
+    // 確認後才送出
+    await page.getByRole('button', { name: '送る' }).click()
+    await expect(page.locator('.dlgBubble.me')).toContainText('おにぎりを ください ふたつ')
+    await expect(page.locator('main')).toContainText('はい、どうぞ。', { timeout: 10_000 })
+  })
+
+  test('用說的：沒聽到聲音時提示重試，輸入框不被清掉', async ({ page }) => {
+    await fakeSpeechRecognition(page, []) // 佇列為空 → no-speech
+    await gotoApp(page)
+    await setKey(page)
+    await openRoleplay(page)
+    await page.getByRole('button', { name: '話す ▶' }).first().click()
+
+    const input = page.locator('input[placeholder="用日文回一句…"]')
+    await input.fill('すみません')
+    await page.getByRole('button', { name: '🎤 用說的' }).click()
+    await expect(page.locator('.toast')).toContainText('沒聽到聲音', { timeout: 10_000 })
+    await expect(input).toHaveValue('すみません')
+  })
+
+  test('無語音辨識環境：不顯示麥克風鈕，打字照常可用（降級不中斷）', async ({ page }) => {
+    await page.route('**/generativelanguage.googleapis.com/**', (route) =>
+      route.fulfill({
+        json: geminiText(JSON.stringify({ jp: 'はい。', zh: '好的。', hint: 'いいね！' })),
+      }),
+    )
+    await disableSpeechRecognition(page)
+    await gotoApp(page)
+    await setKey(page)
+    await openRoleplay(page)
+    await page.getByRole('button', { name: '話す ▶' }).first().click()
+
+    await expect(page.getByRole('button', { name: '🎤 用說的' })).toHaveCount(0)
+    await page.locator('input[placeholder="用日文回一句…"]').fill('こんにちは。')
+    await page.getByRole('button', { name: '送る' }).click()
+    await expect(page.locator('.dlgBubble.me')).toContainText('こんにちは')
+    await expect(page.locator('main')).toContainText('はい。', { timeout: 10_000 })
   })
 
   test('AI 回應格式壞掉：提示重試、對話不被污染（輸入保留）', async ({ page }) => {

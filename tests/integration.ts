@@ -47,6 +47,12 @@ import {
   buildComposeUser,
 } from '../src/lib/patternCompose.ts'
 import {
+  cleanSpoken,
+  pickBestAlternative,
+  mergeSpoken,
+  voiceErrorMessage,
+} from '../src/lib/voiceInput.ts'
+import {
   buildAskSystem,
   buildAskUser,
   parseFollowUpQuestion,
@@ -870,6 +876,44 @@ console.log('=== 5v. 文型ドリル「自由造句」檢核與講評 ===')
   // 講評沿用 tutorQuiz 的記號解析
   ok('造句講評可被 parseCritique 解析', parseCritique('✅ 句型用對了。').verdict === 'ok')
   ok('沒照格式也照樣顯示正文', parseCritique('句型用對了。').body === '句型用對了。')
+}
+
+console.log('=== 5w. 語音輸入（口說回話）純邏輯 ===')
+{
+  // 正規化：全形空白也算空白、連續空白收成一個、去頭尾
+  ok('去頭尾空白', cleanSpoken('  こんにちは  ') === 'こんにちは')
+  ok('全形空白收成半形一個', cleanSpoken('おにぎりを　　ください') === 'おにぎりを ください')
+  ok('換行也視為空白', cleanSpoken('みずを\nください') === 'みずを ください')
+  ok('空字串安全', cleanSpoken('') === '' && cleanSpoken('   ') === '')
+
+  // 候選挑選：取第一個非空（引擎已依信心排序；自由對話無目標句可比對）
+  ok('取第一個候選', pickBestAlternative(['これを ください', 'これを 下さい']) === 'これを ください')
+  ok('跳過空候選', pickBestAlternative(['', '  ', 'はい']) === 'はい')
+  ok('候選皆空回空字串', pickBestAlternative(['', '   ']) === '')
+  ok('無候選回空字串', pickBestAlternative([]) === '')
+
+  // 併入輸入框：可以「先打一半、再用說的補」，也可以連說兩次
+  ok('輸入框空 → 就是辨識結果', mergeSpoken('', 'こんにちは') === 'こんにちは')
+  ok('接在既有內容後面', mergeSpoken('すみません', 'みずを ください') === 'すみません みずを ください')
+  ok('既有內容也會正規化', mergeSpoken('  すみません 　', 'はい') === 'すみません はい')
+  ok('沒聽到內容時不動原輸入', mergeSpoken('すみません', '   ') === 'すみません')
+  ok('雙方皆空回空字串', mergeSpoken('', '') === '')
+
+  // 錯誤訊息：一律附「可以改用打字」的退路，且不外露原始英文錯誤碼
+  ok('無 ASR 有中文提示', voiceErrorMessage('no-asr').includes('不支援語音輸入'))
+  ok('無權限提示允許麥克風', voiceErrorMessage('not-allowed').includes('麥克風權限'))
+  ok('原生無權限共用同一則', voiceErrorMessage('no-permission') === voiceErrorMessage('not-allowed'))
+  ok('沒聽到聲音提示再按一次', voiceErrorMessage('no-speech').includes('再按一次'))
+  ok('沒聽清楚提示再說一次', voiceErrorMessage('no-match').includes('再說一次'))
+  ok('連線失敗有提示', voiceErrorMessage('network').includes('連線失敗'))
+  ok('取消不報成錯誤', voiceErrorMessage('aborted').includes('取消'))
+  ok('未知錯誤帶出原碼', voiceErrorMessage('weird-code').includes('weird-code'))
+  ok('空錯誤碼不留空括號', voiceErrorMessage('').includes('unknown'))
+  const codes = ['no-asr', 'not-allowed', 'audio-capture', 'no-speech', 'no-match', 'network', 'x']
+  ok(
+    '除了取消，其餘皆提供打字退路',
+    codes.every((c) => voiceErrorMessage(c).includes('打字')),
+  )
 }
 
 console.log('=== 6. 資料完整性 ===')

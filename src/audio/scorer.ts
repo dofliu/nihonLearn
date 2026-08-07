@@ -8,6 +8,7 @@
  * 注意：本檔被 tests/integration.ts 在 Node 直接 import，模組層不得碰瀏覽器 API。
  */
 import { apiUrl, probeHealth } from '../lib/sidecar.ts'
+import { pickBestAlternative } from '../lib/voiceInput.ts'
 
 // ---------- 假名正規化 + 相似度 ----------
 function kataToHira(s: string): string {
@@ -142,6 +143,64 @@ function recognizeWebAndScore(targets: string[]): Promise<ScoreResult> {
     }
     rec.onerror = (e: Event & { error?: string }) =>
       reject(new Error(e.error || 'asr-error'))
+    try {
+      rec.start()
+    } catch {
+      reject(new Error('start-failed'))
+    }
+  })
+}
+
+// ---------- 純轉寫（自由對話「用說的」；沒有目標句可比對，只要辨識文字） ----------
+
+/** 是否可用語音輸入（web SpeechRecognition 或原生 ASR）。無 → UI 隱藏麥克風、打字照常。 */
+export async function speechInputAvailable(): Promise<boolean> {
+  if (asrAvailable()) return true
+  return nativeASRAvailable()
+}
+
+/**
+ * 錄一次音並回傳「辨識到的文字」（不評分、不比對目標句）。
+ * 供自由対話等「自己想句子」的場景用；辨識可能有誤，呼叫端應讓使用者確認後才送出。
+ * 無 ASR／拒絕權限／沒聽到內容時 reject，錯誤碼交給 `lib/voiceInput.ts` 轉成中文提示。
+ */
+export async function recognizeSpeech(): Promise<string> {
+  if (!getSR() && (await nativeASRAvailable())) return recognizeNativeSpeech()
+  return recognizeWebSpeech()
+}
+
+async function recognizeNativeSpeech(): Promise<string> {
+  const { SpeechRecognition } = await import('@capacitor-community/speech-recognition')
+  const perm = await SpeechRecognition.requestPermissions()
+  if (perm.speechRecognition !== 'granted') throw new Error('no-permission')
+  const { matches } = await SpeechRecognition.start({
+    language: 'ja-JP',
+    maxResults: 3,
+    partialResults: false,
+    popup: false,
+  })
+  const txt = pickBestAlternative(matches ?? [])
+  if (!txt) throw new Error('no-match')
+  return txt
+}
+
+function recognizeWebSpeech(): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const SRCls = getSR()
+    if (!SRCls) return reject(new Error('no-asr'))
+    const rec = new SRCls()
+    rec.lang = 'ja-JP'
+    rec.interimResults = false
+    rec.maxAlternatives = 3
+    rec.onresult = (e: SpeechRecognitionEvent) => {
+      const alts = e.results[0]
+      const list: string[] = []
+      for (let i = 0; i < alts.length; i++) list.push(alts[i].transcript)
+      const txt = pickBestAlternative(list)
+      if (txt) resolve(txt)
+      else reject(new Error('no-match'))
+    }
+    rec.onerror = (e: Event & { error?: string }) => reject(new Error(e.error || 'asr-error'))
     try {
       rec.start()
     } catch {

@@ -40,10 +40,10 @@ src/
   db/         schema(Dexie v8)・repo（任務計數、蓋章、卡片、發音紀錄、生成句）
   srs/        scheduler：ts-fsrs 封裝（newCard/review/isDue/isMastered）
   audio/      tts（VOICEVOX▸原生▸WebSpeech 門面 + 逐字 boundary 回呼）・scorer（相似度 + ASR + whisper 錄音 + mora 型別）
-  lib/        date・importV1（v1→v2 遷移 + 備份匯出）・content（生成 client + 持久化審核佇列 + 採用）・listening（聽力理解＋JLPT 題型出題，純函式）・articles（NHK Easy 導入 client + 採用）・llm（Gemini 直連 + 金鑰/模型本機儲存）・llmParse（Gemini 回應純解析）・coverage（覆蓋率檢核，無依賴）・pitch（mora 切分 + 東京式 pattern）・sidecar（base URL 抽象 + probeHealth）・vocabGate（詞彙隨假名解鎖，純函式）・quiz（N5 模擬測驗出題，純函式）・karaoke（朗讀逐字上色對齊，純函式）・furigana（漢字↔假名注音對齊，純函式）・handwriting（手寫字形相似度評分，純函式）・activity（學習活動統計，純函式）・patternDrill（句型×已學單字組句，純函式）・roleplay（自由対話場景/prompt/歷史組裝，純函式）・tutorQuiz（助教「考我」出題＋講評 prompt/解析，純函式）・followUp（跟讀後 AI 追問 prompt/解析，純函式）・patternCompose（自由造句句型骨架程式檢核＋講評 prompt，純函式）
+  lib/        date・importV1（v1→v2 遷移 + 備份匯出）・content（生成 client + 持久化審核佇列 + 採用）・listening（聽力理解＋JLPT 題型出題，純函式）・articles（NHK Easy 導入 client + 採用）・llm（Gemini 直連 + 金鑰/模型本機儲存）・llmParse（Gemini 回應純解析）・coverage（覆蓋率檢核，無依賴）・pitch（mora 切分 + 東京式 pattern）・sidecar（base URL 抽象 + probeHealth）・vocabGate（詞彙隨假名解鎖，純函式）・quiz（N5 模擬測驗出題，純函式）・karaoke（朗讀逐字上色對齊，純函式）・furigana（漢字↔假名注音對齊，純函式）・handwriting（手寫字形相似度評分，純函式）・activity（學習活動統計，純函式）・patternDrill（句型×已學單字組句，純函式）・roleplay（自由対話場景/prompt/歷史組裝，純函式）・tutorQuiz（助教「考我」出題＋講評 prompt/解析，純函式）・followUp（跟讀後 AI 追問 prompt/解析，純函式）・patternCompose（自由造句句型骨架程式檢核＋講評 prompt，純函式）・voiceInput（語音輸入候選挑選/合併/錯誤訊息，純函式）
   state/      store（zustand：今日/streak/rate/tts/showKanji）
   views/      Today・Kana(含 Write 書寫練習)・Listen(含 Pitch)・Speak(含 Dialogue 会話＋Roleplay 自由対話)・Read・Progress・Review・Pattern(文型ドリル，含自由造句)
-  components/ Nav・ui(toast/大印/進度條)・VocabCard・Karaoke・Ruby・StrokeOrder・FollowUp(跟讀追問)
+  components/ Nav・ui(toast/大印/進度條)・VocabCard・Karaoke・Ruby・StrokeOrder・FollowUp(跟讀追問)・VoiceInput(共用麥克風鈕)
 sidecar/      FastAPI：/health /tts /speakers /score /content /article/*；article.py（NHK Easy 解析，純函式）；mock_voicevox.py（假 engine）；test_score.py・test_article.py
 tests/        integration.ts（npm test）・INTEGRATION_REPORT.md・MANUAL_QA.md
 e2e/          Playwright 端到端測試（npm run test:e2e）・helpers.ts（共用步驟）
@@ -401,6 +401,26 @@ v3.32（文型ドリル「自由造句」：程式檢核＋AI 中文講評）：
 正確造句→兩行皆綠且認出填入的詞＋記入学習記録；有金鑰時額外出現中文講評＋✅ 徽章＋免責提示）、
 `npm run build` strict 綠燈。
 
+v3.33（自由対話「用說的」：語音輸入）：ROADMAP「🔴 互動深化」第 5 步（語音來回對話）的**第一個子步驟**——
+自由対話（`RoleplayView`）原本只能打字，這次補上麥克風輸入，湊成「聽 AI 說（TTS 早已有）→ 自己說回去」
+的口語來回。純邏輯抽 `lib/voiceInput.ts`（`cleanSpoken` 空白正規化含全形空白／換行、`pickBestAlternative`
+從 ASR 候選取第一個非空者——自由對話沒有目標句可比對，故不像跟讀那樣用 `similarity` 挑最像的、
+`mergeSpoken` 把辨識結果併進輸入框既有內容以支援「先打一半再用說的補／連說兩次」、`voiceErrorMessage`
+把 ASR 錯誤碼轉成繁中提示且一律附「可以改用打字」退路）；`audio/scorer.ts` 新增
+**只轉寫不評分**的 `recognizeSpeech()`（web SpeechRecognition ▸ 原生 Capacitor ASR，沿用既有降級鏈）
+與 `speechInputAvailable()`；共用元件 `components/VoiceInput.tsx`（麥克風鈕，之後助教「考我」／跟讀追問
+要接語音回答時可直接複用，一行搞定）。
+**誠實定位是本次重點**：語音辨識**會聽錯**（尤其初學者發音），所以辨識結果**只填進輸入框、不自動送出**，
+使用者確認／修改後才按「送る」——避免辨識失誤污染對話紀錄，也讓使用者看得到系統「聽成什麼」。
+**降級不中斷**：偵測不到語音辨識能力（`speechInputAvailable()` false）時整顆麥克風鈕不顯示，打字路徑完全不變。
+不動 Dexie schema、不動蓋章判定、不新增 CSS（沿用既有 `.btn small ghost`／`.row`／`.sub`）。
+
+測試：`npm test` 354/354（新增 5w 語音輸入純邏輯 23 項：三種空白正規化、候選挑選跳過空值／全空／無候選、
+併入輸入框五情境、錯誤訊息八種錯誤碼皆有中文且未知碼帶出原碼、「除取消外一律提供打字退路」的全碼掃描）、
+`npm run test:e2e` 63/63（`helpers.ts` 新增 `fakeSpeechRecognition` 注入假 `window.SpeechRecognition`；
+roleplay.spec 新增三項：說兩次→併進輸入框且未自動送出→確認後才送出、沒聽到聲音→toast 提示且輸入不被清掉、
+無語音辨識環境→不顯示麥克風鈕且打字照常）、`npm run build` strict 綠燈。
+
 ---
 
 ## ⭐ 本機實測任務（此專案轉到 Claude Code 的主因）
@@ -496,7 +516,7 @@ Claude Code 在本機可以真正跑起來、觀察、修正。建議依序進�
 
 ## 提交前檢查
 
-`npm run build`（strict 綠燈）＋ `npm test`（331/331）＋ `npm run test:e2e`（60/60）
+`npm run build`（strict 綠燈）＋ `npm test`（354/354）＋ `npm run test:e2e`（63/63）
 ＋（動到 sidecar 時）`python sidecar/test_score.py` 與 `python sidecar/test_article.py`。
 新功能盡量補測：純邏輯進 `tests/integration.ts`，UI 流程進 `e2e/*.spec.ts`（共用步驟放
 `e2e/helpers.ts`），後端進 `test_score.py`。

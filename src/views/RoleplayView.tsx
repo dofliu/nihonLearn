@@ -13,9 +13,11 @@ import {
 import { chatGeminiJSON, hasLLM } from '../lib/llm'
 import { parseRoleplayTurn } from '../lib/llmParse'
 import { personalKnownWords } from '../lib/content'
+import { mergeSpoken } from '../lib/voiceInput'
 import { speak } from '../audio/tts'
 import { useApp } from '../state/store'
 import { toast } from '../components/ui'
+import { VoiceInput } from '../components/VoiceInput'
 
 /**
  * 自由対話（AI 角色扮演，文字輸入版）。
@@ -59,8 +61,9 @@ export function RoleplayView({ onBack }: { onBack: () => void }) {
         </div>
         <h2>自己想句子，跟對方聊聊看</h2>
         <p className="sub">
-          場景跟固定腳本一樣，但這次<b>沒有稿子</b>——你自己打日文，對方會依你的話回應，
-          每回合再給你一行中文小提示。
+          場景跟固定腳本一樣，但這次<b>沒有稿子</b>——你自己說（或打）日文，對方會依你的話回應，
+          每回合再給你一行中文小提示。支援語音輸入的環境可以直接<b>用說的</b>，
+          聽到的字會先填進輸入框讓你確認。
         </p>
         <div className="hint" style={{ marginTop: 8 }}>
           ⚠️ 對方的台詞由 AI 即時生成，<b>僅供參考、可能有誤</b>；不會寫入你的學習資料，
@@ -220,6 +223,14 @@ function RoleplayChat({ sc, onBack }: { sc: RoleplayScene; onBack: () => void })
             送る
           </button>
         </div>
+      )}
+
+      {/* 用說的：辨識結果併進上面的輸入框，使用者確認／修改後才送出 */}
+      {!over && (
+        <VoiceInput
+          disabled={loading}
+          onText={(txt) => setInput((cur) => mergeSpoken(cur, txt))}
+        />
       )}
     </div>
   )
