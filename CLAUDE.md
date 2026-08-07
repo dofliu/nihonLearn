@@ -421,6 +421,25 @@ v3.33（自由対話「用說的」：語音輸入）：ROADMAP「🔴 互動深
 roleplay.spec 新增三項：說兩次→併進輸入框且未自動送出→確認後才送出、沒聽到聲音→toast 提示且輸入不被清掉、
 無語音辨識環境→不顯示麥克風鈕且打字照常）、`npm run build` strict 綠燈。
 
+v3.34（口說作答擴散到三處 AI 練習）：ROADMAP「🔴 互動深化」第 5 步的**第二個子步驟**（也一併結掉
+第 2 步的①與第 3 步的①「口說作答」）——v3.33 抽好的共用元件 `components/VoiceInput.tsx` 複用到另外
+**三處作答輸入**：AI 助教「🎯 考我」（`views/TutorView.tsx` `TutorQuiz`）、跟讀後的即時追問
+（`components/FollowUp.tsx`）、文型ドリル「✍ 自由造句」（`views/PatternView.tsx`）。這三處本來都只能
+打字，但它們的練習目的**本來就是「自己產出日文」**（看中文情境題自己說、被追問後臨場回答、自己挑詞造句），
+用說的比打字更貼近真實口語場景，也省去初學者在手機上切日文輸入法的門檻。
+**刻意沿用 v3.33 立下的規矩，不另創新行為**：①辨識結果**只 `mergeSpoken` 併進輸入框、不自動送出**
+（ASR 會聽錯，讓使用者看得到系統聽成什麼並可改）；②送出／揭曉答案後麥克風鈕退場（三處一致：
+考我 `!revealed`、自由造句 `!check`、追問則跟著問句在時顯示）；③`speechInputAvailable()` false 時
+整顆鈕不顯示，打字路徑完全不變（**降級不中斷**）。
+**純呈現層複用**：無新純函式、無新 CSS、不動 Dexie schema、不動蓋章判定、不動任何 AI prompt 與
+既有降級鏈——每處只是 import `VoiceInput` + `mergeSpoken` 各一行掛上去。
+
+測試：`npm test` 354/354（不受影響，本次無新純函式邏輯——`lib/voiceInput.ts` 的 23 項於 v3.33 已涵蓋）、
+`npm run test:e2e` 67/67（新增 4 項：tutor.spec「考我用說的，說兩次→併進輸入框→未自動揭曉答案→
+確認後才送出、送出後麥克風退場」與「無語音辨識環境不顯示麥克風鈕、打字作答照常」；speak.spec
+「追問可以用說的，填進輸入框後未自動送出→確認後才有講評」；pattern.spec「自由造句用說的，
+說兩次→未自動檢核→送出後程式檢核通過（無金鑰也有回饋）」）、`npm run build` strict 綠燈。
+
 ---
 
 ## ⭐ 本機實測任務（此專案轉到 Claude Code 的主因）
@@ -516,7 +535,7 @@ Claude Code 在本機可以真正跑起來、觀察、修正。建議依序進�
 
 ## 提交前檢查
 
-`npm run build`（strict 綠燈）＋ `npm test`（354/354）＋ `npm run test:e2e`（63/63）
+`npm run build`（strict 綠燈）＋ `npm test`（354/354）＋ `npm run test:e2e`（67/67）
 ＋（動到 sidecar 時）`python sidecar/test_score.py` 與 `python sidecar/test_article.py`。
 新功能盡量補測：純邏輯進 `tests/integration.ts`，UI 流程進 `e2e/*.spec.ts`（共用步驟放
 `e2e/helpers.ts`），後端進 `test_score.py`。

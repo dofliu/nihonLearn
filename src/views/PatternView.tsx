@@ -9,6 +9,7 @@ import {
   type ShapeCheck,
 } from '../lib/patternCompose'
 import { parseCritique, VERDICT_LABEL, type Verdict } from '../lib/tutorQuiz'
+import { mergeSpoken } from '../lib/voiceInput'
 import { chatGemini, hasLLM } from '../lib/llm'
 import { personalKnownWords } from '../lib/content'
 import { db } from '../db/schema'
@@ -17,6 +18,7 @@ import { speak } from '../audio/tts'
 import { useApp } from '../state/store'
 import { Karaoke } from '../components/Karaoke'
 import { RubyText } from '../components/Ruby'
+import { VoiceInput } from '../components/VoiceInput'
 import { hasKanji } from '../lib/furigana'
 import { toast } from '../components/ui'
 
@@ -243,6 +245,14 @@ export function PatternView({ onDone }: { onDone: () => void }) {
               送出
             </button>
           </div>
+          {/* 用說的：辨識結果併進輸入框，使用者確認／修改後才送出（ASR 會聽錯） */}
+          {!check && (
+            <VoiceInput
+              disabled={loading}
+              hint="說出來也可以——辨識結果會先填進輸入框"
+              onText={(txt) => setInput((cur) => mergeSpoken(cur, txt))}
+            />
+          )}
 
           {check && (
             <div className="composeCk">

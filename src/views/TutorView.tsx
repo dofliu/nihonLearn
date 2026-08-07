@@ -13,7 +13,9 @@ import {
 } from '../lib/tutorQuiz'
 import { db } from '../db/schema'
 import { hasKanji } from '../lib/furigana'
+import { mergeSpoken } from '../lib/voiceInput'
 import { RubyText } from '../components/Ruby'
+import { VoiceInput } from '../components/VoiceInput'
 import { speak } from '../audio/tts'
 import { useApp } from '../state/store'
 import { toast } from '../components/ui'
@@ -347,6 +349,12 @@ function TutorQuiz({ known }: { known: string[] }) {
               送出作答
             </button>
           </div>
+          {/* 用說的：辨識結果併進輸入框，使用者確認／修改後才送出（ASR 會聽錯） */}
+          <VoiceInput
+            disabled={loading}
+            hint="說出來也可以——辨識結果會先填進輸入框"
+            onText={(txt) => setInput((cur) => mergeSpoken(cur, txt))}
+          />
           <div className="row center" style={{ marginTop: 10 }}>
             <button className="btn small ghost" onClick={() => setRevealed(true)}>
               看參考答案
