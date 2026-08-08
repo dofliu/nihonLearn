@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { chatGeminiJSON, chatGemini, hasLLM } from '../lib/llm'
 import { personalKnownWords } from '../lib/content'
+import { logActivity } from '../db/repo'
 import {
   buildAskSystem,
   buildAskUser,
@@ -82,6 +83,8 @@ export function FollowUp({ sent }: { sent: { id: string; jp: string; zh: string 
     const my = input.trim()
     if (!my || !q || loading) return
     setLoading(true)
+    // 臨場組句回答＝一次練習，記入学習記録（選配加練，不計「口」任務、不卡蓋章）
+    void logActivity('followup')
     try {
       const text = await chatGemini(buildReplySystem(known), [
         { role: 'user', text: buildReplyUser(q, my) },

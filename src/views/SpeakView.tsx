@@ -25,10 +25,17 @@ function markColor(score: number) {
   return score >= 80 ? 'var(--take)' : score >= 55 ? 'var(--yama)' : 'var(--shu)'
 }
 
-export function SpeakView({ onOpenReview }: { onOpenReview: () => void }) {
+export function SpeakView({
+  onOpenReview,
+  initialTab = 'shadow',
+}: {
+  onOpenReview: () => void
+  /** 進來時要落在哪個分頁（今日頁「自由対話」加練會直接指定 'dialogue'）。 */
+  initialTab?: 'shadow' | 'dialogue'
+}) {
   const bump = useApp((s) => s.bump)
   const showKanji = useApp((s) => s.showKanji)
-  const [tab, setTab] = useState<'shadow' | 'dialogue'>('shadow')
+  const [tab, setTab] = useState<'shadow' | 'dialogue'>(initialTab)
   const [lv, setLv] = useState<1 | 2 | 3>(1)
   const [idx, setIdx] = useState(0)
   const [recording, setRecording] = useState(false)

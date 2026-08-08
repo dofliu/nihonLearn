@@ -13,6 +13,7 @@ import {
 import { chatGeminiJSON, hasLLM } from '../lib/llm'
 import { parseRoleplayTurn } from '../lib/llmParse'
 import { personalKnownWords } from '../lib/content'
+import { logActivity } from '../db/repo'
 import { mergeSpoken } from '../lib/voiceInput'
 import { speak } from '../audio/tts'
 import { useApp } from '../state/store'
@@ -132,6 +133,8 @@ function RoleplayChat({ sc, onBack }: { sc: RoleplayScene; onBack: () => void })
       if (!turn) throw new Error('gemini-bad-json')
       setEntries([...next, entryFromTurn(turn)])
       speak(turn.jp, rate)
+      // AI 的台詞不入庫，但「你自己組了一句話」這件練習記入学習記録（選配加練）
+      void logActivity('roleplay')
     } catch (e) {
       const err = (e as Error).message
       toast(

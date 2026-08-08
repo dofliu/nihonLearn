@@ -30,12 +30,14 @@ export function TodayView({
   onOpenQuiz,
   onOpenTutor,
   onOpenPattern,
+  onOpenRoleplay,
 }: {
   onNav: (t: Tab) => void
   onOpenProgress: () => void
   onOpenQuiz: () => void
   onOpenTutor: () => void
   onOpenPattern: () => void
+  onOpenRoleplay: () => void
 }) {
   const { counts, streak, rate, asrAvg, setRate, showKanji } = useApp()
   const [stampDates, setStampDates] = useState<Set<string>>(new Set())
@@ -73,6 +75,8 @@ export function TodayView({
     { key: 'quiz', emoji: '📝', label: 'N5 測驗', hint: '從學過的詞出題，抓弱點', onClick: onOpenQuiz },
     { key: 'pitch', emoji: '📈', label: '重音道場', hint: '辨識東京式高低音', onClick: () => onNav('listen') },
     { key: 'pattern', emoji: '🧩', label: '文型ドリル', hint: '一個句型換不同單字', onClick: onOpenPattern },
+    { key: 'roleplay', emoji: '🗣', label: '自由対話', hint: 'AI 扮演對方，你自己組句回話', onClick: onOpenRoleplay },
+    { key: 'tutor', emoji: '🎯', label: '助教考我', hint: '看中文自己說日文，再對參考答案', onClick: onOpenTutor },
   ]
   const todayExtra = EXTRAS[dayIndex % EXTRAS.length]
 

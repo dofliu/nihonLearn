@@ -32,7 +32,22 @@ import { alignFurigana, hasKanji, stripIgnored } from '../src/lib/furigana.ts'
 import { DIALOGUES } from '../src/data/dialogues.ts'
 import { SENTS } from '../src/data/sentences.ts'
 import { scoreHandwriting, dilate, gradeOf } from '../src/lib/handwriting.ts'
-import { totalsByDay, totalsByFeature, featuresOnDay, activeDayCount, heatLevel, calendarCells } from '../src/lib/activity.ts'
+import {
+  totalsByDay,
+  totalsByFeature,
+  featuresOnDay,
+  activeDayCount,
+  heatLevel,
+  calendarCells,
+  featureGroup,
+  hasExtraFeature,
+  extraDays,
+  groupTotals,
+  CORE_FEATURES,
+  EXTRA_FEATURES,
+  AI_FEATURES,
+  FEATURE_LABEL,
+} from '../src/lib/activity.ts'
 import { PATTERNS } from '../src/data/patterns.ts'
 import { poolFor, candidatesFor, buildItem, itemsFor, dailyPattern } from '../src/lib/patternDrill.ts'
 import { KANJI_STROKES, KANJI_STROKE_VIEWBOX } from '../src/data/kanjiStrokes.ts'
@@ -444,6 +459,60 @@ console.log('=== 5n. 學習活動統計 ===')
   const cells = calendarCells(rows, ['2026-07-01', '2026-07-02', '2026-07-03'])
   ok('日曆格對齊日期序', cells.length === 3 && cells[0].day === '2026-07-01')
   ok('日曆格帶總數與分級', cells[0].count === 13 && cells[0].level === 3 && cells[2].count === 0 && cells[2].level === 0)
+}
+
+console.log('=== 5x. AI 互動練習記入学習記録（分組／金印判定） ===')
+{
+  const core = CORE_FEATURES as readonly string[]
+  const extra = EXTRA_FEATURES as readonly string[]
+  const ai = AI_FEATURES as readonly string[]
+
+  ok('核心仍是五修行', core.length === 5)
+  ok('核心與選配不重疊', core.every((f) => !extra.includes(f)))
+  ok('選配 key 不重複', new Set(extra).size === extra.length)
+  ok('AI 互動三項＝自由対話/助教考我/追問', ai.join(',') === 'roleplay,tutor,followup')
+  ok('AI 互動三項都算選配加練', ai.every((f) => extra.includes(f)))
+  ok('每個 feature 都有中文標籤', [...core, ...extra].every((f) => !!FEATURE_LABEL[f]))
+  ok('標籤不重複（統計條不會兩列同名）', (() => {
+    const labels = [...core, ...extra].map((f) => FEATURE_LABEL[f])
+    return new Set(labels).size === labels.length
+  })())
+
+  ok('featureGroup：核心', featureGroup('kana') === 'core' && featureGroup('speak') === 'core')
+  ok('featureGroup：選配（含 AI 互動）', featureGroup('write') === 'extra' && featureGroup('roleplay') === 'extra' && featureGroup('tutor') === 'extra' && featureGroup('followup') === 'extra')
+  ok('featureGroup：未知 feature 不誤判', featureGroup('nope') === 'other' && featureGroup('') === 'other')
+
+  ok('hasExtraFeature：只有核心 → false', !hasExtraFeature(['kana', 'vocab', 'listen', 'speak', 'read']))
+  ok('hasExtraFeature：做了自由対話 → true（金印）', hasExtraFeature(new Set(['kana', 'roleplay'])))
+  ok('hasExtraFeature：做了追問 → true（金印）', hasExtraFeature(['followup']))
+  ok('hasExtraFeature：未知 feature 不算加練', !hasExtraFeature(['nope']))
+  ok('hasExtraFeature：空集合 → false', !hasExtraFeature([]))
+
+  const rows = [
+    { day: '2026-08-01', feature: 'kana', count: 10 },
+    { day: '2026-08-01', feature: 'roleplay', count: 2 }, // 核心 + AI 互動 → 金印日
+    { day: '2026-08-02', feature: 'speak', count: 3 }, // 只有核心 → 非金印日
+    { day: '2026-08-03', feature: 'tutor', count: 1 },
+    { day: '2026-08-04', feature: 'followup', count: 0 }, // count 0 不算練過
+    { day: '2026-08-05', feature: 'nope', count: 5 }, // 未知 feature 不算加練
+  ]
+  const days = extraDays(rows)
+  ok('extraDays：有 AI 互動的日子入列', days.has('2026-08-01') && days.has('2026-08-03'))
+  ok('extraDays：只有核心的日子不入列', !days.has('2026-08-02'))
+  ok('extraDays：count 0 不入列', !days.has('2026-08-04'))
+  ok('extraDays：未知 feature 不入列', !days.has('2026-08-05'))
+
+  const g = groupTotals(rows)
+  ok('groupTotals：核心累計 13', g.core === 13)
+  ok('groupTotals：加練累計 3', g.extra === 3)
+  ok('groupTotals：AI 互動累計 3', g.ai === 3)
+  ok('groupTotals：AI 互動 ⊆ 加練', g.ai <= g.extra)
+  const g2 = groupTotals([
+    { day: 'd', feature: 'write', count: 4 },
+    { day: 'd', feature: 'roleplay', count: 1 },
+  ])
+  ok('groupTotals：非 AI 的加練不計入 ai', g2.extra === 5 && g2.ai === 1)
+  ok('groupTotals：空輸入全 0', (() => { const z = groupTotals([]); return z.core === 0 && z.extra === 0 && z.ai === 0 })())
 }
 
 console.log('=== 5o. 文型ドリル（句型 × 已學單字） ===')

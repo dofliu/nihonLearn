@@ -440,6 +440,36 @@ v3.34（口說作答擴散到三處 AI 練習）：ROADMAP「🔴 互動深化�
 「追問可以用說的，填進輸入框後未自動送出→確認後才有講評」；pattern.spec「自由造句用說的，
 說兩次→未自動檢核→送出後程式檢核通過（無金鑰也有回饋）」）、`npm run build` strict 綠燈。
 
+v3.35（AI 互動練習記入学習記録＋金印）：v3.29–v3.32 四項 AI 互動練習（自由対話／助教「考我」／
+跟讀追問／文型自由造句）都各自留了同一個「可續做」——**練了不算數**：`activityLog` 沒記、成長頁
+看不到、也不影響金印。這次一次結掉：`lib/activity.ts` `EXTRA_FEATURES` 由 4 項擴為 7 項，新增
+`roleplay`（自由対話）／`tutor`（助教考我）／`followup`（跟讀追問）三個 feature key
+（自由造句早已併在 `pattern` 底下計數，維持不動），三處在使用者**產出一句日文**的當下
+`logActivity`——`RoleplayView` AI 成功回話後、`TutorView TutorQuiz.submit()` 揭曉答案時
+（**無金鑰也記**，因為沒金鑰照樣是「自己造句 → 對參考答案」的完整練習）、`components/FollowUp.tsx`
+送出回答時（在呼叫 Gemini 之前——講評連線失敗不該抹掉「你已經練過了」）。
+**順手把金印判定抽成純函式**（原本 `repo.ts` 與 `store.ts` 各寫一次 EXTRA_FEATURES 比對）：
+`activity.ts` 新增 `featureGroup()`（core／extra／other）、`hasExtraFeature()`（大印升金用）、
+`extraDays()`（蓋章格金印用，`repo.extraActiveDays` 改為薄包裝）、`groupTotals()`（核心／加練／
+其中 AI 互動的累計），`store.ts`／`repo.ts` 改呼叫之——**判定行為不變，但變成可被 Node 測試**。
+UI：①今日頁「今日の加練」輪替由 4 項增為 6 項（加 🗣 自由対話、🎯 助教考我；追問綁在跟読流程內、
+無獨立入口，故不進輪替但照樣記錄）；②「🗣 自由対話」是唯一需要繞路的入口，故 `App` 加 `speakTab`
+狀態、`SpeakView` 加 `initialTab` prop，讓今日頁點下去**直接落在話す▸会話分頁**（一般 nav 切換
+仍一律回「跟読」）；③`ProgressView`「学習記録」加「核心 n・加練 m」與「AI 互動練習 k」統計 chip
+（`groupTotals`），各項目累計條自動長出三個新項目。
+**刻意不動的部分**：每日 5 核心／10 分鐘蓋章門檻不變（新增的都是選配加練、不卡蓋章）；AI 生成的
+日文與講評仍**僅供參考、不寫入學習庫、不進 SRS**——這次記的是「你練了幾次」這個行為統計，
+不是 AI 的產出內容。不動 Dexie schema（沿用 v8 `activityLog`，新 feature 只是新的字串值）。
+
+測試：`npm test` 379/379（新增 5x 分組與金印判定共 25 項：核心/選配不重疊與 key 不重複、三個
+AI feature 都在 `EXTRA_FEATURES` 內、每個 feature 都有**不重複**的中文標籤、`featureGroup` 三種
+分組含未知 feature 不誤判、`hasExtraFeature` 五情境、`extraDays` 四情境（count 0 與未知 feature
+不入列）、`groupTotals` 六情境（AI ⊆ 加練、空輸入全 0））、`npm run test:e2e` 69/69（activity.spec
+新增兩項：「今日頁→🗣 自由対話直接落在会話分頁→聊一回合→記入 activityLog→今日加練打勾→
+統計頁出現『自由対話』累計條與 AI 互動練習 chip」、「助教考我作答（無金鑰）→記入 activityLog→
+口の修行仍 0/3、今日未蓋章」；speak.spec 追問測試延伸驗證 `followup` 有記錄且「口」任務不受影響；
+`e2e/helpers.ts` 抽出共用的 `activityCount()`）、`npm run build` strict 綠燈。
+
 ---
 
 ## ⭐ 本機實測任務（此專案轉到 Claude Code 的主因）
@@ -535,7 +565,7 @@ Claude Code 在本機可以真正跑起來、觀察、修正。建議依序進�
 
 ## 提交前檢查
 
-`npm run build`（strict 綠燈）＋ `npm test`（354/354）＋ `npm run test:e2e`（67/67）
+`npm run build`（strict 綠燈）＋ `npm test`（379/379）＋ `npm run test:e2e`（69/69）
 ＋（動到 sidecar 時）`python sidecar/test_score.py` 與 `python sidecar/test_article.py`。
 新功能盡量補測：純邏輯進 `tests/integration.ts`，UI 流程進 `e2e/*.spec.ts`（共用步驟放
 `e2e/helpers.ts`），後端進 `test_score.py`。

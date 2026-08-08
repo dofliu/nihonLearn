@@ -223,6 +223,34 @@ export async function completeRead(page: Page) {
   await page.getByRole('button', { name: /読了/ }).click()
 }
 
+/** 讀 activityLog 中某 feature 的累計次數（学習記録驗證用） */
+export async function activityCount(page: Page, feature: string): Promise<number> {
+  return page.evaluate(
+    (feat: string) =>
+      new Promise<number>((resolve, reject) => {
+        const req = indexedDB.open('nihongo-michi')
+        req.onsuccess = () => {
+          const db = req.result
+          const tx = db.transaction('activityLog', 'readonly')
+          let n = 0
+          tx.objectStore('activityLog').openCursor().onsuccess = (e: Event) => {
+            const cur = (e.target as IDBRequest).result as IDBCursorWithValue | null
+            if (cur) {
+              if (cur.value.feature === feat) n += cur.value.count
+              cur.continue()
+            } else {
+              db.close()
+              resolve(n)
+            }
+          }
+          tx.onerror = () => reject(tx.error)
+        }
+        req.onerror = () => reject(req.error)
+      }),
+    feature,
+  )
+}
+
 /** 今日頁上某任務列（依名稱關鍵字） */
 export function taskRow(page: Page, keyword: string) {
   return page.locator('.task', { hasText: keyword })
