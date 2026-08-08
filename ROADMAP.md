@@ -5,7 +5,13 @@
 > 設計原則不變：**正確性交給權威來源與程式驗證，AI 生成一律人工審核採用才入庫；
 > 使用者只做策展，不當正確性把關者。**
 
-最後更新：v3.35（AI 互動練習記入学習記録＋金印——一次結掉 v3.29–v3.32 各自留下的同一個
+最後更新：v3.36（五十音圖一覽表——**使用者直接指定的功能**：かな頁加「📋 五十音圖」查閱表，
+平假名／片假名 × 清音／濁音／拗音，每格附羅馬字，點格朗讀、可「播放全部」並中途停止，另有
+「用單字卡練習」直接開 FSRS 一輪。純函式 `lib/kanaChart.ts` **把整張表從已驗證的 `data/kana.ts`
+推導出來、不手打任何讀音**：清音／濁音靠「前半平假名、後半片假名同索引＝同音」的配對取字，
+拗音靠「い段假名＋小 ゃ/ゅ/ょ」與羅馬字規則（sh/ch/j 直接接母音、其餘接 y＋母音）推導；
+`KANA` 維持 142 枚不動，拗音只在這張查閱表出現、不進 SRS）。
+前一版 v3.35（AI 互動練習記入学習記録＋金印——一次結掉 v3.29–v3.32 各自留下的同一個
 「可續做②：不記入学習記録」。`lib/activity.ts` `EXTRA_FEATURES` 加 `roleplay`／`tutor`／`followup`
 三個 feature key，三處在「使用者產出一句日文」的當下 `logActivity`（助教考我無金鑰時照樣記）；
 金印判定邏輯抽成純函式 `featureGroup`／`hasExtraFeature`／`extraDays`／`groupTotals`（行為不變、
@@ -138,7 +144,7 @@ v3.28，互不依賴，已依序合併入 main。
 ## 目前狀態
 
 - **程式碼**：Web/PWA 與 Android（Capacitor 殼）皆完成；CI（web 測試＋e2e＋Android `assembleDebug`）綠燈。
-- **測試**：`npm test` 379/379、`npm run test:e2e` 69/69、`sidecar/test_score.py` 4/4、`test_article.py` 13/13、`npm run build` strict 綠燈。
+- **測試**：`npm test` 414/414、`npm run test:e2e` 72/72、`sidecar/test_score.py` 4/4、`test_article.py` 13/13、`npm run build` strict 綠燈。
 - **尚未做**：Android 真機驗收（清單 `tests/MANUAL_QA-ANDROID.md`）與 Google Play 封閉測試——**未通過前勿送審**。
 
 ## 已完成里程碑（摘要）
@@ -170,6 +176,7 @@ v3.28，互不依賴，已依序合併入 main。
 | 文型ドリル「自由造句」（`lib/patternCompose.ts`）：自己挑詞造句，句型骨架與填空詞由程式檢核（無金鑰亦可），LLM 只生中文講評 | v3.32 |
 | 自由対話「用說的」（`lib/voiceInput.ts`＋`components/VoiceInput.tsx`）：麥克風輸入，辨識結果先填輸入框可改再送；無 ASR 時鈕不顯示 | v3.33 |
 | 口說作答擴散到三處（助教「考我」／跟讀追問／文型自由造句共用 `VoiceInput`，規矩一致：只填輸入框、送出後鈕退場、無 ASR 不顯示） | v3.34 |
+| 五十音圖一覽表（`lib/kanaChart.ts`＋`components/KanaChart.tsx`：平/片 × 清/濁/拗音、附羅馬字、點格朗讀與播放全部；全表由已驗證 `data/kana` 推導，拗音走規則、不進 SRS 卡組） | v3.36 |
 | AI 互動練習記入学習記録＋金印（`roleplay`／`tutor`／`followup` 三個 feature key；金印判定抽成純函式 `featureGroup`／`hasExtraFeature`／`extraDays`／`groupTotals`；今日頁加練輪替 4→6、成長頁加分組 chip） | v3.35 |
 
 
@@ -191,6 +198,14 @@ v3.28，互不依賴，已依序合併入 main。
   `unpkg.com`）則否。若有 npm 套件形式打包的重音／字典資料（仿 v3.24 用 `@madcat/kanjivg` 取得
   KanjiVG 的做法），可比照：`npm pack` 下載、本機解包擷取所需子集成純資料檔，**不加入 package.json
   相依性**。下次可先 `npm view`/`npm search` 找看看有無這類 OJAD／字典衍生封裝。
+
+### 2.5 五十音圖續做 〔v3.36 之後，呈現層為主〕
+- ~~五十音圖一覽表~~（v3.36：`lib/kanaChart.ts`＋`components/KanaChart.tsx`）。可續做：
+  ①**拗音目前不進 SRS**（刻意——加進去會讓 `KANA` 從 142 變 208、影響每日修行範圍與
+  `lib/vocabGate.ts` 的解鎖判定）。若日後要練拗音，建議做成**獨立的選配練習**（比照書寫／測驗），
+  而不是塞進核心卡組；②圖上的格子目前用底線標已學／定著，可考慮加「只看還沒學的」篩選；
+  ③長音・促音（ー／っ）與外來語專用音（ファ／ティ 等）未收——這些不是五十音圖的一部分，
+  要做應另開一張「特殊音」對照表，且同樣不可讓 LLM 生讀音。
 
 ### 3. 漢字模式深化 〔內容深化〕
 - 短文提供漢字／假名雙版切換（目前部分短文已有 ruby）。
