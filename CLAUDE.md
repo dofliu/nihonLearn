@@ -40,10 +40,10 @@ src/
   db/         schema(Dexie v8)・repo（任務計數、蓋章、卡片、發音紀錄、生成句）
   srs/        scheduler：ts-fsrs 封裝（newCard/review/isDue/isMastered）
   audio/      tts（VOICEVOX▸原生▸WebSpeech 門面 + 逐字 boundary 回呼）・scorer（相似度 + ASR + whisper 錄音 + mora 型別）
-  lib/        date・importV1（v1→v2 遷移 + 備份匯出）・content（生成 client + 持久化審核佇列 + 採用）・listening（聽力理解＋JLPT 題型出題，純函式）・articles（NHK Easy 導入 client + 採用）・llm（Gemini 直連 + 金鑰/模型本機儲存）・llmParse（Gemini 回應純解析）・coverage（覆蓋率檢核，無依賴）・pitch（mora 切分 + 東京式 pattern）・sidecar（base URL 抽象 + probeHealth）・vocabGate（詞彙隨假名解鎖，純函式）・quiz（N5 模擬測驗出題，純函式）・karaoke（朗讀逐字上色對齊，純函式）・furigana（漢字↔假名注音對齊，純函式）・handwriting（手寫字形相似度評分，純函式）・activity（學習活動統計，純函式）・patternDrill（句型×已學單字組句，純函式）・roleplay（自由対話場景/prompt/歷史組裝，純函式）・tutorQuiz（助教「考我」出題＋講評 prompt/解析，純函式）・followUp（跟讀後 AI 追問 prompt/解析，純函式）・patternCompose（自由造句句型骨架程式檢核＋講評 prompt，純函式）・voiceInput（語音輸入候選挑選/合併/錯誤訊息，純函式）
+  lib/        date・importV1（v1→v2 遷移 + 備份匯出）・content（生成 client + 持久化審核佇列 + 採用）・listening（聽力理解＋JLPT 題型出題，純函式）・articles（NHK Easy 導入 client + 採用）・llm（Gemini 直連 + 金鑰/模型本機儲存）・llmParse（Gemini 回應純解析）・coverage（覆蓋率檢核，無依賴）・pitch（mora 切分 + 東京式 pattern）・sidecar（base URL 抽象 + probeHealth）・vocabGate（詞彙隨假名解鎖，純函式）・quiz（N5 模擬測驗出題，純函式）・karaoke（朗讀逐字上色對齊，純函式）・furigana（漢字↔假名注音對齊，純函式）・handwriting（手寫字形相似度評分，純函式）・activity（學習活動統計，純函式）・kanaChart（五十音圖表格結構＋拗音規則推導，純函式）・patternDrill（句型×已學單字組句，純函式）・roleplay（自由対話場景/prompt/歷史組裝，純函式）・tutorQuiz（助教「考我」出題＋講評 prompt/解析，純函式）・followUp（跟讀後 AI 追問 prompt/解析，純函式）・patternCompose（自由造句句型骨架程式檢核＋講評 prompt，純函式）・voiceInput（語音輸入候選挑選/合併/錯誤訊息，純函式）
   state/      store（zustand：今日/streak/rate/tts/showKanji）
-  views/      Today・Kana(含 Write 書寫練習)・Listen(含 Pitch)・Speak(含 Dialogue 会話＋Roleplay 自由対話)・Read・Progress・Review・Pattern(文型ドリル，含自由造句)
-  components/ Nav・ui(toast/大印/進度條)・VocabCard・Karaoke・Ruby・StrokeOrder・FollowUp(跟讀追問)・VoiceInput(共用麥克風鈕)
+  views/      Today・Kana(含 Write 書寫練習・五十音圖一覽表)・Listen(含 Pitch)・Speak(含 Dialogue 会話＋Roleplay 自由対話)・Read・Progress・Review・Pattern(文型ドリル，含自由造句)
+  components/ Nav・ui(toast/大印/進度條)・KanaChart(五十音圖)・VocabCard・Karaoke・Ruby・StrokeOrder・FollowUp(跟讀追問)・VoiceInput(共用麥克風鈕)
 sidecar/      FastAPI：/health /tts /speakers /score /content /article/*；article.py（NHK Easy 解析，純函式）；mock_voicevox.py（假 engine）；test_score.py・test_article.py
 tests/        integration.ts（npm test）・INTEGRATION_REPORT.md・MANUAL_QA.md
 e2e/          Playwright 端到端測試（npm run test:e2e）・helpers.ts（共用步驟）
@@ -470,6 +470,31 @@ AI feature 都在 `EXTRA_FEATURES` 內、每個 feature 都有**不重複**的�
 口の修行仍 0/3、今日未蓋章」；speak.spec 追問測試延伸驗證 `followup` 有記錄且「口」任務不受影響；
 `e2e/helpers.ts` 抽出共用的 `activityCount()`）、`npm run build` strict 綠燈。
 
+v3.36（五十音圖一覽表）：使用者指定——かな頁加「📋 五十音圖」查閱表（`components/KanaChart.tsx`），
+**平假名／片假名 × 清音／濁音／拗音**六種組合，每格假名下方附羅馬字，有欄標（A I U E O，
+拗音為 YA YU YO）與列標（`_` K S T N H M Y R W／`n`；濁音 G Z D B P；拗音 KY SH CH NY HY MY RY
+GY J BY PY），點一格唸一次、「▶ 播放全部」依序朗讀可中途「■ 停止」，另有「📇 用單字卡練習」
+直接開始 FSRS 一輪。
+**正確性策略是本次重點：整張表不手打任何假名或讀音**——純函式 `lib/kanaChart.ts` 全部從已驗證的
+`data/kana.ts` 推導：①清音／濁音格由索引取出（`KANA` 前半平假名、後半片假名，**同索引＝同一個音**，
+測試逐枚驗證這個配對；注意 `ro` 不唯一——じ/ぢ 同為 ji、ず/づ 同為 zu，所以必須用索引配對而非
+羅馬字查表）；②**拗音由規則推導**（い段假名＋小寫 ゃ/ゅ/ょ；羅馬字＝基底去掉字尾 i 的詞幹，詞幹為
+sh/ch/j 時直接接母音成 sha/cha/ja，其餘接 y＋母音成 kya/nya/hya），`yoonRomaji`／`yoonRowKey`
+兩個純函式各自有測試釘住規則（開發中這組測試就抓到一個真 bug：`hi` 的詞幹是 `h`，原本的
+`endsWith('h')` 判斷會誤推成 `ha`，改為明列 `['sh','ch','j']`）。ぢ 行拗音依慣例不入圖。
+**刻意不動 SRS 卡組**：`data/kana.ts` 的 `KANA` 維持 142 枚（拗音只在這張查閱表出現、`id` 為 null、
+不進 FSRS，UI 也明說「不列入每日修行」）——不改動每日修行範圍，也不影響 `vocabGate` 的解鎖判定。
+清音／濁音格會用底線顏色標你的修行進度（藍＝已學、綠＝定著），拗音格因無卡片故不標記。
+CSS 新增 `.kanaChart` 系列（沿用既有 `--washi2`／`--ai`／`--take`／`--shu` 色票與 `.lvTabs` 分頁樣式）。
+
+測試：`npm test` 414/414（新增 5y 共 35 項：平片假名同索引同音的逐枚配對、清音 46／濁音 25／
+拗音 33 的格數與列標順序、や行わ行空格與 ん 單獨一列、拗音羅馬字五組規則、拗音每格＝い段＋小假名
+且基底可回查 `KANA`、不含 ぢ 行、拗音 id 為 null 而清音濁音每格都對得回卡片 id、播放順序與
+`charOf` 取字、三組字皆不重複、「清音＋濁音＝KANA 一半且總數仍 142」的卡組未被更動守衛）、
+`npm run test:e2e` 72/72（新增 `kana-chart.spec.ts` 三項：清音表欄列標與平↔片切換、濁音／拗音分頁
+格數與內容含拗音三欄、點格子唸一次＋播放全部可停止＋用單字卡練習進入 FSRS——TTS 攔在
+`window.speechSynthesis` 層記錄唸過的字）、`npm run build` strict 綠燈。
+
 ---
 
 ## ⭐ 本機實測任務（此專案轉到 Claude Code 的主因）
@@ -565,7 +590,7 @@ Claude Code 在本機可以真正跑起來、觀察、修正。建議依序進�
 
 ## 提交前檢查
 
-`npm run build`（strict 綠燈）＋ `npm test`（379/379）＋ `npm run test:e2e`（69/69）
+`npm run build`（strict 綠燈）＋ `npm test`（414/414）＋ `npm run test:e2e`（72/72）
 ＋（動到 sidecar 時）`python sidecar/test_score.py` 與 `python sidecar/test_article.py`。
 新功能盡量補測：純邏輯進 `tests/integration.ts`，UI 流程進 `e2e/*.spec.ts`（共用步驟放
 `e2e/helpers.ts`），後端進 `test_score.py`。

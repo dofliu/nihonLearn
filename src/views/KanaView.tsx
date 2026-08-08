@@ -7,8 +7,9 @@ import { speak } from '../audio/tts'
 import { useApp } from '../state/store'
 import { toast, ProgressBar } from '../components/ui'
 import { WriteView } from './WriteView'
+import { KanaChart } from '../components/KanaChart'
 
-type Mode = 'home' | 'session' | 'ear' | 'write'
+type Mode = 'home' | 'session' | 'ear' | 'write' | 'chart'
 
 export function KanaView() {
   const bump = useApp((s) => s.bump)
@@ -143,6 +144,23 @@ export function KanaView() {
     return <EarQuiz learnedSet={learnedSet} onExit={() => { setMode('home'); void refreshMap() }} />
   }
 
+  if (mode === 'chart') {
+    return (
+      <>
+        <div className="card">
+          <button className="btn small ghost" onClick={() => setMode('home')}>
+            ← 返回五十音道場
+          </button>
+        </div>
+        <KanaChart
+          learnedSet={learnedSet}
+          masteredMap={cardMap}
+          onPractice={() => void start()}
+        />
+      </>
+    )
+  }
+
   if (mode === 'write') {
     return (
       <>
@@ -178,6 +196,9 @@ export function KanaView() {
       <div className="row">
         <button className="btn" onClick={() => void start()}>
           開始今日修行
+        </button>
+        <button className="btn ghost" onClick={() => setMode('chart')}>
+          📋 五十音圖
         </button>
         <button className="btn ghost" onClick={() => setMode('ear')}>
           音 → 字 測驗

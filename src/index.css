@@ -472,6 +472,67 @@ h2 {
   background: rgba(78, 141, 110, 0.18);
   color: #2f6a50;
 }
+/* 五十音圖（一覽表）：欄／列標＋每格假名與羅馬字 */
+.kanaChart {
+  display: grid;
+  gap: 4px;
+  margin-top: 12px;
+  align-items: stretch;
+}
+.kanaChart .kcCorner {
+  min-height: 1px;
+}
+.kanaChart .kcCol,
+.kanaChart .kcRow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--nezu);
+}
+.kanaChart .kcCell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  padding: 7px 0 5px;
+  border: 1.5px solid transparent;
+  border-radius: 9px;
+  background: var(--washi2);
+  cursor: pointer;
+  font-family: inherit;
+  color: var(--sumi);
+}
+.kanaChart .kcCell.empty {
+  background: transparent;
+  cursor: default;
+  border-color: transparent;
+}
+.kanaChart .kcCh {
+  font-family: var(--disp);
+  font-size: 20px;
+  line-height: 1.15;
+}
+.kanaChart .kcRo {
+  font-size: 10.5px;
+  color: var(--nezu);
+  letter-spacing: 0.03em;
+}
+/* 修行進度：底線標記（不動格子底色，避免與「正在播放」搶視覺） */
+.kanaChart .kcCell.learn {
+  border-bottom-color: var(--ai);
+}
+.kanaChart .kcCell.master {
+  border-bottom-color: var(--take);
+}
+.kanaChart .kcCell.on {
+  border-color: var(--shu);
+  background: rgba(199, 65, 47, 0.14);
+}
+
 .catTag {
   font-size: 11px;
   letter-spacing: 0.2em;

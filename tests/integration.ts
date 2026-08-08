@@ -68,6 +68,16 @@ import {
   voiceErrorMessage,
 } from '../src/lib/voiceInput.ts'
 import {
+  chartRows,
+  columnsFor,
+  charsInOrder,
+  cellsOf,
+  charOf,
+  yoonRomaji,
+  yoonRowKey,
+  HALF,
+} from '../src/lib/kanaChart.ts'
+import {
   buildAskSystem,
   buildAskUser,
   parseFollowUpQuestion,
@@ -982,6 +992,93 @@ console.log('=== 5w. 語音輸入（口說回話）純邏輯 ===')
   ok(
     '除了取消，其餘皆提供打字退路',
     codes.every((c) => voiceErrorMessage(c).includes('打字')),
+  )
+}
+
+console.log('=== 5y. 五十音圖（表格結構與拗音推導） ===')
+{
+  // 前提：KANA 前半平假名、後半片假名，同索引＝同一個音（整張圖靠這個配對取字）
+  ok('平片假名等量', HALF === 71 && KANA.length === HALF * 2)
+  ok(
+    '同索引＝同音（羅馬字逐枚相符）',
+    KANA.slice(0, HALF).every((h, i) => h.ro === KANA[i + HALF].ro),
+  )
+  ok(
+    '同索引前半平假名／後半片假名',
+    KANA.slice(0, HALF).every((h, i) => h.script === 'hiragana' && KANA[i + HALF].script === 'katakana'),
+  )
+
+  // 欄標
+  ok('清音/濁音五欄、拗音三欄', columnsFor('seion').length === 5 && columnsFor('dakuon').length === 5 && columnsFor('yoon').join() === 'YA,YU,YO')
+
+  // 清音：46 音、や/わ行有空格、ん 單獨一列
+  const seion = chartRows('seion')
+  const seionCells = cellsOf('seion')
+  ok('清音 46 音', seionCells.length === 46)
+  ok('清音列標依序', seion.map((r) => r.key).join() === '_,K,S,T,N,H,M,Y,R,W,n')
+  ok('あ行第一格＝あ/ア/a', (() => { const c = seion[0].cells[0]!; return c.h === 'あ' && c.k === 'ア' && c.ro === 'a' })())
+  ok('や行只有 3 格（い段/え段留空）', seion[7].cells.filter(Boolean).length === 3 && seion[7].cells[1] === null && seion[7].cells[3] === null)
+  ok('わ行只有 わ／を', (() => { const r = seion[9].cells; return r.filter(Boolean).length === 2 && r[0]!.ro === 'wa' && r[4]!.ro === 'wo' })())
+  ok('ん 自成一列', (() => { const r = seion[10]; return r.key === 'n' && r.cells.filter(Boolean).length === 1 && r.cells[0]!.h === 'ん' && r.cells[0]!.k === 'ン' })())
+  ok('清音不含濁點', seionCells.every((c) => !'がざだばぱ'.includes(c.h)))
+
+  // 濁音／半濁音：25 音
+  const dakuon = chartRows('dakuon')
+  ok('濁音 25 音', cellsOf('dakuon').length === 25)
+  ok('濁音列標依序', dakuon.map((r) => r.key).join() === 'G,Z,D,B,P')
+  ok('が/ガ/ga 在第一格', (() => { const c = dakuon[0].cells[0]!; return c.h === 'が' && c.k === 'ガ' && c.ro === 'ga' })())
+  ok('半濁音 ぱ 行在最後', dakuon[4].cells[0]!.h === 'ぱ' && dakuon[4].cells[0]!.ro === 'pa')
+
+  // 拗音：由規則推導，不手打
+  ok('拗音羅馬字規則：ki→kya/kyu/kyo', yoonRomaji('ki', 'a') === 'kya' && yoonRomaji('ki', 'u') === 'kyu' && yoonRomaji('ki', 'o') === 'kyo')
+  ok('拗音羅馬字規則：shi→sha/shu/sho', yoonRomaji('shi', 'a') === 'sha' && yoonRomaji('shi', 'u') === 'shu' && yoonRomaji('shi', 'o') === 'sho')
+  ok('拗音羅馬字規則：chi→cha/chu/cho', yoonRomaji('chi', 'a') === 'cha' && yoonRomaji('chi', 'o') === 'cho')
+  ok('拗音羅馬字規則：ji→ja/ju/jo', yoonRomaji('ji', 'a') === 'ja' && yoonRomaji('ji', 'u') === 'ju' && yoonRomaji('ji', 'o') === 'jo')
+  ok('拗音羅馬字規則：ni→nya、hi→hya、ri→rya', yoonRomaji('ni', 'a') === 'nya' && yoonRomaji('hi', 'a') === 'hya' && yoonRomaji('ri', 'a') === 'rya')
+  ok('拗音列標由規則推導', yoonRowKey('ki') === 'KY' && yoonRowKey('shi') === 'SH' && yoonRowKey('chi') === 'CH' && yoonRowKey('ji') === 'J')
+
+  const yoon = chartRows('yoon')
+  const yoonCells = cellsOf('yoon')
+  ok('拗音 11 列 × 3 ＝ 33 音', yoon.length === 11 && yoonCells.length === 33)
+  ok('拗音列標依序', yoon.map((r) => r.key).join() === 'KY,SH,CH,NY,HY,MY,RY,GY,J,BY,PY')
+  ok('拗音每格＝い段假名＋小假名', yoonCells.every((c) => c.h.length === 2 && c.k.length === 2 && 'ゃゅょ'.includes(c.h[1]) && 'ャュョ'.includes(c.k[1])))
+  ok(
+    '拗音基底取自已驗證假名（い段）',
+    yoonCells.every((c) => KANA.some((k) => k.script === 'hiragana' && k.ch === c.h[0] && k.ro.endsWith('i'))),
+  )
+  ok('きゃ/しゅ/ちょ/じゃ 逐格正確', (() => {
+    const m = Object.fromEntries(yoonCells.map((c) => [c.h, c.ro]))
+    return m['きゃ'] === 'kya' && m['しゅ'] === 'shu' && m['ちょ'] === 'cho' && m['じゃ'] === 'ja'
+  })())
+  ok('拗音片假名同步（キャ/シュ/チョ/ジャ）', (() => {
+    const m = Object.fromEntries(yoonCells.map((c) => [c.h, c.k]))
+    return m['きゃ'] === 'キャ' && m['しゅ'] === 'シュ' && m['ちょ'] === 'チョ' && m['じゃ'] === 'ジャ'
+  })())
+  ok('拗音不含 ぢ 行（慣例不入圖）', yoonCells.every((c) => c.h[0] !== 'ぢ'))
+  ok('拗音無 SRS 卡片 id（不進卡組）', yoonCells.every((c) => c.id === null))
+  ok('清音／濁音每格都對得回卡片 id', [...cellsOf('seion'), ...cellsOf('dakuon')].every((c) => !!c.id && !!KANA_BY_ID[c.id]))
+
+  // 播放順序：依表格由左到右、由上到下，且與顯示的字一致
+  ok('播放全部＝表格順序（清音平假名）', (() => {
+    const list = charsInOrder('seion', 'hiragana')
+    return list.length === 46 && list[0] === 'あ' && list[5] === 'か' && list[45] === 'ん'
+  })())
+  ok('播放全部：片假名版逐字對應平假名版', (() => {
+    const h = charsInOrder('dakuon', 'hiragana')
+    const k = charsInOrder('dakuon', 'katakana')
+    return h.length === k.length && h.length === 25 && k[0] === 'ガ'
+  })())
+  ok('charOf 依書寫系統取字', (() => {
+    const c = cellsOf('seion')[0]
+    return charOf(c, 'hiragana') === 'あ' && charOf(c, 'katakana') === 'ア'
+  })())
+  ok('三組字皆不重複', (['seion', 'dakuon', 'yoon'] as const).every((s) => {
+    const l = charsInOrder(s, 'hiragana')
+    return new Set(l).size === l.length
+  }))
+  ok(
+    '清音＋濁音＝KANA 的一半（142 枚卡組未被更動）',
+    cellsOf('seion').length + cellsOf('dakuon').length === HALF && KANA.length === 142,
   )
 }
 
