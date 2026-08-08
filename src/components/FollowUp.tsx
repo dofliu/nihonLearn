@@ -11,8 +11,10 @@ import {
   type FollowUpQuestion,
 } from '../lib/followUp'
 import { parseCritique, VERDICT_LABEL, type Verdict } from '../lib/tutorQuiz'
+import { mergeSpoken } from '../lib/voiceInput'
 import { speak } from '../audio/tts'
 import { useApp } from '../state/store'
+import { VoiceInput } from './VoiceInput'
 import { toast } from './ui'
 
 /**
@@ -152,6 +154,12 @@ export function FollowUp({ sent }: { sent: { id: string; jp: string; zh: string 
               送出回答
             </button>
           </div>
+          {/* 用說的：辨識結果併進輸入框，使用者確認／修改後才送出（ASR 會聽錯） */}
+          <VoiceInput
+            disabled={loading}
+            hint="說出來也可以——辨識結果會先填進輸入框"
+            onText={(txt) => setInput((cur) => mergeSpoken(cur, txt))}
+          />
 
           {loading && <p className="sub center">AI 思考中…</p>}
           {critique && (

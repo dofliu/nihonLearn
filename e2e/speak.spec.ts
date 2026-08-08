@@ -3,6 +3,7 @@ import {
   gotoApp,
   navTo,
   disableSpeechRecognition,
+  fakeSpeechRecognition,
   completeSpeakSelf,
   taskRow,
 } from './helpers'
@@ -203,5 +204,36 @@ test.describe('話す：跟讀＋即時追問', () => {
     await page.getByRole('button', { name: '次の句 →' }).click()
     await expect(page.getByRole('button', { name: '🤖 追問一句' })).toBeVisible()
     await expect(page.locator('.followUpQ')).toHaveCount(0)
+  })
+
+  test('追問可以用說的：辨識結果先填進輸入框，確認後才送出回答', async ({ page }) => {
+    let calls = 0
+    await page.route('**/generativelanguage.googleapis.com/**', (route) => {
+      calls += 1
+      const json =
+        calls === 1
+          ? geminiText(`{"jp":"なにが すきですか。","zh":"你喜歡什麼？"}`)
+          : geminiText('✅ 說得很清楚。')
+      return route.fulfill({ json })
+    })
+    // 佇列只給「追問回答」用（跟讀評分不會動到，這個測試不按錄音鈕）
+    await fakeSpeechRecognition(page, ['みずが すきです'])
+    await gotoApp(page)
+    await setKey(page)
+    await navTo(page, '話す')
+
+    await page.getByRole('button', { name: '🤖 追問一句' }).click()
+    await expect(page.locator('.followUpQ')).toContainText('なにが すきですか。', {
+      timeout: 10_000,
+    })
+
+    const input = page.locator('input[placeholder="用日文回答…"]')
+    await page.getByRole('button', { name: '🎤 用說的' }).click()
+    await expect(input).toHaveValue('みずが すきです', { timeout: 10_000 })
+    // 只填進輸入框、不自動送出（此時還沒有講評）
+    await expect(page.locator('main')).not.toContainText('說得很清楚')
+
+    await page.getByRole('button', { name: '送出回答' }).click()
+    await expect(page.locator('main')).toContainText('說得很清楚', { timeout: 10_000 })
   })
 })

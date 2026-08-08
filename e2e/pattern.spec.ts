@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test'
-import { gotoApp, openExtra } from './helpers'
+import { gotoApp, openExtra, fakeSpeechRecognition } from './helpers'
 
 function geminiText(text: string) {
   return { candidates: [{ content: { parts: [{ text }] } }] }
@@ -114,5 +114,28 @@ test.describe('文型ドリル ─ 自由造句', () => {
     await expect(page.locator('main')).toContainText('助詞「を」也正確', { timeout: 10_000 })
     await expect(page.locator('main')).toContainText('✅ 表達到了')
     await expect(page.locator('main')).toContainText('僅供參考')
+  })
+
+  test('用說的：辨識結果先填進輸入框，確認後才送出檢核', async ({ page }) => {
+    await fakeSpeechRecognition(page, ['みずを', 'ください'])
+    await gotoApp(page)
+    await openCompose(page)
+
+    const input = page.locator('input[placeholder*="造句"]')
+    const mic = page.getByRole('button', { name: '🎤 用說的' })
+    await expect(mic).toBeVisible()
+
+    // 說兩次 → 併進輸入框，且尚未送出檢核
+    await mic.click()
+    await expect(input).toHaveValue('みずを', { timeout: 10_000 })
+    await mic.click()
+    await expect(input).toHaveValue('みずを ください', { timeout: 10_000 })
+    await expect(page.locator('.composeCk')).toHaveCount(0)
+
+    // 確認後才送出 → 程式檢核通過（無金鑰也有回饋），麥克風鈕退場
+    await page.getByRole('button', { name: '送出' }).click()
+    await expect(page.locator('.composeCk .ckLine').first()).toHaveClass(/ok/)
+    await expect(page.locator('.composeCk .ckLine').nth(1)).toContainText('みず')
+    await expect(mic).toHaveCount(0)
   })
 })

@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test'
-import { gotoApp } from './helpers'
+import { gotoApp, fakeSpeechRecognition, disableSpeechRecognition } from './helpers'
 
 function geminiText(text: string) {
   return { candidates: [{ content: { parts: [{ text }] } }] }
@@ -83,5 +83,40 @@ test.describe('AI 助教 ─ 考我（主動造句）', () => {
     await expect(page.locator('main')).toContainText('教材參考答案（已驗證）')
     await expect(page.locator('main')).toContainText('講評由 AI 生成、僅供參考')
     await expect(page.locator('main')).toContainText('みずを ください。') // 自己的作答留著對照
+  })
+
+  test('用說的：辨識結果先填進輸入框，確認後才送出作答', async ({ page }) => {
+    await fakeSpeechRecognition(page, ['みずを', 'ください'])
+    await gotoApp(page)
+    await page.getByRole('button', { name: /AI 助教/ }).click()
+    await page.getByRole('button', { name: '🎯 考我' }).click()
+
+    const input = page.locator('input[placeholder="用日文寫一句…"]')
+    const mic = page.getByRole('button', { name: '🎤 用說的' })
+    await expect(mic).toBeVisible()
+
+    // 說兩次 → 併進輸入框，且尚未揭曉答案（不會代替使用者送出）
+    await mic.click()
+    await expect(input).toHaveValue('みずを', { timeout: 10_000 })
+    await mic.click()
+    await expect(input).toHaveValue('みずを ください', { timeout: 10_000 })
+    await expect(page.locator('main')).not.toContainText('教材參考答案（已驗證）')
+
+    // 確認後才送出 → 揭曉參考答案，麥克風鈕退場
+    await page.getByRole('button', { name: '送出作答' }).click()
+    await expect(page.locator('main')).toContainText('教材參考答案（已驗證）')
+    await expect(mic).toHaveCount(0)
+  })
+
+  test('無語音辨識環境：不顯示麥克風鈕，打字作答照常（降級不中斷）', async ({ page }) => {
+    await disableSpeechRecognition(page)
+    await gotoApp(page)
+    await page.getByRole('button', { name: /AI 助教/ }).click()
+    await page.getByRole('button', { name: '🎯 考我' }).click()
+
+    await expect(page.getByRole('button', { name: '🎤 用說的' })).toHaveCount(0)
+    await page.locator('input[placeholder="用日文寫一句…"]').fill('みずを ください')
+    await page.getByRole('button', { name: '送出作答' }).click()
+    await expect(page.locator('main')).toContainText('教材參考答案（已驗證）')
   })
 })
