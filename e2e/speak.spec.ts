@@ -6,6 +6,7 @@ import {
   fakeSpeechRecognition,
   completeSpeakSelf,
   taskRow,
+  activityCount,
 } from './helpers'
 
 test.describe('話す：跟讀與評分降級', () => {
@@ -194,6 +195,11 @@ test.describe('話す：跟讀＋即時追問', () => {
     await expect(page.locator('main')).toContainText('回答得很自然', { timeout: 10_000 })
     await expect(page.locator('main')).toContainText('✅ 表達到了')
 
+    // 臨場組句這件事記入学習記録（選配加練）
+    await expect
+      .poll(() => activityCount(page, 'followup'), { timeout: 10_000 })
+      .toBeGreaterThanOrEqual(1)
+
     // 再追問一句 → 次數累計
     await page.getByRole('button', { name: '再追問一句 →' }).click()
     await expect(page.locator('main .chip', { hasText: '2 / 3' })).toBeVisible({
@@ -204,6 +210,10 @@ test.describe('話す：跟讀＋即時追問', () => {
     await page.getByRole('button', { name: '次の句 →' }).click()
     await expect(page.getByRole('button', { name: '🤖 追問一句' })).toBeVisible()
     await expect(page.locator('.followUpQ')).toHaveCount(0)
+
+    // 追問屬選配加練：「口」任務仍靠跟讀計數，完全不受影響
+    await navTo(page, '今日')
+    await expect(taskRow(page, '口の修行').locator('.tprog')).toContainText('0 / 3')
   })
 
   test('追問可以用說的：辨識結果先填進輸入框，確認後才送出回答', async ({ page }) => {

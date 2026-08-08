@@ -11,6 +11,7 @@ import {
   FEATURE_LABEL,
   CORE_FEATURES,
   EXTRA_FEATURES,
+  groupTotals,
 } from '../lib/activity'
 
 const SENT_BY_ID = Object.fromEntries(SENTS.map((s) => [s.id, s]))
@@ -57,6 +58,7 @@ export function ProgressView({ onDone }: { onDone: () => void }) {
   const featTotals = totalsByFeature(activity)
   const practiced = activeDayCount(activity)
   const totalActs = Object.values(featTotals).reduce((s, v) => s + v, 0)
+  const groups = groupTotals(activity)
   const orderedFeatures = [...CORE_FEATURES, ...EXTRA_FEATURES].filter((f) => featTotals[f] > 0)
   const maxFeat = Math.max(1, ...orderedFeatures.map((f) => featTotals[f]))
 
@@ -84,6 +86,10 @@ export function ProgressView({ onDone }: { onDone: () => void }) {
           <span className="chip">連続 <b>{streak}</b> 日</span>
           <span className="chip">近 70 日練習 <b>{practiced}</b> 天</span>
           <span className="chip">累計動作 <b>{totalActs}</b></span>
+          <span className="chip">核心 <b>{groups.core}</b>・加練 <b>{groups.extra}</b></span>
+          {groups.ai > 0 && (
+            <span className="chip">AI 互動練習 <b>{groups.ai}</b></span>
+          )}
         </div>
         <div className="heatGrid">
           {cells.map((c) => (
@@ -91,7 +97,7 @@ export function ProgressView({ onDone }: { onDone: () => void }) {
           ))}
         </div>
         <p className="sub" style={{ marginTop: 6 }}>
-          每格一天，顏色越深當天練得越多（含選配的書寫／測驗／重音）。
+          每格一天，顏色越深當天練得越多（含書寫／測驗／重音／句型與 AI 互動練習等選配加練）。
         </p>
       </div>
 
@@ -111,7 +117,8 @@ export function ProgressView({ onDone }: { onDone: () => void }) {
             </div>
           ))}
           <p className="sub" style={{ marginTop: 6 }}>
-            前五項為每日修行核心（計入蓋章）；書寫／測驗／重音為選配額外練習。
+            前五項為每日修行核心（計入蓋章）；其餘為選配額外練習（書寫／測驗／重音／句型，
+            以及自由対話／助教考我／追問這三項 AI 互動練習）——不卡蓋章，但做了當日済印變金。
           </p>
         </div>
       )}

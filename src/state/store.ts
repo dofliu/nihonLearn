@@ -10,7 +10,7 @@ import {
   todayActivityFeatures,
 } from '../db/repo'
 import { computeStreak } from '../lib/date'
-import { EXTRA_FEATURES } from '../lib/activity'
+import { hasExtraFeature } from '../lib/activity'
 import { initTTS, reprobeTTS, ttsProviderName, setSpeaker } from '../audio/tts'
 
 interface AppState {
@@ -70,7 +70,7 @@ export const useApp = create<AppState>((set, get) => ({
     if (stamped) {
       // 核心全達標的當下若已做過任一加練 → 大印同步升金印（與蓋章格一致）
       const feats = await todayActivityFeatures()
-      const gold = (EXTRA_FEATURES as readonly string[]).some((f) => feats.has(f))
+      const gold = hasExtraFeature(feats)
       set({ lastStamped: new Date().toISOString(), lastStampGold: gold })
     }
   },

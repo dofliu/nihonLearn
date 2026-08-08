@@ -35,9 +35,20 @@ export default function App() {
     void bootstrap()
   }, [])
 
+  // 話す頁預設落在「跟読」；今日頁的「🗣 自由対話」加練可直接指定落在「会話」分頁
+  const [speakTab, setSpeakTab] = useState<'shadow' | 'dialogue'>('shadow')
+
   function nav(t: Tab) {
     setTab(t)
     setOverlay(null)
+    setSpeakTab('shadow')
+    window.scrollTo(0, 0)
+  }
+
+  function openRoleplay() {
+    setOverlay(null)
+    setSpeakTab('dialogue')
+    setTab('speak')
     window.scrollTo(0, 0)
   }
 
@@ -82,11 +93,14 @@ export default function App() {
                 onOpenQuiz={() => setOverlay('quiz')}
                 onOpenTutor={() => setOverlay('tutor')}
                 onOpenPattern={() => setOverlay('pattern')}
+                onOpenRoleplay={openRoleplay}
               />
             )}
             {tab === 'kana' && <KanaView />}
             {tab === 'listen' && <ListenView />}
-            {tab === 'speak' && <SpeakView onOpenReview={() => setOverlay('review')} />}
+            {tab === 'speak' && (
+              <SpeakView onOpenReview={() => setOverlay('review')} initialTab={speakTab} />
+            )}
             {tab === 'read' && <ReadView />}
           </>
         )}

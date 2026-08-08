@@ -12,6 +12,7 @@ import {
   type Verdict,
 } from '../lib/tutorQuiz'
 import { db } from '../db/schema'
+import { logActivity } from '../db/repo'
 import { hasKanji } from '../lib/furigana'
 import { mergeSpoken } from '../lib/voiceInput'
 import { RubyText } from '../components/Ruby'
@@ -239,6 +240,8 @@ function TutorQuiz({ known }: { known: string[] }) {
     const my = input.trim()
     if (!my || !q || loading) return
     setRevealed(true)
+    // 自己造了一句日文＝一次練習，記入学習記録（選配加練，不卡蓋章；無金鑰時照樣記）
+    void logActivity('tutor')
     if (!hasLLM()) return // 無金鑰：只揭曉參考答案，自己比對（降級不中斷）
     setLoading(true)
     try {
