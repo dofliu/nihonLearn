@@ -1,14 +1,17 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { chatGemini, hasLLM, type ChatMsg } from '../lib/llm'
 import { personalKnownWords } from '../lib/content'
 import {
   tutorPrompts,
+  filterPrompts,
   pickPrompt,
   buildQuizSystem,
   buildQuizUser,
   parseCritique,
   VERDICT_LABEL,
+  SOURCE_TABS,
   type TutorPrompt,
+  type PromptSource,
   type Verdict,
 } from '../lib/tutorQuiz'
 import { db } from '../db/schema'
@@ -208,33 +211,53 @@ function TutorChat({ known }: { known: string[] }) {
 
 /**
  * 助教出中文情境題 → 你自己用日文作答 → 揭曉已驗證的參考答案（＋有金鑰時附 AI 中文講評）。
- * 題目與參考答案來自 `lib/tutorQuiz`（已驗證例句／句型 × 已學詞），日文不經 LLM。
+ * 題目與參考答案來自 `lib/tutorQuiz`（已驗證例句／句型 × 已學詞／`data/kaiwa` 固定表現），
+ * 日文不經 LLM。上方分頁可只練某一種題源（預設「全部」＝維持原本混著出的行為）。
  */
 function TutorQuiz({ known }: { known: string[] }) {
   const rate = useApp((s) => s.rate)
   const showKanji = useApp((s) => s.showKanji)
-  const [pool, setPool] = useState<TutorPrompt[]>([])
+  const [all, setAll] = useState<TutorPrompt[]>([])
+  const [src, setSrc] = useState<PromptSource | 'all'>('all')
   const [q, setQ] = useState<TutorPrompt | null>(null)
   const [input, setInput] = useState('')
   const [revealed, setRevealed] = useState(false)
   const [loading, setLoading] = useState(false)
   const [critique, setCritique] = useState<{ verdict: Verdict; body: string } | null>(null)
 
+  /** 目前題源的題庫（題源沒題目時退回全部，畫面不會空掉）。 */
+  const pool = useMemo(() => {
+    const list = filterPrompts(all, src)
+    return list.length > 0 ? list : all
+  }, [all, src])
+
   useEffect(() => {
     void (async () => {
       const cards = await db.cards.where('type').equals('vocab').toArray()
       const list = tutorPrompts(new Set(cards.map((c) => c.refId)))
-      setPool(list)
+      setAll(list)
       setQ((cur) => cur ?? pickPrompt(list))
     })()
   }, [])
 
-  const next = useCallback(() => {
-    setQ((cur) => pickPrompt(pool, cur?.id) ?? cur)
+  const reset = useCallback(() => {
     setInput('')
     setRevealed(false)
     setCritique(null)
-  }, [pool])
+  }, [])
+
+  const next = useCallback(() => {
+    setQ((cur) => pickPrompt(pool, cur?.id) ?? cur)
+    reset()
+  }, [pool, reset])
+
+  /** 切題源：立刻換一題到新題源，避免停在上一個題源的題目上。 */
+  function changeSrc(key: PromptSource | 'all') {
+    setSrc(key)
+    const list = filterPrompts(all, key)
+    setQ(pickPrompt(list.length > 0 ? list : all) ?? null)
+    reset()
+  }
 
   async function submit() {
     const my = input.trim()
@@ -273,6 +296,18 @@ function TutorQuiz({ known }: { known: string[] }) {
       <p className="sub" style={{ marginTop: 2 }}>
         看中文，自己用日文說（或打）出來，再對照參考答案。
       </p>
+
+      <div className="lvTabs" style={{ margin: '10px 0 0' }}>
+        {SOURCE_TABS.map((t) => (
+          <button
+            key={t.key}
+            className={src === t.key ? 'on' : ''}
+            onClick={() => changeSrc(t.key)}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
 
       <div
         className="sent tutorQ"

@@ -85,6 +85,30 @@ test.describe('AI 助教 ─ 考我（主動造句）', () => {
     await expect(page.locator('main')).toContainText('みずを ください。') // 自己的作答留著對照
   })
 
+  test('題源分頁：只練「固定表現」時，題目與參考答案都來自挨拶・定型句題庫', async ({ page }) => {
+    await gotoApp(page)
+    await page.getByRole('button', { name: /AI 助教/ }).click()
+    await page.getByRole('button', { name: '🎯 考我' }).click()
+
+    await page.getByRole('button', { name: '固定表現', exact: true }).click()
+
+    // 連換幾題都落在固定表現題源（chip 只會是這兩種標籤）
+    const tag = page.locator('.card', { has: page.locator('.tutorQ') }).locator('.chip')
+    for (let i = 0; i < 4; i++) {
+      await expect(tag).toHaveText(/情境表達|即時應答/)
+      await page.getByRole('button', { name: '換一題 →' }).click()
+    }
+
+    // 無金鑰照樣能練：看參考答案（已驗證的固定表現）
+    await page.getByRole('button', { name: '看參考答案' }).click()
+    await expect(page.locator('main')).toContainText('教材參考答案（已驗證）')
+
+    // 切回「句型」→ 題源標籤換成句型名（不再是固定表現）
+    await page.getByRole('button', { name: '句型', exact: true }).click()
+    await expect(tag).not.toHaveText(/情境表達|即時應答/)
+    await expect(page.locator('main')).not.toContainText('教材參考答案（已驗證）') // 切題源會重置作答狀態
+  })
+
   test('用說的：辨識結果先填進輸入框，確認後才送出作答', async ({ page }) => {
     await fakeSpeechRecognition(page, ['みずを', 'ください'])
     await gotoApp(page)

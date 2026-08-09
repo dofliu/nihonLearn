@@ -16,6 +16,12 @@ export interface ResponseItem {
   answer: string // 正確回應（日文純假名）
   answerZh: string
   distractors: string[] // 其他日文回應（真實存在但此處不恰當）
+  /**
+   * 回應內容依「個人／當下情況」而異（名字、時間、價格、出身地）——當四選一的聽解題沒問題
+   * （誘答是答非所問的句型），但**不適合當「自己造句」的考題**（學習者填自己的名字才對，
+   * 卻會被拿去跟這個範例答案比對）。`lib/tutorQuiz.ts` 的考我題庫會排除這類。
+   */
+  openEnded?: boolean
 }
 
 /** 発話表現：給一個「情境」（中文描述）→ 選出該說的日文（選項皆為日文）。 */
@@ -75,6 +81,7 @@ export const RESPONSES: ResponseItem[] = [
     answer: 'ドフ です。',
     answerZh: '我是 Dof。',
     distractors: ['さんじ です。', 'たいわんから きました。'],
+    openEnded: true, // 名字／時間／價格／出身地依個人而異，不進「考我」題庫
   },
   {
     id: 'r7',
@@ -83,6 +90,7 @@ export const RESPONSES: ResponseItem[] = [
     answer: 'ごぜん くじです。',
     answerZh: '上午九點。',
     distractors: ['ごひゃくえん です。', 'げんきです。'],
+    openEnded: true, // 名字／時間／價格／出身地依個人而異，不進「考我」題庫
   },
   {
     id: 'r8',
@@ -91,6 +99,7 @@ export const RESPONSES: ResponseItem[] = [
     answer: 'ごひゃくえん です。',
     answerZh: '五百日圓。',
     distractors: ['さんじ です。', 'たいわんじん です。'],
+    openEnded: true, // 名字／時間／價格／出身地依個人而異，不進「考我」題庫
   },
   {
     id: 'r9',
@@ -99,6 +108,7 @@ export const RESPONSES: ResponseItem[] = [
     answer: 'たいわんから きました。',
     answerZh: '我從台灣來。',
     distractors: ['ドフ です。', 'ろくじ です。'],
+    openEnded: true, // 名字／時間／價格／出身地依個人而異，不進「考我」題庫
   },
   {
     id: 'r10',

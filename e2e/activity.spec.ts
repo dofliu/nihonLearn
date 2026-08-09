@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test'
-import { gotoApp, navTo, activityCount } from './helpers'
+import { gotoApp, navTo, activityCount, openExtra } from './helpers'
 
 function geminiText(text: string) {
   return { candidates: [{ content: { parts: [{ text }] } }] }
@@ -57,8 +57,8 @@ test.describe('學習活動記錄與統計', () => {
     await setKey(page)
 
     // 今日頁「全部加練」→ 🗣 自由対話，直接落在 話す▸会話 分頁
-    await page.getByRole('button', { name: /全部加練/ }).click()
-    await page.getByRole('button', { name: /🗣.*自由対話/ }).click()
+    // （用 openExtra：輪替到自由対話的那幾天，主推鈕與展開清單會同時出現同名鈕）
+    await openExtra(page, /🗣.*自由対話/)
     await expect(page.locator('main')).toContainText('情境對話引導')
 
     // 進自由対話、聊一回合
@@ -74,7 +74,7 @@ test.describe('學習活動記錄與統計', () => {
     // 今日頁：自由対話已打勾
     await navTo(page, '今日')
     await page.getByRole('button', { name: /全部加練/ }).click()
-    await expect(page.getByRole('button', { name: /✓.*自由対話/ })).toBeVisible()
+    await expect(page.getByRole('button', { name: /✓.*自由対話/ }).first()).toBeVisible()
 
     // 統計頁：出現「自由対話」累計條與 AI 互動練習分組 chip
     await page.getByRole('button', { name: /發音の成長曲線/ }).click()
