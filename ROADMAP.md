@@ -5,7 +5,16 @@
 > 設計原則不變：**正確性交給權威來源與程式驗證，AI 生成一律人工審核採用才入庫；
 > 使用者只做策展，不當正確性把關者。**
 
-最後更新：v3.36（五十音圖一覽表——**使用者直接指定的功能**：かな頁加「📋 五十音圖」查閱表，
+最後更新：v3.37（考我題源擴充：固定表現＋題源分頁——「🔴 互動深化」第 2 步的③。AI 助教
+「🎯 考我」的題庫接上 `data/kaiwa` 的発話表現／即時応答（`kaiwaPrompts()`），這兩份是最基本的
+挨拶・定型句、答案唯一，很適合初學者練「主動說出來」；答案依個人情況而異的四題（名字／時間／
+價格／出身地）以資料層新欄位 `ResponseItem.openEnded` 標記並排除，不當造句考題。另加題源分頁
+「全部／例句／句型／固定表現」（`SOURCE_TABS`＋`filterPrompts`），預設「全部」維持原行為；
+固定表現題的講評 prompt 多一行「說法基本上只有一種、不必鼓勵他另創說法」。日文仍全部來自
+已驗證資料、LLM 只生中文講評，無金鑰照樣能自評。順手修好一個日期相依的 e2e 測試——
+`activity.spec` 直接點「🗣 自由対話」，在輪替到該項的那幾天會同時匹配主推鈕與展開清單而 strict
+mode 失敗，改用既有 `openExtra` helper）。
+前一版 v3.36（五十音圖一覽表——**使用者直接指定的功能**：かな頁加「📋 五十音圖」查閱表，
 平假名／片假名 × 清音／濁音／拗音，每格附羅馬字，點格朗讀、可「播放全部」並中途停止，另有
 「用單字卡練習」直接開 FSRS 一輪。純函式 `lib/kanaChart.ts` **把整張表從已驗證的 `data/kana.ts`
 推導出來、不手打任何讀音**：清音／濁音靠「前半平假名、後半片假名同索引＝同音」的配對取字，
@@ -77,8 +86,12 @@ v3.28，互不依賴，已依序合併入 main。
    辨識結果只填進輸入框、確認後才送出；無 ASR 時整顆鈕不顯示、打字照常）；~~②記入学習記録~~
    （v3.35 完成：`tutor` feature key，`submit()` 揭曉答案時記——**無金鑰也記**，因為沒金鑰照樣是
    「自己造句→對參考答案」的完整練習；今日頁加練輪替加入 🎯 助教考我）；
-   ③題目池目前不含 `data/kaiwa` 的即時応答／発話表現（那兩份也是已驗證的中文情境→日文固定表現，
-   很適合當考我題源）；④答錯的題目沒有記錄，未來可考慮比照 `quizResults` 做弱項追蹤（需 Dexie v9）。
+   ~~③題目池含 `data/kaiwa` 的即時応答／発話表現~~（v3.37 完成：`kaiwaPrompts()` 把発話表現的中文
+   情境與即時応答（題目附上已驗證日文原句＋中文對照）接成考我題源；`ResponseItem.openEnded` 標記
+   答案依個人情況而異的四題並排除；另加題源分頁 `SOURCE_TABS`／`filterPrompts`，固定表現題的講評
+   prompt 多一行「說法基本上只有一種」）；④答錯的題目沒有記錄，未來可考慮比照 `quizResults` 做弱項
+   追蹤（需 Dexie v9）；⑤題源分頁目前不記住選擇（換頁回來回到「全部」），若要記住可存 localStorage
+   （裝置層、不進 Dexie），但要留意別讓使用者忘了自己鎖在某個題源。
 3. ~~**跟讀＋即時追問**~~（v3.31 完成：`components/FollowUp.tsx`＋`lib/followUp.ts`，跟読分頁例句卡
    下方「追問 ─ AI に聞かれる」。AI 針對當下那句已驗證例句追問一句日文，你臨場打字回答，拿到中文
    講評＋✅／△／❌ 徽章（沿用 `tutorQuiz parseCritique`）；同一句最多追問 3 次，換句自動重置。
@@ -144,7 +157,7 @@ v3.28，互不依賴，已依序合併入 main。
 ## 目前狀態
 
 - **程式碼**：Web/PWA 與 Android（Capacitor 殼）皆完成；CI（web 測試＋e2e＋Android `assembleDebug`）綠燈。
-- **測試**：`npm test` 414/414、`npm run test:e2e` 72/72、`sidecar/test_score.py` 4/4、`test_article.py` 13/13、`npm run build` strict 綠燈。
+- **測試**：`npm test` 429/429、`npm run test:e2e` 73/73、`sidecar/test_score.py` 4/4、`test_article.py` 13/13、`npm run build` strict 綠燈。
 - **尚未做**：Android 真機驗收（清單 `tests/MANUAL_QA-ANDROID.md`）與 Google Play 封閉測試——**未通過前勿送審**。
 
 ## 已完成里程碑（摘要）
@@ -177,6 +190,7 @@ v3.28，互不依賴，已依序合併入 main。
 | 自由対話「用說的」（`lib/voiceInput.ts`＋`components/VoiceInput.tsx`）：麥克風輸入，辨識結果先填輸入框可改再送；無 ASR 時鈕不顯示 | v3.33 |
 | 口說作答擴散到三處（助教「考我」／跟讀追問／文型自由造句共用 `VoiceInput`，規矩一致：只填輸入框、送出後鈕退場、無 ASR 不顯示） | v3.34 |
 | 五十音圖一覽表（`lib/kanaChart.ts`＋`components/KanaChart.tsx`：平/片 × 清/濁/拗音、附羅馬字、點格朗讀與播放全部；全表由已驗證 `data/kana` 推導，拗音走規則、不進 SRS 卡組） | v3.36 |
+| 考我題源擴充：`data/kaiwa` 発話表現／即時応答接成考我題源（`kaiwaPrompts`，`openEnded` 排除答案因人而異者）＋題源分頁（`SOURCE_TABS`／`filterPrompts`） | v3.37 |
 | AI 互動練習記入学習記録＋金印（`roleplay`／`tutor`／`followup` 三個 feature key；金印判定抽成純函式 `featureGroup`／`hasExtraFeature`／`extraDays`／`groupTotals`；今日頁加練輪替 4→6、成長頁加分組 chip） | v3.35 |
 
 

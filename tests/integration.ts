@@ -52,7 +52,7 @@ import { PATTERNS } from '../src/data/patterns.ts'
 import { poolFor, candidatesFor, buildItem, itemsFor, dailyPattern } from '../src/lib/patternDrill.ts'
 import { KANJI_STROKES, KANJI_STROKE_VIEWBOX } from '../src/data/kanjiStrokes.ts'
 import { strokeStart, refStrokeStarts, judgeStrokeOrder, pathEnd, strokeVector } from '../src/lib/strokeOrder.ts'
-import { sentencePrompts, patternPrompts, tutorPrompts, pickPrompt, buildQuizSystem, buildQuizUser, parseCritique, VERDICT_LABEL } from '../src/lib/tutorQuiz.ts'
+import { sentencePrompts, patternPrompts, kaiwaPrompts, tutorPrompts, filterPrompts, pickPrompt, buildQuizSystem, buildQuizUser, parseCritique, VERDICT_LABEL, SOURCE_TABS } from '../src/lib/tutorQuiz.ts'
 import {
   normJa,
   lookupVocab,
@@ -773,8 +773,43 @@ console.log('=== 5t. AI 助教「考我」出題與講評解析 ===')
   )
   ok('句型題 tag 為句型標籤', pp.every((p) => PATTERNS.some((x) => x.label === p.tag)))
 
+  // 固定表現題（v3.37）：発話表現＋即時応答，全部逐字取自已驗證的 data/kaiwa
+  const kp = kaiwaPrompts()
+  ok('固定表現題非空', kp.length >= 20)
+  ok(
+    '情境表達題逐字取自 EXPRESSIONS',
+    EXPRESSIONS.every((e) => {
+      const p = kp.find((x) => x.id === `kaiwa:${e.id}`)
+      return !!p && p.zh === e.situationZh && p.answer === e.answer && p.tag === '情境表達'
+    }),
+  )
+  ok('情境表達題全部收錄', kp.filter((p) => p.tag === '情境表達').length === EXPRESSIONS.length)
+  ok(
+    '即時應答題的題目帶入已驗證的日文原句與中文對照，答案逐字相符',
+    RESPONSES.filter((r) => !r.openEnded).every((r) => {
+      const p = kp.find((x) => x.id === `kaiwa:${r.id}`)
+      return !!p && p.zh.includes(r.prompt) && p.zh.includes(r.promptZh) && p.answer === r.answer && p.tag === '即時應答'
+    }),
+  )
+  ok(
+    '答案依個人情況而異的即時応答（名字/時間/價格/出身）不進考我題庫',
+    RESPONSES.some((r) => r.openEnded) &&
+      RESPONSES.filter((r) => r.openEnded).every((r) => !kp.some((p) => p.id === `kaiwa:${r.id}`)),
+  )
+  ok('固定表現題皆為純假名答案、無漢字正寫', kp.every((p) => p.alt === undefined))
+  ok('固定表現題 source 皆為 kaiwa', kp.every((p) => p.source === 'kaiwa'))
+
   const pool = tutorPrompts(learned)
-  ok('題庫＝例句題＋句型題', pool.length === sp.length + pp.length)
+  ok('題庫＝例句題＋句型題＋固定表現題', pool.length === sp.length + pp.length + kp.length)
+
+  // 題源篩選（UI 分頁）
+  ok('SOURCE_TABS 含全部與三個題源', SOURCE_TABS.length === 4 && SOURCE_TABS[0].key === 'all')
+  ok('SOURCE_TABS 的 key 唯一且皆有中文標籤', new Set(SOURCE_TABS.map((t) => t.key)).size === 4 && SOURCE_TABS.every((t) => t.label.trim()))
+  ok('all 回原池（行為不變）', filterPrompts(pool, 'all').length === pool.length)
+  ok('三個題源都篩得出題目', SOURCE_TABS.slice(1).every((t) => filterPrompts(pool, t.key).length > 0))
+  ok('三個題源加總＝全部（無漏無重）', SOURCE_TABS.slice(1).reduce((n, t) => n + filterPrompts(pool, t.key).length, 0) === pool.length)
+  ok('篩出的題目 source 一致', filterPrompts(pool, 'kaiwa').every((p) => p.source === 'kaiwa'))
+
   ok('題目 id 唯一', new Set(pool.map((p) => p.id)).size === pool.length)
   ok('每題都有中文題目與日文參考答案', pool.every((p) => p.zh.trim() && p.answer.trim() && p.tag.trim()))
 
@@ -797,6 +832,9 @@ console.log('=== 5t. AI 助教「考我」出題與講評解析 ===')
   const user = buildQuizUser(pool[0], '  みずを ください。 ')
   ok('user 帶入題目與參考答案', user.includes(pool[0].zh) && user.includes(pool[0].answer))
   ok('user 帶入作答（已 trim）', user.includes('學習者的作答：みずを ください。\n'))
+  const kUser = buildQuizUser(kp[0], 'いただきます')
+  ok('固定表現題另註明「說法基本上只有一種」', kUser.includes('固定表現') && kUser.includes('不必鼓勵他另創說法'))
+  ok('例句／句型題不加固定表現註記', !buildQuizUser(sp[0], 'テスト').includes('不必鼓勵他另創說法'))
 
   // 講評解析（寬鬆：沒照格式只是少了徽章，內容照樣顯示）
   ok('✅ → ok', parseCritique('✅ 很好，完全表達到了。').verdict === 'ok')

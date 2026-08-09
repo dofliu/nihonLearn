@@ -12,10 +12,14 @@
  */
 import { SENTS } from '../data/sentences.ts'
 import { PATTERNS } from '../data/patterns.ts'
+import { RESPONSES, EXPRESSIONS } from '../data/kaiwa.ts'
 import { itemsFor } from './patternDrill.ts'
 
+/** 題源：例句／句型／固定表現（挨拶・定型句）。 */
+export type PromptSource = 'sentence' | 'pattern' | 'kaiwa'
+
 export interface TutorPrompt {
-  /** 穩定 id（sent:s3 ／ pat:pt1:みず），用來避免「換一題」抽到同一題 */
+  /** 穩定 id（sent:s3 ／ pat:pt1:みず ／ kaiwa:e1），用來避免「換一題」抽到同一題 */
   id: string
   /** 中文情境題目（使用者要用日文說出來的意思） */
   zh: string
@@ -23,10 +27,18 @@ export interface TutorPrompt {
   answer: string
   /** 漢字正寫（可選，供漢字モード顯示；無則為 undefined） */
   alt?: string
-  /** 來源標籤（生存句／日常句／句型名），顯示在題目卡上 */
+  /** 來源標籤（生存句／日常句／句型名／情境表達），顯示在題目卡上 */
   tag: string
-  source: 'sentence' | 'pattern'
+  source: PromptSource
 }
+
+/** 題源篩選分頁（UI 用）。`all` 為預設，維持既有「全部混著出」的行為。 */
+export const SOURCE_TABS: { key: PromptSource | 'all'; label: string }[] = [
+  { key: 'all', label: '全部' },
+  { key: 'sentence', label: '例句' },
+  { key: 'pattern', label: '句型' },
+  { key: 'kaiwa', label: '固定表現' },
+]
 
 /** 每個句型最多取幾個填空詞，避免句型題淹沒例句題。 */
 const PER_PATTERN = 3
@@ -61,9 +73,43 @@ export function patternPrompts(learned: Set<string>): TutorPrompt[] {
   return out
 }
 
-/** 全部可出的題目（例句 ＋ 句型）。順序固定，隨機交給 `pickPrompt`。 */
+/**
+ * 固定表現題：`data/kaiwa` 的発話表現（情境 → 該說的日文）與即時応答（對方說了 → 你怎麼回）。
+ * 兩份都是挨拶・定型句，textbook 標準、答案唯一，非常適合「看中文自己說出來」。
+ *
+ * 刻意排除 `openEnded` 的即時応答（名字／時間／價格／出身地）——那些的正確答案依個人情況
+ * 而異，拿來當造句考題會逼學習者去猜資料裡的範例答案。
+ */
+export function kaiwaPrompts(): TutorPrompt[] {
+  const out: TutorPrompt[] = EXPRESSIONS.map((e) => ({
+    id: `kaiwa:${e.id}`,
+    zh: e.situationZh,
+    answer: e.answer,
+    tag: '情境表達',
+    source: 'kaiwa' as const,
+  }))
+  for (const r of RESPONSES) {
+    if (r.openEnded) continue
+    out.push({
+      id: `kaiwa:${r.id}`,
+      // 題目仍以中文為主，但要讓學習者知道對方說了什麼，故附上已驗證的日文原句與中文對照
+      zh: `對方說「${r.prompt}」（${r.promptZh}）你要怎麼回？`,
+      answer: r.answer,
+      tag: '即時應答',
+      source: 'kaiwa',
+    })
+  }
+  return out
+}
+
+/** 全部可出的題目（例句 ＋ 句型 ＋ 固定表現）。順序固定，隨機交給 `pickPrompt`。 */
 export function tutorPrompts(learned: Set<string>): TutorPrompt[] {
-  return [...sentencePrompts(), ...patternPrompts(learned)]
+  return [...sentencePrompts(), ...patternPrompts(learned), ...kaiwaPrompts()]
+}
+
+/** 依題源篩選（`all` 回原池）。題源為空時呼叫端應退回全部，避免畫面空白。 */
+export function filterPrompts(pool: TutorPrompt[], src: PromptSource | 'all'): TutorPrompt[] {
+  return src === 'all' ? pool : pool.filter((p) => p.source === src)
 }
 
 /** 隨機抽一題，盡量不重複上一題（題庫只剩一題時才會重複）。 */
@@ -98,11 +144,21 @@ export function buildQuizSystem(known: string[]): string {
   )
 }
 
-/** 講評用 user 訊息（題目、教材參考答案、學習者作答）。 */
+/**
+ * 講評用 user 訊息（題目、教材參考答案、學習者作答）。
+ * 固定表現題另外註明「說法基本上只有一種」——否則 system 的第 (4) 條會讓 AI 對挨拶語
+ * 也去鼓勵「別種說法」，但那類其實就是要照著說。
+ */
 export function buildQuizUser(p: TutorPrompt, myAnswer: string): string {
+  const note =
+    p.source === 'kaiwa'
+      ? '注意：這題是日語的固定表現（挨拶・定型句），恰當的說法基本上只有參考答案這一種，' +
+        '請直接指出學習者說得對不對、哪個音或助詞寫錯了，不必鼓勵他另創說法。\n'
+      : ''
   return (
     `題目（要用日文說出來的意思）：${p.zh}\n` +
     `教材參考答案：${p.answer}\n` +
+    note +
     `學習者的作答：${myAnswer.trim()}\n` +
     '請依規則講評。'
   )
