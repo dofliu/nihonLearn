@@ -40,9 +40,9 @@ src/
   db/         schema(Dexie v8)・repo（任務計數、蓋章、卡片、發音紀錄、生成句）
   srs/        scheduler：ts-fsrs 封裝（newCard/review/isDue/isMastered）
   audio/      tts（VOICEVOX▸原生▸WebSpeech 門面 + 逐字 boundary 回呼）・scorer（相似度 + ASR + whisper 錄音 + mora 型別）
-  lib/        date・importV1（v1→v2 遷移 + 備份匯出）・content（生成 client + 持久化審核佇列 + 採用）・listening（聽力理解＋JLPT 題型出題，純函式）・articles（NHK Easy 導入 client + 採用）・llm（Gemini 直連 + 金鑰/模型本機儲存）・llmParse（Gemini 回應純解析）・coverage（覆蓋率檢核，無依賴）・pitch（mora 切分 + 東京式 pattern）・sidecar（base URL 抽象 + probeHealth）・vocabGate（詞彙隨假名解鎖，純函式）・quiz（N5 模擬測驗出題，純函式）・karaoke（朗讀逐字上色對齊，純函式）・furigana（漢字↔假名注音對齊，純函式）・handwriting（手寫字形相似度評分，純函式）・activity（學習活動統計，純函式）・kanaChart（五十音圖表格結構＋拗音規則推導，純函式）・patternDrill（句型×已學單字組句，純函式）・roleplay（自由対話場景/prompt/歷史組裝，純函式）・tutorQuiz（助教「考我」出題＋講評 prompt/解析，純函式）・followUp（跟讀後 AI 追問 prompt/解析，純函式）・patternCompose（自由造句句型骨架程式檢核＋講評 prompt，純函式）・voiceInput（語音輸入候選挑選/合併/錯誤訊息，純函式）
+  lib/        date・importV1（v1→v2 遷移 + 備份匯出）・content（生成 client + 持久化審核佇列 + 採用）・listening（聽力理解＋JLPT 題型出題，純函式）・articles（NHK Easy 導入 client + 採用）・llm（Gemini 直連 + 金鑰/模型本機儲存）・llmParse（Gemini 回應純解析）・coverage（覆蓋率檢核，無依賴）・pitch（mora 切分 + 東京式 pattern）・sidecar（base URL 抽象 + probeHealth）・vocabGate（詞彙隨假名解鎖，純函式）・quiz（N5 模擬測驗出題，純函式）・karaoke（朗讀逐字上色對齊，純函式）・furigana（漢字↔假名注音對齊，純函式）・handwriting（手寫字形相似度評分，純函式）・activity（學習活動統計，純函式）・kanaChart（五十音圖表格結構＋拗音規則推導，純函式）・patternDrill（句型×已學單字組句，純函式）・roleplay（自由対話場景/prompt/歷史組裝，純函式）・tutorQuiz（助教「考我」出題＋講評 prompt/解析，純函式）・followUp（跟讀例句／会話腳本的 AI 追問 prompt/解析，純函式）・patternCompose（自由造句句型骨架程式檢核＋講評 prompt，純函式）・voiceInput（語音輸入候選挑選/合併/錯誤訊息，純函式）
   state/      store（zustand：今日/streak/rate/tts/showKanji）
-  views/      Today・Kana(含 Write 書寫練習・五十音圖一覽表)・Listen(含 Pitch)・Speak(含 Dialogue 会話＋Roleplay 自由対話)・Read・Progress・Review・Pattern(文型ドリル，含自由造句)
+  views/      Today・Kana(含 Write 書寫練習・五十音圖一覽表)・Listen(含 Pitch)・Speak(含 Dialogue 会話＋Roleplay 自由対話，跟読與会話走完皆可 AI 追問)・Read・Progress・Review・Pattern(文型ドリル，含自由造句)
   components/ Nav・ui(toast/大印/進度條)・KanaChart(五十音圖)・VocabCard・Karaoke・Ruby・StrokeOrder・FollowUp(跟讀追問)・VoiceInput(共用麥克風鈕)
 sidecar/      FastAPI：/health /tts /speakers /score /content /article/*；article.py（NHK Easy 解析，純函式）；mock_voicevox.py（假 engine）；test_score.py・test_article.py
 tests/        integration.ts（npm test）・INTEGRATION_REPORT.md・MANUAL_QA.md
@@ -521,6 +521,30 @@ v3.37（考我題源擴充：固定表現＋題源分頁）：ROADMAP「🔴 互
 `npm run test:e2e` 73/73（tutor.spec 新增一項：切到「固定表現」連換四題 chip 都是情境表達／即時應答、
 無金鑰看參考答案照常、切回「句型」題源換掉且作答狀態重置）、`npm run build` strict 綠燈。
 
+v3.38（会話走完一段後的追問）：ROADMAP「🔴 互動深化」第 3 步的④——原本只有跟読分頁的例句
+才有「追問」，這次把同一塊搬到**会話（情境對話引導）走完一整段之後**：AI **扮演對話中的那個對象**、
+在同一個場景再問你一句，你臨場自己組句回答（沒有稿子），再拿到中文講評。
+`components/FollowUp.tsx` 由「吃一句例句」改成吃一個 `FollowUpTopic`（純函式 `lib/followUp.ts` 新增
+`FollowUpKind`＝`sentence`／`dialogue`、`buildDialogueAskUser`（把場景／對象／整段已驗證腳本的每句
+jp＋zh 組成 user 訊息）、`sentenceTopic`／`dialogueTopic` 兩個包裝器，`topic.id` 帶題材前綴供換題材時
+重置），`buildAskSystem(known, kind)` 只換掉「情境從哪來」的兩句描述——**共用紅線一字不動**
+（只問一句／N5 15 字內／不要換話題／不要杜撰重音／只輸出 JSON），講評 prompt 兩種題材完全共用。
+`SpeakView` 改傳 `sentenceTopic(sent)`（行為不變），`DialogueView` 的 `DialoguePlay` 在 `done` 時
+於卡片下方掛上 `<FollowUp topic={dialogueTopic(dlg)} />`。文案依題材切換（免責提示指向
+「上方的對話腳本才是已驗證的說法」）。
+**定位比照 v3.31 完全不變**：AI 追問句與講評**僅供參考、不寫入學習庫、不進 SRS、不計入「口」任務
+與每日蓋章**（純選配加練，記 `logActivity('followup')`——沿用既有 feature key，`EXTRA_FEATURES`
+不變）；**無金鑰優雅降級**（只顯示一行說明，固定腳本対話流程完全不受影響）。不動 Dexie schema、
+不動蓋章判定、不新增 CSS。
+
+測試：`npm test` 450/450（新增 5z 對話題材追問 21 項：user 訊息帶入標題／場景／對象與**每一句**
+jp＋zh 且標示誰說的、全部 `DIALOGUES` 都組得出含自己腳本的非空 prompt、對話版 system 有「扮演
+對話中的那個對象」「延續那段對話的場景」且共用紅線齊全、不給 kind 時與例句版**完全相同**（舊行為
+不變）、topic 包裝的 kind／askUser／id 前綴不互撞且同一題材重複組出一致）、`npm run test:e2e` 75/75
+（helpers 新增 `completeDialogue`；speak.spec 新增兩項：無金鑰走完対話只顯示說明且完成畫面照常、
+有金鑰走完対話→追問→回答→中文講評＋△ 徽章，並驗證 `followup` 有記錄而 `speak` 計數不因追問增加、
+換場景後追問區收起）、`npm run build` strict 綠燈。
+
 ---
 
 ## ⭐ 本機實測任務（此專案轉到 Claude Code 的主因）
@@ -616,7 +640,7 @@ Claude Code 在本機可以真正跑起來、觀察、修正。建議依序進�
 
 ## 提交前檢查
 
-`npm run build`（strict 綠燈）＋ `npm test`（414/414）＋ `npm run test:e2e`（72/72）
+`npm run build`（strict 綠燈）＋ `npm test`（450/450）＋ `npm run test:e2e`（75/75）
 ＋（動到 sidecar 時）`python sidecar/test_score.py` 與 `python sidecar/test_article.py`。
 新功能盡量補測：純邏輯進 `tests/integration.ts`，UI 流程進 `e2e/*.spec.ts`（共用步驟放
 `e2e/helpers.ts`），後端進 `test_score.py`。

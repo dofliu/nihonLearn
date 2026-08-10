@@ -5,6 +5,7 @@ import {
   disableSpeechRecognition,
   fakeSpeechRecognition,
   completeSpeakSelf,
+  completeDialogue,
   taskRow,
   activityCount,
 } from './helpers'
@@ -245,5 +246,63 @@ test.describe('話す：跟讀＋即時追問', () => {
 
     await page.getByRole('button', { name: '送出回答' }).click()
     await expect(page.locator('main')).toContainText('說得很清楚', { timeout: 10_000 })
+  })
+})
+
+// ─────────────── 会話走完一段後的追問（與跟読分頁共用同一個元件） ───────────────
+
+test.describe('話す：会話走完一段後的追問', () => {
+  test('未設金鑰：走完対話只顯示說明，固定腳本流程完全不受影響', async ({ page }) => {
+    await disableSpeechRecognition(page)
+    await gotoApp(page)
+
+    await completeDialogue(page)
+    await expect(page.locator('main')).toContainText('追問 ─ AI に聞かれる')
+    await expect(page.locator('main')).toContainText('填入 Gemini 金鑰')
+    await expect(page.getByRole('button', { name: '🤖 追問一句' })).toHaveCount(0)
+    // 既有的完成畫面照常
+    await expect(page.getByRole('button', { name: '再來一次' })).toBeVisible()
+  })
+
+  test('有金鑰：走完対話 → AI 扮演對方再問一句 → 自己回答拿到中文講評', async ({ page }) => {
+    let calls = 0
+    await page.route('**/generativelanguage.googleapis.com/**', (route) => {
+      calls += 1
+      const json =
+        calls === 1
+          ? geminiText(`{"jp":"ほかに なにか いりますか。","zh":"還需要別的嗎？"}`)
+          : geminiText('△ 意思有到，助詞可以再注意一下。')
+      return route.fulfill({ json })
+    })
+    await disableSpeechRecognition(page)
+    await gotoApp(page)
+    await setKey(page)
+
+    await completeDialogue(page)
+    // 對話中自己的台詞已計入「口」任務；追問是選配加練，不該再動到它
+    const speakBefore = await activityCount(page, 'speak')
+
+    await expect(page.locator('main')).toContainText('這段対話練完了')
+    await page.getByRole('button', { name: '🤖 追問一句' }).click()
+    await expect(page.locator('.followUpQ')).toContainText('ほかに なにか いりますか。', {
+      timeout: 10_000,
+    })
+    await expect(page.locator('main')).toContainText('還需要別的嗎？')
+    await expect(page.locator('main')).toContainText('對話腳本才是已驗證的說法')
+
+    await page.locator('input[placeholder="用日文回答…"]').fill('いいえ、けっこうです。')
+    await page.getByRole('button', { name: '送出回答' }).click()
+    await expect(page.locator('main')).toContainText('意思有到', { timeout: 10_000 })
+    await expect(page.locator('main')).toContainText('△ 可以更好')
+
+    // 記入学習記録（followup），但「口」的計數不因追問而增加
+    await expect
+      .poll(() => activityCount(page, 'followup'), { timeout: 10_000 })
+      .toBeGreaterThanOrEqual(1)
+    expect(await activityCount(page, 'speak')).toBe(speakBefore)
+
+    // 換一個場景 → 追問區收起（追問綁在剛練完的那段對話上）
+    await page.getByRole('button', { name: '換一個場景' }).click()
+    await expect(page.locator('main')).not.toContainText('追問 ─ AI に聞かれる')
   })
 })

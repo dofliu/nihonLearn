@@ -212,6 +212,40 @@ export async function completeSpeakSelf(page: Page, times: number) {
   }
 }
 
+/**
+ * 走完一整段情境對話（話す▸会話 的第一個場景），停在完成畫面。
+ * 對方的台詞按「つぎへ」、自己的台詞按「唸完了，下一句」，直到出現「再來一次」。
+ */
+export async function completeDialogue(page: Page) {
+  await navTo(page, '話す')
+  await page.locator('.lvTabs button', { hasText: '会話' }).click()
+  await page.getByRole('button', { name: '開始 ▶' }).first().click()
+
+  const again = page.getByRole('button', { name: '再來一次' })
+  // 對方句與自己句的按鈕文字不同，但同一時間只會出現其中一個——
+  // 用 or() 交給 Playwright auto-wait，不要先 isVisible() 再點（讀到的狀態可能已被重繪）
+  const next = page
+    .getByRole('button', { name: 'つぎへ ▶' })
+    .or(page.getByRole('button', { name: '唸完了，下一句 ▶' }))
+  const bubbles = page.locator('.dlgBubble')
+
+  for (let i = 0; i < 30; i++) {
+    if (await again.isVisible().catch(() => false)) return
+    const before = await bubbles.count()
+    await expect(next.or(again)).toBeVisible({ timeout: 15_000 })
+    if (await again.isVisible().catch(() => false)) return
+    await next.click({ timeout: 15_000 })
+    // 等這一步真的前進（多一顆氣泡）或整段結束，避免重複點到同一顆按鈕
+    await expect
+      .poll(
+        async () => (await again.isVisible().catch(() => false)) || (await bubbles.count()) > before,
+        { timeout: 15_000 },
+      )
+      .toBe(true)
+  }
+  throw new Error('dialogue did not finish within 30 steps')
+}
+
 /** 讀完一篇短文（按 読了） */
 export async function completeRead(page: Page) {
   await navTo(page, '読む')

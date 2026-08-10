@@ -5,7 +5,14 @@
 > 設計原則不變：**正確性交給權威來源與程式驗證，AI 生成一律人工審核採用才入庫；
 > 使用者只做策展，不當正確性把關者。**
 
-最後更新：v3.37（考我題源擴充：固定表現＋題源分頁——「🔴 互動深化」第 2 步的③。AI 助教
+最後更新：v3.38（会話走完一段後的追問——「🔴 互動深化」第 3 步的④。原本只有跟読分頁的例句才有
+「追問」，這次擴到**会話（情境對話引導）走完一整段之後**：AI 扮演對話中的那個對象、在同一個場景
+再問你一句，你臨場自己組句回答。`components/FollowUp.tsx` 改吃 `FollowUpTopic`（`lib/followUp.ts`
+新增 `FollowUpKind`／`buildDialogueAskUser`／`sentenceTopic`／`dialogueTopic`），`buildAskSystem`
+只換「情境從哪來」的描述、共用紅線與講評 prompt 一字不動，不給 kind 時與舊版完全相同。
+定位比照 v3.31 不變：僅供參考、不入庫、不進 SRS、不計「口」任務與蓋章，沿用既有 `followup`
+feature key；無金鑰時固定腳本対話流程完全不受影響）。
+前一版 v3.37（考我題源擴充：固定表現＋題源分頁——「🔴 互動深化」第 2 步的③。AI 助教
 「🎯 考我」的題庫接上 `data/kaiwa` 的発話表現／即時応答（`kaiwaPrompts()`），這兩份是最基本的
 挨拶・定型句、答案唯一，很適合初學者練「主動說出來」；答案依個人情況而異的四題（名字／時間／
 價格／出身地）以資料層新欄位 `ResponseItem.openEnded` 標記並排除，不當造句考題。另加題源分頁
@@ -101,7 +108,14 @@ v3.28，互不依賴，已依序合併入 main。
    （v3.35 完成：`followup` feature key，送出回答時記——**在呼叫 Gemini 之前**，講評連線失敗不該
    抹掉「你已經練過了」；追問綁在跟読流程內、無獨立入口，故不進今日頁加練輪替）；③追問目前不接續多輪
    （每次追問彼此獨立、不帶前一輪回答的上下文），若要做成小型多輪對話可沿用 `roleplay.ts`
-   的 `roleplayHistory` 模式；④只在跟読分頁，会話（`DialogueView`）走完一段後也可比照追問。
+   的 `roleplayHistory` 模式；~~④会話（`DialogueView`）走完一段後也比照追問~~（v3.38 完成：
+   `FollowUp` 改吃 `FollowUpTopic`＝`sentenceTopic`／`dialogueTopic` 兩種題材，`buildDialogueAskUser`
+   把場景／對象／整段腳本組進 user 訊息，system prompt 只換「情境從哪來」的描述、共用紅線不動；
+   AI 扮演對話中的那個對象接著問，走完整段才出現，換場景即收起）。
+   **v3.38 之後新浮現的可續做**：⑤同一段対話目前也是 3 次上限（`MAX_FOLLOWUPS` 兩種題材共用），
+   若覺得整段対話值得多問幾句可改成依 kind 給不同上限，但要留意 API 用量；⑥追問只在**走完整段**
+   後出現，中途離開（返回）就沒有——這是刻意的（追問要有完整情境），若要改成「練到一半也能問」
+   需重新想清楚要餵哪幾句進 prompt。
 4. ~~**文型ドリル「自由造句」評分**~~（v3.32 完成：`PatternView` 第三模式「✍ 自由造句」＋純函式
    `lib/patternCompose.ts`）。**與原構想的差異（刻意為之）**：不是只靠 Gemini 判斷——句型接續與填入的詞
    先由**程式**檢核（`checkShape`：正規化去空白句讀後比對 `pre`/`post` 位置、抽出填空、以假名或漢字正寫
@@ -157,7 +171,7 @@ v3.28，互不依賴，已依序合併入 main。
 ## 目前狀態
 
 - **程式碼**：Web/PWA 與 Android（Capacitor 殼）皆完成；CI（web 測試＋e2e＋Android `assembleDebug`）綠燈。
-- **測試**：`npm test` 429/429、`npm run test:e2e` 73/73、`sidecar/test_score.py` 4/4、`test_article.py` 13/13、`npm run build` strict 綠燈。
+- **測試**：`npm test` 450/450、`npm run test:e2e` 75/75、`sidecar/test_score.py` 4/4、`test_article.py` 13/13、`npm run build` strict 綠燈。
 - **尚未做**：Android 真機驗收（清單 `tests/MANUAL_QA-ANDROID.md`）與 Google Play 封閉測試——**未通過前勿送審**。
 
 ## 已完成里程碑（摘要）
@@ -191,6 +205,7 @@ v3.28，互不依賴，已依序合併入 main。
 | 口說作答擴散到三處（助教「考我」／跟讀追問／文型自由造句共用 `VoiceInput`，規矩一致：只填輸入框、送出後鈕退場、無 ASR 不顯示） | v3.34 |
 | 五十音圖一覽表（`lib/kanaChart.ts`＋`components/KanaChart.tsx`：平/片 × 清/濁/拗音、附羅馬字、點格朗讀與播放全部；全表由已驗證 `data/kana` 推導，拗音走規則、不進 SRS 卡組） | v3.36 |
 | 考我題源擴充：`data/kaiwa` 発話表現／即時応答接成考我題源（`kaiwaPrompts`，`openEnded` 排除答案因人而異者）＋題源分頁（`SOURCE_TABS`／`filterPrompts`） | v3.37 |
+| 会話走完一段後的追問（`FollowUpTopic`＝`sentenceTopic`／`dialogueTopic`，AI 扮演對話中的對象在同一場景再問一句；共用紅線與講評 prompt 不動、沿用 `followup` feature key） | v3.38 |
 | AI 互動練習記入学習記録＋金印（`roleplay`／`tutor`／`followup` 三個 feature key；金印判定抽成純函式 `featureGroup`／`hasExtraFeature`／`extraDays`／`groupTotals`；今日頁加練輪替 4→6、成長頁加分組 chip） | v3.35 |
 
 
