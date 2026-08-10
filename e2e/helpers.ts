@@ -222,13 +222,26 @@ export async function completeDialogue(page: Page) {
   await page.getByRole('button', { name: '開始 ▶' }).first().click()
 
   const again = page.getByRole('button', { name: '再來一次' })
-  const nextA = page.getByRole('button', { name: 'つぎへ ▶' })
-  const nextB = page.getByRole('button', { name: '唸完了，下一句 ▶' })
+  // 對方句與自己句的按鈕文字不同，但同一時間只會出現其中一個——
+  // 用 or() 交給 Playwright auto-wait，不要先 isVisible() 再點（讀到的狀態可能已被重繪）
+  const next = page
+    .getByRole('button', { name: 'つぎへ ▶' })
+    .or(page.getByRole('button', { name: '唸完了，下一句 ▶' }))
+  const bubbles = page.locator('.dlgBubble')
+
   for (let i = 0; i < 30; i++) {
-    await expect(again.or(nextA).or(nextB)).toBeVisible({ timeout: 10_000 })
-    if (await again.isVisible()) return
-    if (await nextA.isVisible()) await nextA.click()
-    else await nextB.click()
+    if (await again.isVisible().catch(() => false)) return
+    const before = await bubbles.count()
+    await expect(next.or(again)).toBeVisible({ timeout: 15_000 })
+    if (await again.isVisible().catch(() => false)) return
+    await next.click({ timeout: 15_000 })
+    // 等這一步真的前進（多一顆氣泡）或整段結束，避免重複點到同一顆按鈕
+    await expect
+      .poll(
+        async () => (await again.isVisible().catch(() => false)) || (await bubbles.count()) > before,
+        { timeout: 15_000 },
+      )
+      .toBe(true)
   }
   throw new Error('dialogue did not finish within 30 steps')
 }
