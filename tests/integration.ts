@@ -80,6 +80,9 @@ import {
 import {
   buildAskSystem,
   buildAskUser,
+  buildDialogueAskUser,
+  sentenceTopic,
+  dialogueTopic,
   parseFollowUpQuestion,
   buildReplySystem,
   buildReplyUser,
@@ -902,6 +905,65 @@ console.log('=== 5u. 跟讀「即時追問」純邏輯 ===')
   // 講評解析沿用 tutorQuiz（同一套記號），確認接得上
   ok('AI 講評可被 parseCritique 解析出徽章', parseCritique('✅ 回答得很自然。').verdict === 'ok')
   ok('追問次數上限為正整數', Number.isInteger(MAX_FOLLOWUPS) && MAX_FOLLOWUPS > 0)
+}
+
+console.log('=== 5z. 会話走完一段後的追問（對話題材） ===')
+{
+  const dlg = DIALOGUES[0]
+
+  // 對話題材的 user 訊息：整段已驗證腳本（場景、對象、每一句 jp＋zh）都要帶進去
+  const duser = buildDialogueAskUser(dlg)
+  ok('對話 user 帶入標題與場景', duser.includes(dlg.title) && duser.includes(dlg.scene))
+  ok('對話 user 帶入對象稱呼', duser.includes(dlg.partner))
+  ok('對話 user 帶入每一句日文', dlg.lines.every((l) => duser.includes(l.jp)))
+  ok('對話 user 帶入每一句中文', dlg.lines.every((l) => duser.includes(l.zh)))
+  ok(
+    '對話 user 標示誰說的（對方／學習者）',
+    duser.includes(`${dlg.partner}：${dlg.lines[0].jp}`) &&
+      duser.includes(`學習者：${dlg.lines.find((l) => l.role === 'b')!.jp}`),
+  )
+  ok('對話 user 要求扮演對方接著問', duser.includes('扮演對方') && duser.includes('追問一句'))
+  ok(
+    '全部 DIALOGUES 都組得出非空 prompt 且含自己的腳本',
+    DIALOGUES.every((d) => {
+      const u = buildDialogueAskUser(d)
+      return u.length > 0 && d.lines.every((l) => u.includes(l.jp))
+    }),
+  )
+
+  // system prompt：兩種題材共用紅線，只有「情境從哪來」的描述不同
+  const dsys = buildAskSystem(['みず'], 'dialogue')
+  const ssys = buildAskSystem(['みず'], 'sentence')
+  ok('對話 system 說明是對話後的延伸練習', dsys.includes('情境對話後的延伸練習'))
+  ok('對話 system 要求扮演同一個對象', dsys.includes('扮演對話中的那個對象'))
+  ok('對話 system 要求延續同一場景', dsys.includes('延續那段對話的場景'))
+  ok(
+    '對話 system 守住共用紅線',
+    dsys.includes('只問「一句」') &&
+      dsys.includes('不要換話題') &&
+      dsys.includes('不要杜撰重音') &&
+      dsys.includes('只輸出 JSON'),
+  )
+  ok('對話 system 帶入已學詞', dsys.includes('みず'))
+  ok('兩種題材的 system 不同', dsys !== ssys)
+  ok('預設（不給 kind）＝例句版，行為不變', buildAskSystem(['みず']) === ssys)
+
+  // topic 包裝：id 供換題材時重置，兩種題材的 id 不會互撞
+  const st = sentenceTopic({ id: 's1', jp: 'みずを ください。', zh: '請給我水。' })
+  const dt = dialogueTopic(dlg)
+  ok('例句 topic kind 為 sentence', st.kind === 'sentence')
+  ok('對話 topic kind 為 dialogue', dt.kind === 'dialogue')
+  ok('例句 topic 的 askUser ＝ buildAskUser', st.askUser === buildAskUser({ jp: 'みずを ください。', zh: '請給我水。' }))
+  ok('對話 topic 的 askUser ＝ buildDialogueAskUser', dt.askUser === duser)
+  ok('topic id 帶題材前綴，不同題材不互撞', st.id === 'sent:s1' && dt.id === `dlg:${dlg.id}`)
+  ok(
+    '每段對話的 topic id 唯一',
+    new Set(DIALOGUES.map((d) => dialogueTopic(d).id)).size === DIALOGUES.length,
+  )
+  ok(
+    '同一段對話重複組出的 topic 一致（不會誤觸重置）',
+    dialogueTopic(dlg).id === dt.id && dialogueTopic(dlg).askUser === dt.askUser,
+  )
 }
 
 console.log('=== 5v. 文型ドリル「自由造句」檢核與講評 ===')

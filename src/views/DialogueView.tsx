@@ -3,6 +3,8 @@ import { DIALOGUES, PARTNER_TAGS, type Dialogue, type PartnerTag } from '../data
 import { speak } from '../audio/tts'
 import { useApp } from '../state/store'
 import { toast } from '../components/ui'
+import { FollowUp } from '../components/FollowUp'
+import { dialogueTopic } from '../lib/followUp'
 import { RoleplayView } from './RoleplayView'
 
 /**
@@ -12,6 +14,9 @@ import { RoleplayView } from './RoleplayView'
  *
  * 另有「自由対話」（`RoleplayView`）：同樣的場景但沒有稿子，由 AI 扮演對方即時回話——
  * 屬純加練，AI 生成內容僅供參考、不入庫、不計入蓋章；無金鑰時本頁固定腳本照常可用。
+ *
+ * 走完一整段之後，下方會出現「追問」卡（`components/FollowUp`，與跟読分頁共用）：
+ * AI 扮演同一個對象、在同一個場景再問你一句，讓你臨場自己組句回答——同樣是選配加練。
  */
 export function DialogueView() {
   const [dlg, setDlg] = useState<Dialogue | null>(null)
@@ -102,73 +107,80 @@ function DialoguePlay({ dlg, onBack }: { dlg: Dialogue; onBack: () => void }) {
   }
 
   return (
-    <div className="card">
-      <div className="row between">
-        <div className="eyebrow">
-          会話 ─ {dlg.title}　{Math.min(step + 1, dlg.lines.length)} / {dlg.lines.length}
-        </div>
-        <button className="btn small ghost" onClick={onBack}>
-          返回
-        </button>
-      </div>
-      <p className="sub" style={{ marginTop: 2 }}>
-        對方：{dlg.partner}。{dlg.scene}
-      </p>
-
-      <div className="dlgBox">
-        {dlg.lines.slice(0, done ? dlg.lines.length : step + 1).map((l, i) => (
-          <div key={i} className={`dlgRow ${l.role === 'b' ? 'me' : ''}`}>
-            <div className={`dlgBubble ${l.role === 'b' ? 'me' : ''} ${!done && i === step ? 'now' : ''}`}>
-              <div className="dlgWho">{l.role === 'a' ? dlg.partner : 'あなた'}</div>
-              <div className="dlgJp" onClick={() => speak(l.jp, rate)}>
-                {l.jp} <span style={{ opacity: 0.55, fontSize: 13 }}>🔊</span>
-              </div>
-              <div className="dlgZh">{l.zh}</div>
-            </div>
+    <>
+      <div className="card">
+        <div className="row between">
+          <div className="eyebrow">
+            会話 ─ {dlg.title}　{Math.min(step + 1, dlg.lines.length)} / {dlg.lines.length}
           </div>
-        ))}
-        <div ref={endRef} />
-      </div>
+          <button className="btn small ghost" onClick={onBack}>
+            返回
+          </button>
+        </div>
+        <p className="sub" style={{ marginTop: 2 }}>
+          對方：{dlg.partner}。{dlg.scene}
+        </p>
 
-      {done ? (
-        <div className="row center" style={{ marginTop: 12 }}>
-          <button
-            className="btn ghost"
-            onClick={() => {
-              setStep(0)
-              setDone(false)
-            }}
-          >
-            再來一次
-          </button>
-          <button className="btn" onClick={onBack}>
-            換一個場景
-          </button>
+        <div className="dlgBox">
+          {dlg.lines.slice(0, done ? dlg.lines.length : step + 1).map((l, i) => (
+            <div key={i} className={`dlgRow ${l.role === 'b' ? 'me' : ''}`}>
+              <div
+                className={`dlgBubble ${l.role === 'b' ? 'me' : ''} ${!done && i === step ? 'now' : ''}`}
+              >
+                <div className="dlgWho">{l.role === 'a' ? dlg.partner : 'あなた'}</div>
+                <div className="dlgJp" onClick={() => speak(l.jp, rate)}>
+                  {l.jp} <span style={{ opacity: 0.55, fontSize: 13 }}>🔊</span>
+                </div>
+                <div className="dlgZh">{l.zh}</div>
+              </div>
+            </div>
+          ))}
+          <div ref={endRef} />
         </div>
-      ) : cur.role === 'a' ? (
-        <div className="row center" style={{ marginTop: 12 }}>
-          <button className="btn small ghost" onClick={() => speak(cur.jp, rate)}>
-            🔊 再聽一次
-          </button>
-          <button className="btn" onClick={() => void next()}>
-            つぎへ ▶
-          </button>
-        </div>
-      ) : (
-        <div style={{ marginTop: 12 }}>
-          <p className="sub center" style={{ marginBottom: 8 }}>
-            換你說——照著上面的句子唸出來（點句子可聽手本）。
-          </p>
-          <div className="row center">
-            <button className="btn small ghost" onClick={() => speak(cur.jp, 0.8)}>
-              🔊 聽手本（慢速）
+
+        {done ? (
+          <div className="row center" style={{ marginTop: 12 }}>
+            <button
+              className="btn ghost"
+              onClick={() => {
+                setStep(0)
+                setDone(false)
+              }}
+            >
+              再來一次
+            </button>
+            <button className="btn" onClick={onBack}>
+              換一個場景
+            </button>
+          </div>
+        ) : cur.role === 'a' ? (
+          <div className="row center" style={{ marginTop: 12 }}>
+            <button className="btn small ghost" onClick={() => speak(cur.jp, rate)}>
+              🔊 再聽一次
             </button>
             <button className="btn" onClick={() => void next()}>
-              唸完了，下一句 ▶
+              つぎへ ▶
             </button>
           </div>
-        </div>
-      )}
-    </div>
+        ) : (
+          <div style={{ marginTop: 12 }}>
+            <p className="sub center" style={{ marginBottom: 8 }}>
+              換你說——照著上面的句子唸出來（點句子可聽手本）。
+            </p>
+            <div className="row center">
+              <button className="btn small ghost" onClick={() => speak(cur.jp, 0.8)}>
+                🔊 聽手本（慢速）
+              </button>
+              <button className="btn" onClick={() => void next()}>
+                唸完了，下一句 ▶
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* 走完整段之後才出現的即時追問（選配加練；AI 生成僅供參考、不入庫、不計蓋章） */}
+      {done && <FollowUp topic={dialogueTopic(dlg)} />}
+    </>
   )
 }

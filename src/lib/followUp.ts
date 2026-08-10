@@ -1,15 +1,18 @@
 /**
- * 跟讀「即時追問」的純邏輯（無 Dexie / window / Capacitor 依賴，供 Node 測試 import）。
+ * 「即時追問」的純邏輯（無 Dexie / window / Capacitor 依賴，供 Node 測試 import）。
  *
- * 做什麼：跟讀完一句**已驗證**的教材例句後，AI 順勢針對這句的情境追問一句簡單日文，
+ * 做什麼：練完一段**已驗證**的教材素材後，AI 順勢針對那個情境追問一句簡單日文，
  * 你必須臨場自己組句回答（而不是照著稿子唸），再拿到一段**中文**講評。
+ * 素材有兩種（`FollowUpKind`）：跟讀分頁的單句例句（`data/sentences`），
+ * 以及会話分頁走完的一整段情境對話（`data/dialogues`）。
  *
  * 定位（沿用 AI 助教 v3.6／自由対話 v3.29 立下的先例）：
  *  - 追問句與講評都是使用者主動觸發、一次性、當下自己看的生成內容——**僅供參考、
  *    不寫入學習庫、不進 SRS、不計入每日蓋章**，因此不走 `needs_review` 審核佇列。
- *  - 教材例句本身仍然是已驗證資料（`data/sentences`），AI 只在它旁邊追問，不改寫、不取代。
+ *  - 教材素材本身仍然是已驗證資料（`data/sentences`／`data/dialogues`），AI 只在它旁邊追問，
+ *    不改寫、不取代。
  *  - 講評一律用**中文**（使用者能自審的語言），評價記號沿用 `lib/tutorQuiz` 的 `parseCritique`。
- *  - **無金鑰時整塊功能隱藏**，跟讀與評分照常運作（降級不中斷）。
+ *  - **無金鑰時整塊功能隱藏**，跟讀／会話引導照常運作（降級不中斷）。
  */
 
 /** AI 追問的一句話（日文＋中文翻譯）。日文為 AI 生成，僅供參考。 */
@@ -18,22 +21,47 @@ export interface FollowUpQuestion {
   zh: string
 }
 
+/** 追問的題材種類：跟讀的單句例句／会話走完的一整段對話。 */
+export type FollowUpKind = 'sentence' | 'dialogue'
+
+/**
+ * 一個「可以被追問」的題材。`askUser` 已把已驗證素材組成給 AI 的 user 訊息，
+ * `id` 供呼叫端在換題材時重置追問區（追問是綁在當下這個情境上的）。
+ */
+export interface FollowUpTopic {
+  id: string
+  kind: FollowUpKind
+  askUser: string
+}
+
 /** 同一句例句最多能連續追問幾次（避免一直追問下去、也控制 API 用量）。 */
 export const MAX_FOLLOWUPS = 3
 
 /**
  * 追問用 system prompt：交代對象程度、已學詞彙與輸出格式。
  * 紅線：短句、以平假名為主、不杜撰重音、只輸出 JSON。
+ * `kind` 只換掉「情境從哪來」的兩句描述，其餘規則兩種題材共用。
  */
-export function buildAskSystem(known: string[]): string {
+export function buildAskSystem(known: string[], kind: FollowUpKind = 'sentence'): string {
   const list = known.slice(0, 120).join('、')
+  const scene =
+    kind === 'dialogue'
+      ? '陪一位中文母語、剛學完五十音的成人做「情境對話後的延伸練習」。' +
+        '學習者剛照著固定腳本練完一段對話，你要**扮演對話中的那個對象、接著同一個場景再問他一句**，' +
+        '讓他必須自己組句回答。'
+      : '陪一位中文母語、剛學完五十音的成人做「跟讀後的延伸練習」。' +
+        '學習者剛唸完一句教材例句，你要**針對那句話的情境追問一句**，讓他必須自己組句回答。'
+  const relevant =
+    kind === 'dialogue'
+      ? '(3) 問句要延續那段對話的場景與對象（同一家店、同一個人），不要換話題、不要一次問兩件事；'
+      : '(3) 問句要跟例句的情境直接相關，不要換話題、不要一次問兩件事；'
   return (
-    '你在一個日語學習 App 裡，陪一位中文母語、剛學完五十音的成人做「跟讀後的延伸練習」。' +
-    '學習者剛唸完一句教材例句，你要**針對那句話的情境追問一句**，讓他必須自己組句回答。' +
+    '你在一個日語學習 App 裡，' +
+    scene +
     '規則：' +
     '(1) 只問「一句」日文問題，N5 程度、簡短（15 字以內）、以平假名為主，必要時用空白斷詞；' +
     '(2) 問題要能用學過的詞回答，盡量只用學習者「已學過的詞」；' +
-    '(3) 問句要跟例句的情境直接相關，不要換話題、不要一次問兩件事；' +
+    relevant +
     '(4) 不要杜撰重音（アクセント）或艱深敬語，沒把握就用最基本的說法；' +
     '(5) 只輸出 JSON，不要任何解說或 markdown：{"jp":"日文問句","zh":"中文翻譯"}' +
     `\n學習者已學過的詞彙：${list || '（尚無，請用最基礎的詞）'}`
@@ -46,6 +74,41 @@ export function buildAskUser(sent: { jp: string; zh: string }): string {
     `學習者剛跟讀的教材例句：${sent.jp}（${sent.zh}）\n` +
     '請依規則針對這句的情境追問一句。'
   )
+}
+
+/** 追問用 user 訊息（帶入剛走完的已驗證對話腳本：場景、對象、每一句台詞）。 */
+export function buildDialogueAskUser(dlg: {
+  title: string
+  partner: string
+  scene: string
+  lines: { role: 'a' | 'b'; jp: string; zh: string }[]
+}): string {
+  const script = dlg.lines
+    .map((l) => `${l.role === 'a' ? dlg.partner : '學習者'}：${l.jp}（${l.zh}）`)
+    .join('\n')
+  return (
+    `學習者剛練完的情境對話：${dlg.title}\n` +
+    `場景：${dlg.scene}\n` +
+    `對方：${dlg.partner}\n` +
+    `腳本：\n${script}\n` +
+    '請依規則扮演對方，接著這個場景再追問一句。'
+  )
+}
+
+/** 把一句已驗證例句包成可追問的題材。 */
+export function sentenceTopic(sent: { id: string; jp: string; zh: string }): FollowUpTopic {
+  return { id: `sent:${sent.id}`, kind: 'sentence', askUser: buildAskUser(sent) }
+}
+
+/** 把一段已驗證對話腳本包成可追問的題材。 */
+export function dialogueTopic(dlg: {
+  id: string
+  title: string
+  partner: string
+  scene: string
+  lines: { role: 'a' | 'b'; jp: string; zh: string }[]
+}): FollowUpTopic {
+  return { id: `dlg:${dlg.id}`, kind: 'dialogue', askUser: buildDialogueAskUser(dlg) }
 }
 
 /**

@@ -4,12 +4,13 @@ import { personalKnownWords } from '../lib/content'
 import { logActivity } from '../db/repo'
 import {
   buildAskSystem,
-  buildAskUser,
   parseFollowUpQuestion,
   buildReplySystem,
   buildReplyUser,
   MAX_FOLLOWUPS,
   type FollowUpQuestion,
+  type FollowUpKind,
+  type FollowUpTopic,
 } from '../lib/followUp'
 import { parseCritique, VERDICT_LABEL, type Verdict } from '../lib/tutorQuiz'
 import { mergeSpoken } from '../lib/voiceInput'
@@ -18,12 +19,32 @@ import { useApp } from '../state/store'
 import { VoiceInput } from './VoiceInput'
 import { toast } from './ui'
 
+/** 兩種題材的文案差異（其餘畫面完全共用）。 */
+const COPY: Record<
+  FollowUpKind,
+  { intro: string; verified: string; noKey: string; done: string }
+> = {
+  sentence: {
+    intro: '跟讀完這句之後，讓 AI 順著情境追問你一句——這次沒有稿子，自己組句回答看看。',
+    verified: '教材例句（上方那句）才是已驗證的說法。',
+    noKey: '跟讀完這句，AI 會順著情境',
+    done: '這句追問夠了——換下一句再來吧。',
+  },
+  dialogue: {
+    intro: '這段対話練完了——讓 AI 扮演同一個對象、在同一個場景再問你一句，這次沒有稿子。',
+    verified: '上方的對話腳本才是已驗證的說法。',
+    noKey: '走完一段対話，AI 會扮演對方',
+    done: '這段對話追問夠了——換個場景再來吧。',
+  },
+}
+
 /**
- * 跟讀後的「即時追問」：AI 針對剛跟讀的**已驗證例句**追問一句，你臨場自己組句回答，
- * 再拿到一段中文講評。屬**選配加練**——不計入「口」任務、不影響蓋章、不寫入學習庫。
- * 無 Gemini 金鑰時只顯示一行說明（跟讀與評分完全不受影響）。
+ * 練完教材素材後的「即時追問」：AI 針對剛練過的**已驗證素材**（跟讀例句／情境對話腳本）
+ * 追問一句，你臨場自己組句回答，再拿到一段中文講評。屬**選配加練**——不計入「口」任務、
+ * 不影響蓋章、不寫入學習庫。無 Gemini 金鑰時只顯示一行說明（跟讀／会話引導完全不受影響）。
  */
-export function FollowUp({ sent }: { sent: { id: string; jp: string; zh: string } }) {
+export function FollowUp({ topic }: { topic: FollowUpTopic }) {
+  const copy = COPY[topic.kind]
   const rate = useApp((s) => s.rate)
   const [known, setKnown] = useState<string[]>([])
   const [q, setQ] = useState<FollowUpQuestion | null>(null)
@@ -36,21 +57,21 @@ export function FollowUp({ sent }: { sent: { id: string; jp: string; zh: string 
     void (async () => setKnown(await personalKnownWords()))()
   }, [])
 
-  // 換句子 → 這塊重來（追問是針對「當下這句」的情境）
+  // 換題材（下一句例句／另一段對話）→ 這塊重來（追問是針對「當下這個情境」的）
   useEffect(() => {
     setQ(null)
     setInput('')
     setCritique(null)
     setCount(0)
-  }, [sent.id])
+  }, [topic.id])
 
   if (!hasLLM()) {
     return (
       <div className="card">
         <div className="eyebrow">追問 ─ AI に聞かれる</div>
         <p className="sub">
-          到<b>設定</b>（點頁首標題）填入 Gemini 金鑰後，跟讀完這句，AI 會順著情境
-          <b>追問你一句</b>，讓你臨場自己組句回答。跟讀與評分不需要金鑰，照常可用。
+          到<b>設定</b>（點頁首標題）填入 Gemini 金鑰後，{copy.noKey}
+          <b>追問你一句</b>，讓你臨場自己組句回答。這裡不填金鑰也不影響原本的練習。
         </p>
       </div>
     )
@@ -62,8 +83,8 @@ export function FollowUp({ sent }: { sent: { id: string; jp: string; zh: string 
     setInput('')
     setCritique(null)
     try {
-      const raw = await chatGeminiJSON(buildAskSystem(known), [
-        { role: 'user', text: buildAskUser(sent) },
+      const raw = await chatGeminiJSON(buildAskSystem(known, topic.kind), [
+        { role: 'user', text: topic.askUser },
       ])
       const parsed = parseFollowUpQuestion(raw)
       if (!parsed) {
@@ -110,8 +131,7 @@ export function FollowUp({ sent }: { sent: { id: string; jp: string; zh: string 
         )}
       </div>
       <p className="sub" style={{ marginTop: 2 }}>
-        跟讀完這句之後，讓 AI 順著情境追問你一句——這次<b>沒有稿子</b>，自己組句回答看看。
-        （選配加練，不影響今日任務）
+        {copy.intro}（選配加練，不影響今日任務）
       </p>
 
       {!q ? (
@@ -132,8 +152,7 @@ export function FollowUp({ sent }: { sent: { id: string; jp: string; zh: string 
             </button>
           </div>
           <div className="hint" style={{ marginTop: 6 }}>
-            ⚠️ 追問句與講評由 AI 生成、<b>僅供參考</b>，不會寫入你的學習資料；
-            教材例句（上方那句）才是已驗證的說法。
+            ⚠️ 追問句與講評由 AI 生成、<b>僅供參考</b>，不會寫入你的學習資料；{copy.verified}
           </div>
 
           <div className="row" style={{ marginTop: 10, gap: 6 }}>
@@ -181,7 +200,7 @@ export function FollowUp({ sent }: { sent: { id: string; jp: string; zh: string 
 
           <div className="row center" style={{ marginTop: 10 }}>
             {done ? (
-              <p className="sub">這句追問夠了——換下一句再來吧。</p>
+              <p className="sub">{copy.done}</p>
             ) : (
               <button className="btn small ghost" onClick={() => void ask()} disabled={loading}>
                 再追問一句 →
