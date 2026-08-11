@@ -15,6 +15,8 @@
  *  - **無金鑰時整塊功能隱藏**，跟讀／会話引導照常運作（降級不中斷）。
  */
 
+import type { ChatMsg } from './llmParse.ts'
+
 /** AI 追問的一句話（日文＋中文翻譯）。日文為 AI 生成，僅供參考。 */
 export interface FollowUpQuestion {
   jp: string
@@ -62,10 +64,48 @@ export function buildAskSystem(known: string[], kind: FollowUpKind = 'sentence')
     '(1) 只問「一句」日文問題，N5 程度、簡短（15 字以內）、以平假名為主，必要時用空白斷詞；' +
     '(2) 問題要能用學過的詞回答，盡量只用學習者「已學過的詞」；' +
     relevant +
-    '(4) 不要杜撰重音（アクセント）或艱深敬語，沒把握就用最基本的說法；' +
-    '(5) 只輸出 JSON，不要任何解說或 markdown：{"jp":"日文問句","zh":"中文翻譯"}' +
+    '(4) 前面若已經有問答，請**接著學習者剛剛的回答繼續問下去**（像聊天一樣自然延續），' +
+    '不要重複問過的問題、也不要重新自我介紹；' +
+    '(5) 不要杜撰重音（アクセント）或艱深敬語，沒把握就用最基本的說法；' +
+    '(6) 只輸出 JSON，不要任何解說或 markdown：{"jp":"日文問句","zh":"中文翻譯"}' +
     `\n學習者已學過的詞彙：${list || '（尚無，請用最基礎的詞）'}`
   )
+}
+
+/** 一輪已經問答過的追問（AI 的問句＋學習者的回答；回答為空＝跳過沒答）。 */
+export interface FollowUpExchange {
+  q: FollowUpQuestion
+  answer: string
+}
+
+/** 學習者沒回答就再按追問時，送給 AI 的替代訊息（維持 user／model 交替）。 */
+export const FOLLOWUP_SKIPPED =
+  '（學習者沒有回答這一題。）請換一個角度、在同一個情境再追問一句。'
+
+/** 學習者回答之後、要 AI 接著往下問的 user 訊息。 */
+export function buildAnswerUser(answer: string): string {
+  return (
+    `學習者的回答：${answer.trim()}\n` +
+    '請依規則接著這個回答再追問一句（同一個情境，不要重複問過的問題）。'
+  )
+}
+
+/**
+ * 把「題材＋已經問答過的幾輪」組成 Gemini 多輪 contents（比照 `roleplay.ts roleplayHistory`）。
+ * 第一則永遠是題材本身（已驗證素材組成的 `topic.askUser`），之後每輪以 model（追問句 JSON，
+ * 與要求的輸出格式一致）＋user（學習者的回答）交替，讓 AI 看得到前面問過什麼、學習者怎麼回，
+ * 才能真的「接著問」而不是每次從頭問。沒有已問答的輪次時＝只有第一則，與多輪化前的行為相同。
+ */
+export function followUpHistory(askUser: string, rounds: FollowUpExchange[]): ChatMsg[] {
+  const msgs: ChatMsg[] = [{ role: 'user', text: askUser }]
+  for (const r of rounds) {
+    msgs.push({ role: 'model', text: JSON.stringify({ jp: r.q.jp, zh: r.q.zh }) })
+    msgs.push({
+      role: 'user',
+      text: r.answer.trim() ? buildAnswerUser(r.answer) : FOLLOWUP_SKIPPED,
+    })
+  }
+  return msgs
 }
 
 /** 追問用 user 訊息（帶入剛跟讀的已驗證例句）。 */

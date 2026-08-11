@@ -86,6 +86,9 @@ import {
   parseFollowUpQuestion,
   buildReplySystem,
   buildReplyUser,
+  buildAnswerUser,
+  followUpHistory,
+  FOLLOWUP_SKIPPED,
   MAX_FOLLOWUPS,
 } from '../src/lib/followUp.ts'
 
@@ -964,6 +967,85 @@ console.log('=== 5z. 会話走完一段後的追問（對話題材） ===')
     '同一段對話重複組出的 topic 一致（不會誤觸重置）',
     dialogueTopic(dlg).id === dt.id && dialogueTopic(dlg).askUser === dt.askUser,
   )
+}
+
+console.log('=== 5aa. 追問接續多輪（history 組裝） ===')
+{
+  const topic = sentenceTopic({ id: 's1', jp: 'みずを ください。', zh: '請給我水。' })
+  const q1 = { jp: 'なにが すきですか。', zh: '你喜歡什麼？' }
+  const q2 = { jp: 'どこで かいますか。', zh: '在哪裡買？' }
+
+  // 第一輪：只有題材本身 → 與多輪化之前的行為完全相同
+  const h0 = followUpHistory(topic.askUser, [])
+  ok('沒有前輪時只有一則訊息', h0.length === 1)
+  ok('第一則＝題材（已驗證素材組成的 user 訊息）', h0[0].role === 'user' && h0[0].text === topic.askUser)
+
+  // 一輪已問答：user（題材）→ model（追問句 JSON）→ user（回答）
+  const h1 = followUpHistory(topic.askUser, [{ q: q1, answer: 'みずが すきです。' }])
+  ok('一輪問答後共三則', h1.length === 3)
+  ok('AI 回合以 model 角色回填', h1[1].role === 'model')
+  ok(
+    'model 回合是與輸出格式一致的 JSON（可被 parseFollowUpQuestion 還原）',
+    parseFollowUpQuestion(h1[1].text)?.jp === q1.jp,
+  )
+  ok('最後一則帶入學習者的回答', h1[2].role === 'user' && h1[2].text.includes('みずが すきです。'))
+  ok('最後一則要求接著回答繼續問', h1[2].text.includes('不要重複問過的問題'))
+
+  // 兩輪：角色嚴格交替，且以 user 開頭、user 結尾（Gemini contents 要求）
+  const h2 = followUpHistory(topic.askUser, [
+    { q: q1, answer: 'みずが すきです。' },
+    { q: q2, answer: 'コンビニで かいます。' },
+  ])
+  ok('兩輪問答後共五則', h2.length === 5)
+  ok(
+    '角色嚴格交替 user/model/user/model/user',
+    h2.every((m, i) => m.role === (i % 2 === 0 ? 'user' : 'model')),
+  )
+  ok('每一輪的追問句都在歷史裡', h2[1].text.includes(q1.jp) && h2[3].text.includes(q2.jp))
+  ok('每一輪的回答都在歷史裡', h2[2].text.includes('みずが すきです。') && h2[4].text.includes('コンビニで かいます。'))
+  ok('沒有空白訊息', h2.every((m) => m.text.trim().length > 0))
+
+  // 沒回答就再按追問：以固定的「跳過」訊息維持交替，不會謊稱他回答了什麼
+  const hs = followUpHistory(topic.askUser, [{ q: q1, answer: '   ' }])
+  ok('未回答的輪次用跳過訊息', hs[2].text === FOLLOWUP_SKIPPED)
+  ok('跳過訊息不含「學習者的回答」', !hs[2].text.includes('學習者的回答'))
+  ok('跳過訊息仍要求同一情境再問', FOLLOWUP_SKIPPED.includes('同一個情境'))
+
+  // 回答的前後空白會被 trim（與 buildReplyUser 一致）
+  ok('buildAnswerUser trim 回答', buildAnswerUser('  はい。 ').includes('學習者的回答：はい。\n'))
+  ok(
+    'history 內的回答也已 trim',
+    followUpHistory(topic.askUser, [{ q: q1, answer: '  はい。 ' }])[2].text.includes(
+      '學習者的回答：はい。\n',
+    ),
+  )
+
+  // 兩種題材都適用（對話題材的第一則同樣是整段已驗證腳本）
+  const dtopic = dialogueTopic(DIALOGUES[0])
+  const hd = followUpHistory(dtopic.askUser, [{ q: q1, answer: 'はい。' }])
+  ok('對話題材第一則＝整段腳本', hd[0].text === dtopic.askUser)
+  ok(
+    '全部 DIALOGUES 的 history 首則都是自己的腳本',
+    DIALOGUES.every((d) => followUpHistory(dialogueTopic(d).askUser, [])[0].text === dialogueTopic(d).askUser),
+  )
+
+  // system prompt：新增「接著問」規則，且兩種題材共用的紅線一條都沒少
+  const sysS = buildAskSystem(['みず'], 'sentence')
+  const sysD = buildAskSystem(['みず'], 'dialogue')
+  ok('system 要求接著回答繼續問', sysS.includes('接著學習者剛剛的回答繼續問下去'))
+  ok('system 禁止重複問過的問題', sysS.includes('不要重複問過的問題'))
+  ok('對話題材同樣有接著問的規則', sysD.includes('接著學習者剛剛的回答繼續問下去'))
+  ok(
+    '共用紅線仍齊全（一句／不換話題／不杜撰重音／只輸出 JSON）',
+    [sysS, sysD].every(
+      (s) =>
+        s.includes('只問「一句」') &&
+        s.includes('不要換話題') &&
+        s.includes('不要杜撰重音') &&
+        s.includes('只輸出 JSON'),
+    ),
+  )
+  ok('輪數上限仍是同一個常數', Number.isInteger(MAX_FOLLOWUPS) && MAX_FOLLOWUPS > 1)
 }
 
 console.log('=== 5v. 文型ドリル「自由造句」檢核與講評 ===')

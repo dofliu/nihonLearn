@@ -217,6 +217,52 @@ test.describe('話す：跟讀＋即時追問', () => {
     await expect(taskRow(page, '口の修行').locator('.tprog')).toContainText('0 / 3')
   })
 
+  test('追問接續多輪：第二次追問帶上前一輪問答，畫面保留整串問答', async ({ page }) => {
+    const bodies: string[] = []
+    let calls = 0
+    await page.route('**/generativelanguage.googleapis.com/**', (route) => {
+      calls += 1
+      bodies.push(route.request().postData() || '')
+      // 1: 追問①（JSON）／2: 講評（純文字）／3: 追問②（JSON）
+      const json =
+        calls === 2
+          ? geminiText('△ 意思到了，助詞再注意一下。')
+          : calls === 1
+            ? geminiText(`{"jp":"なにが すきですか。","zh":"你喜歡什麼？"}`)
+            : geminiText(`{"jp":"どこで かいますか。","zh":"在哪裡買？"}`)
+      return route.fulfill({ json })
+    })
+    await disableSpeechRecognition(page)
+    await gotoApp(page)
+    await setKey(page)
+    await navTo(page, '話す')
+
+    await page.getByRole('button', { name: '🤖 追問一句' }).click()
+    await expect(page.locator('.followUpQ')).toContainText('なにが すきですか。', {
+      timeout: 10_000,
+    })
+    await page.locator('input[placeholder="用日文回答…"]').fill('みずが すきです。')
+    await page.getByRole('button', { name: '送出回答' }).click()
+    await expect(page.locator('main')).toContainText('意思到了', { timeout: 10_000 })
+
+    await page.getByRole('button', { name: '再追問一句 →' }).click()
+    await expect(page.locator('.followUpQ').last()).toContainText('どこで かいますか。', {
+      timeout: 10_000,
+    })
+
+    // 整串問答留在畫面上（前一輪的問句、你的回答、講評都還在）
+    await expect(page.locator('.followUpQ')).toHaveCount(2)
+    await expect(page.locator('main')).toContainText('なにが すきですか。')
+    await expect(page.locator('main')).toContainText('あなた：みずが すきです。')
+    await expect(page.locator('main .chip', { hasText: '2 / 3' })).toBeVisible()
+
+    // 第二次追問的請求帶上前一輪的問答，AI 才可能「接著問」
+    const askAgain = bodies[2]
+    expect(askAgain).toContain('なにが すきですか')
+    expect(askAgain).toContain('みずが すきです')
+    expect(askAgain).toContain('不要重複問過的問題')
+  })
+
   test('追問可以用說的：辨識結果先填進輸入框，確認後才送出回答', async ({ page }) => {
     let calls = 0
     await page.route('**/generativelanguage.googleapis.com/**', (route) => {

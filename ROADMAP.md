@@ -5,7 +5,15 @@
 > 設計原則不變：**正確性交給權威來源與程式驗證，AI 生成一律人工審核採用才入庫；
 > 使用者只做策展，不當正確性把關者。**
 
-最後更新：v3.38（会話走完一段後的追問——「🔴 互動深化」第 3 步的④。原本只有跟読分頁的例句才有
+最後更新：v3.39（追問接續多輪——「🔴 互動深化」第 3 步的③。v3.31／v3.38 的追問每次都是獨立的
+一問一答（AI 看不到前一輪），這次改成**接續多輪的小型對話**：`lib/followUp.ts` 新增
+`followUpHistory(askUser, rounds)`（比照 `roleplay.ts roleplayHistory`）把「題材＋已問答輪次」組成
+Gemini 多輪 contents，`buildAnswerUser` 要求「接著這個回答再問一句、不要重複問過的問題」，未回答的
+輪次以 `FOLLOWUP_SKIPPED` 維持交替而不謊稱回答內容；`buildAskSystem` 只加一條「接著回答繼續問」、
+共用紅線與講評 prompt 不動，沒有前輪時＝與多輪化前完全相同。`components/FollowUp.tsx` 改成整串問答
+留在畫面上（`Round[]`），回答先進畫面再呼叫 Gemini。定位、feature key、`MAX_FOLLOWUPS`、Dexie
+schema、蓋章判定全部不動）。
+前一版 v3.38（会話走完一段後的追問——「🔴 互動深化」第 3 步的④。原本只有跟読分頁的例句才有
 「追問」，這次擴到**会話（情境對話引導）走完一整段之後**：AI 扮演對話中的那個對象、在同一個場景
 再問你一句，你臨場自己組句回答。`components/FollowUp.tsx` 改吃 `FollowUpTopic`（`lib/followUp.ts`
 新增 `FollowUpKind`／`buildDialogueAskUser`／`sentenceTopic`／`dialogueTopic`），`buildAskSystem`
@@ -106,16 +114,24 @@ v3.28，互不依賴，已依序合併入 main。
    **可續做的小增量**：~~①口說回答~~（v3.34 完成，與第 2 項的①一併做：`components/FollowUp.tsx`
    的回答輸入掛上共用 `VoiceInput`，辨識結果只填進輸入框、確認後才送出）；~~②記入学習記録~~
    （v3.35 完成：`followup` feature key，送出回答時記——**在呼叫 Gemini 之前**，講評連線失敗不該
-   抹掉「你已經練過了」；追問綁在跟読流程內、無獨立入口，故不進今日頁加練輪替）；③追問目前不接續多輪
-   （每次追問彼此獨立、不帶前一輪回答的上下文），若要做成小型多輪對話可沿用 `roleplay.ts`
-   的 `roleplayHistory` 模式；~~④会話（`DialogueView`）走完一段後也比照追問~~（v3.38 完成：
+   抹掉「你已經練過了」；追問綁在跟読流程內、無獨立入口，故不進今日頁加練輪替）；~~③追問接續多輪~~
+   （v3.39 完成：`followUpHistory(askUser, rounds)` 沿用 `roleplay.ts roleplayHistory` 模式把題材與
+   已問答輪次組成多輪 contents，AI 接著你的回答繼續問；未回答的輪次以 `FOLLOWUP_SKIPPED` 維持
+   user/model 交替、不謊稱回答內容；UI 整串問答留在畫面上，回答先進畫面再呼叫 Gemini。
+   共用紅線／講評 prompt／feature key／`MAX_FOLLOWUPS` 全部不動）；~~④会話（`DialogueView`）走完一段後也比照追問~~（v3.38 完成：
    `FollowUp` 改吃 `FollowUpTopic`＝`sentenceTopic`／`dialogueTopic` 兩種題材，`buildDialogueAskUser`
    把場景／對象／整段腳本組進 user 訊息，system prompt 只換「情境從哪來」的描述、共用紅線不動；
    AI 扮演對話中的那個對象接著問，走完整段才出現，換場景即收起）。
-   **v3.38 之後新浮現的可續做**：⑤同一段対話目前也是 3 次上限（`MAX_FOLLOWUPS` 兩種題材共用），
-   若覺得整段対話值得多問幾句可改成依 kind 給不同上限，但要留意 API 用量；⑥追問只在**走完整段**
-   後出現，中途離開（返回）就沒有——這是刻意的（追問要有完整情境），若要改成「練到一半也能問」
-   需重新想清楚要餵哪幾句進 prompt。
+   **v3.38 之後新浮現的可續做**：⑤同一段対話目前也是 3 輪上限（`MAX_FOLLOWUPS` 兩種題材共用），
+   v3.39 讓這 3 輪變成**接續的對話**後更有理由放寬（依 kind 給不同上限），但要留意 API 用量；
+   ⑥追問只在**走完整段**後出現，中途離開（返回）就沒有——這是刻意的（追問要有完整情境），
+   若要改成「練到一半也能問」需重新想清楚要餵哪幾句進 prompt。
+   **v3.39 之後新浮現的可續做**：⑦講評（`buildReplyUser`）目前仍只看「這一輪的問句＋回答」，
+   不看前幾輪——多輪化之後可考慮讓講評也帶上下文（例如指出「你這句和前面說的不一致」），
+   但會增加 token 用量、也要小心別讓講評變長；⑧整串問答換題材就消失、不持久化（刻意——
+   AI 產出不入庫），若要「回顧今天練過的追問」需另開 Dexie schema（version 9），
+   且要先想清楚這與「AI 產出不寫入學習庫」的界線怎麼說明（存的是你自己的作答與當下的對話紀錄，
+   不是教材）。
 4. ~~**文型ドリル「自由造句」評分**~~（v3.32 完成：`PatternView` 第三模式「✍ 自由造句」＋純函式
    `lib/patternCompose.ts`）。**與原構想的差異（刻意為之）**：不是只靠 Gemini 判斷——句型接續與填入的詞
    先由**程式**檢核（`checkShape`：正規化去空白句讀後比對 `pre`/`post` 位置、抽出填空、以假名或漢字正寫
