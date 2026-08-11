@@ -1165,6 +1165,23 @@ select {
   }
 }
 
+/* 追問（多輪）：整串問答留在畫面上，輪與輪之間用虛線分隔 */
+.followUpRound {
+  margin-top: 10px;
+}
+.followUpRound + .followUpRound {
+  border-top: 1px dashed var(--washi2);
+  padding-top: 10px;
+}
+.followUpMine {
+  margin-top: 6px;
+  font-size: 14.5px;
+  color: var(--ai);
+  background: var(--washi);
+  border-radius: 8px;
+  padding: 7px 10px;
+}
+
 /* 漢字模式：漢字＋假名注音並列（初學者也能唸；v3.11 起不再隱藏振り仮名） */
 .kanji-mode ruby {
   margin: 0 1px;

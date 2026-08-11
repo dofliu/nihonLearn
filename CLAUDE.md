@@ -545,6 +545,31 @@ jp＋zh 且標示誰說的、全部 `DIALOGUES` 都組得出含自己腳本的�
 有金鑰走完対話→追問→回答→中文講評＋△ 徽章，並驗證 `followup` 有記錄而 `speak` 計數不因追問增加、
 換場景後追問區收起）、`npm run build` strict 綠燈。
 
+v3.39（追問接續多輪）：ROADMAP「🔴 互動深化」第 3 步的③——v3.31／v3.38 的追問**每次都是獨立的
+一問一答**（AI 看不到前一輪，等於同一個情境被重新問三次）。這次改成**接續多輪的小型對話**：
+純函式 `lib/followUp.ts` 新增 `followUpHistory(askUser, rounds)`（比照 `roleplay.ts roleplayHistory`）
+把「題材＋已問答過的輪次」組成 Gemini 多輪 contents——第一則永遠是**已驗證素材**組成的
+`topic.askUser`，之後每輪 model（追問句 JSON，與要求的輸出格式一致）＋user（`buildAnswerUser` 帶入
+你的回答並要求「接著這個回答再問一句、不要重複問過的問題」）嚴格交替；沒回答就再按追問時，
+以固定的 `FOLLOWUP_SKIPPED` 訊息維持交替（**不謊稱他回答了什麼**）。`buildAskSystem` 只加一條
+「前面若已經有問答，請接著學習者剛剛的回答繼續問下去」，**共用紅線與講評 prompt 一字不動**；
+沒有前輪時 history ＝只有第一則，與多輪化之前的行為完全相同（兩種題材共用）。
+UI：`components/FollowUp.tsx` 由「只顯示當下那一題」改成**整串問答留在畫面上**（`Round[]` 狀態：
+問句＋你的回答＋講評，輪與輪之間虛線分隔），回答送出時**先進畫面再呼叫 Gemini**（講評連線失敗也
+留著——你確實已經自己組句回答過了），已回答的輪次收起輸入框與麥克風鈕（要往下走就按「再追問一句 →」）。
+**定位比照 v3.31／v3.38 完全不變**：AI 追問句與講評僅供參考、不寫入學習庫、不進 SRS、不計入「口」
+任務與蓋章（沿用 `followup` feature key，記錄時機也不變）；無金鑰照樣只顯示一行說明。
+不動 Dexie schema、不動蓋章判定、不動 `MAX_FOLLOWUPS`（同一情境仍 3 輪）；CSS 只加
+`.followUpRound`／`.followUpMine` 兩條。
+
+測試：`npm test` 474/474（新增 5aa 多輪 history 組裝 24 項：無前輪時只有題材一則且與舊行為相同、
+一輪後三則且 model 回合可被 `parseFollowUpQuestion` 還原、兩輪後五則且角色嚴格 user/model 交替、
+每輪問答都在歷史裡、無空白訊息、未回答走 `FOLLOWUP_SKIPPED` 且不含「學習者的回答」、回答 trim、
+對話題材首則＝整段腳本（全 `DIALOGUES` 掃描）、system 新增「接著問」規則但共用紅線一條沒少）、
+`npm run test:e2e` 76/76（speak.spec 新增一項：追問①→回答→講評→再追問②，驗證畫面保留整串問答
+（兩個 `.followUpQ`＋「あなた：」回答）、chip 2/3，以及**第二次追問的 request body 確實帶上前一輪的
+問句與回答**）、`npm run build` strict 綠燈。
+
 ---
 
 ## ⭐ 本機實測任務（此專案轉到 Claude Code 的主因）
@@ -640,7 +665,7 @@ Claude Code 在本機可以真正跑起來、觀察、修正。建議依序進�
 
 ## 提交前檢查
 
-`npm run build`（strict 綠燈）＋ `npm test`（450/450）＋ `npm run test:e2e`（75/75）
+`npm run build`（strict 綠燈）＋ `npm test`（474/474）＋ `npm run test:e2e`（76/76）
 ＋（動到 sidecar 時）`python sidecar/test_score.py` 與 `python sidecar/test_article.py`。
 新功能盡量補測：純邏輯進 `tests/integration.ts`，UI 流程進 `e2e/*.spec.ts`（共用步驟放
 `e2e/helpers.ts`），後端進 `test_score.py`。
