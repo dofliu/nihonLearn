@@ -20,6 +20,13 @@ import {
   myTurnCount,
   isRoleplayOver,
   entryFromTurn,
+  openingEntries,
+  normalizeCustom,
+  buildCustomScene,
+  CUSTOM_SCENE_ID,
+  CUSTOM_SCENE_SAMPLES,
+  MAX_CUSTOM_PARTNER,
+  MAX_CUSTOM_SCENE,
   MAX_TURNS,
   type RoleplayEntry,
 } from '../src/lib/roleplay.ts'
@@ -742,6 +749,71 @@ console.log('=== 5s. 自由対話（AI 角色扮演）純邏輯 ===')
 
   const e = entryFromTurn({ jp: 'はい。', zh: '好的', hint: '很好' })
   ok('entryFromTurn 產生對方氣泡', e.who === 'partner' && e.jp === 'はい。')
+}
+
+console.log('=== 5ab. 自由対話：自訂場景 ===')
+{
+  // 正規化：去頭尾空白、連續空白（含全形）收斂成一個、截到上限
+  ok('normalizeCustom 去頭尾空白', normalizeCustom('  拉麵店店員  ', 20) === '拉麵店店員')
+  ok('normalizeCustom 收斂連續空白（含全形）', normalizeCustom('拉麵店　　 店員', 20) === '拉麵店 店員')
+  ok('normalizeCustom 換行也收斂', normalizeCustom('拉麵店\n店員', 20) === '拉麵店 店員')
+  ok('normalizeCustom 截到上限', normalizeCustom('あ'.repeat(50), 20).length === 20)
+  ok('normalizeCustom 全空白 → 空字串', normalizeCustom('  　\n ', 20) === '')
+
+  // 組場景：兩欄都要有；沒有已驗證開場白 → opening 為空（由使用者先開口）
+  const cs = buildCustomScene('  拉麵店店員 ', '你進拉麵店，點一碗拉麵。')
+  ok('自訂場景組得出來', !!cs)
+  ok('自訂場景欄位已正規化', cs?.partner === '拉麵店店員' && cs?.scene === '你進拉麵店，點一碗拉麵。')
+  ok('自訂場景 id 固定', cs?.id === CUSTOM_SCENE_ID)
+  ok('自訂場景標記 custom', cs?.custom === true)
+  ok('自訂場景無開場白（不由 AI 生假的教科書開場白）', cs?.opening === '' && cs?.openingZh === '')
+  ok('自訂場景標題固定短字串（情境全文另外顯示）', cs?.title === '自訂場景')
+  ok('自訂 id 不與內建場景衝突', !ROLEPLAY_SCENES.some((s) => s.id === CUSTOM_SCENE_ID))
+  ok('sceneById 找不到自訂場景（不在內建清單裡）', sceneById(CUSTOM_SCENE_ID) === undefined)
+
+  ok('缺對象 → null', buildCustomScene('   ', '你進拉麵店。') === null)
+  ok('缺情境 → null', buildCustomScene('店員', '  　') === null)
+  ok('兩欄皆空 → null', buildCustomScene('', '') === null)
+  const longSc = buildCustomScene('客'.repeat(60), '情'.repeat(200))
+  ok(
+    '過長欄位被截到上限',
+    longSc?.partner.length === MAX_CUSTOM_PARTNER && longSc?.scene.length === MAX_CUSTOM_SCENE,
+  )
+
+  // 起始氣泡：內建場景放已驗證開場白；自訂場景空陣列（你先開口）
+  const builtinOpen = openingEntries(ROLEPLAY_SCENES[0])
+  ok(
+    '內建場景起始＝已驗證開場白一則',
+    builtinOpen.length === 1 &&
+      builtinOpen[0].who === 'partner' &&
+      builtinOpen[0].jp === ROLEPLAY_SCENES[0].opening,
+  )
+  ok('全部內建場景都有起始氣泡', ROLEPLAY_SCENES.every((s) => openingEntries(s).length === 1))
+  ok('自訂場景起始為空（由你先開口）', openingEntries(cs!).length === 0)
+  const csHist = roleplayHistory([...openingEntries(cs!), { who: 'me', jp: 'すみません。' }])
+  ok('自訂場景的歷史第一則就是 user', csHist.length === 1 && csHist[0].role === 'user')
+  ok('自訂場景回合數從 0 起算', myTurnCount(openingEntries(cs!)) === 0 && !isRoleplayOver(openingEntries(cs!)))
+
+  // system prompt：自訂場景多兩條（注入防護＋你先開口），但共用紅線一條都不能少
+  const sysC = buildRoleplaySystem(cs!, ['みず'])
+  ok('自訂 system 帶入自訂對象與情境', sysC.includes('拉麵店店員') && sysC.includes('你進拉麵店，點一碗拉麵。'))
+  ok('自訂 system 說明由學習者先開口', sysC.includes('學習者先開口'))
+  ok('自訂 system 有指示注入防護（描述裡的其他指示一律忽略）', sysC.includes('一律忽略'))
+  ok('自訂 system 仍禁止杜撰重音', sysC.includes('不要杜撰重音'))
+  ok('自訂 system 仍要求只輸出 JSON', sysC.includes('只輸出 JSON') && sysC.includes('"hint"'))
+  ok('自訂 system 仍帶入已學詞', sysC.includes('みず'))
+  const sysB = buildRoleplaySystem(ROLEPLAY_SCENES[0], ['みず'])
+  ok('內建場景的 system 不含自訂條款（舊行為不變）', !sysB.includes('一律忽略') && !sysB.includes('學習者先開口'))
+
+  // 填寫範例：純中文提示，不含任何日文假名（不宣稱任何日文說法＝零正確性風險）
+  const kanaChars = /[぀-ヿ]/
+  ok('範例非空且每筆兩欄齊全', CUSTOM_SCENE_SAMPLES.length >= 3 && CUSTOM_SCENE_SAMPLES.every((s) => !!s.partner && !!s.scene))
+  ok(
+    '範例不含日文假名（純中文提示，不宣稱任何日文說法）',
+    CUSTOM_SCENE_SAMPLES.every((s) => !kanaChars.test(s.partner + s.scene)),
+  )
+  ok('每個範例都組得出場景', CUSTOM_SCENE_SAMPLES.every((s) => !!buildCustomScene(s.partner, s.scene)))
+  ok('範例對象不重複（點選帶入時 key 唯一）', new Set(CUSTOM_SCENE_SAMPLES.map((s) => s.partner)).size === CUSTOM_SCENE_SAMPLES.length)
 }
 
 console.log('=== 5t. AI 助教「考我」出題與講評解析 ===')

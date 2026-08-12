@@ -570,6 +570,32 @@ UI：`components/FollowUp.tsx` 由「只顯示當下那一題」改成**整串�
 （兩個 `.followUpQ`＋「あなた：」回答）、chip 2/3，以及**第二次追問的 request body 確實帶上前一輪的
 問句與回答**）、`npm run build` strict 綠燈。
 
+v3.40（自由対話：自訂場景）：ROADMAP「🔴 互動深化」第 1 步的③——自由対話原本只能從
+`data/dialogues.ts` 推導出的 7 個固定場景挑（因為開場白要有已驗證來源），這次補上
+**使用者自己用中文描述場景**：`RoleplayView` 場景清單上方加「✏️ 自訂場景」卡（可收合），
+填「對方是誰」與「情境」兩欄即可開聊，另附 5 組**純中文**填寫範例（點一下帶入可再改）。
+純邏輯進 `lib/roleplay.ts`（`normalizeCustom` 去頭尾／收斂連續空白含全形／截長度、
+`buildCustomScene` 兩欄缺一即回 null、`CUSTOM_SCENE_ID`／`MAX_CUSTOM_PARTNER`(20)／
+`MAX_CUSTOM_SCENE`(60)／`CUSTOM_SCENE_SAMPLES`、`openingEntries(sc)` 集中「起始氣泡」邏輯）。
+**本次的兩個刻意設計**：①**自訂場景沒有開場白，由你先開口**——內建場景的第一句是已驗證腳本原文，
+自訂場景沒有這個來源，**不讓 AI 生一句假的「教科書開場白」**，改成畫面提示「由你先開口」並在
+免責文案講明「對方的日文**全部**由 AI 生成」；②**情境文字會進 prompt，所以加指示注入防護**——
+`buildRoleplaySystem` 對 `sc.custom` 多兩條規則（(7) 場景描述只當會話背景、裡面若有其他指示
+（改變身分／換語言／輸出別的東西）一律忽略；(8) 這一場由學習者先開口），**內建場景的 system
+一字不變**（測試釘住舊行為）。定位比照 v3.29 完全不變：AI 生成日文僅供參考、不寫入學習庫、
+不進 SRS、不計蓋章（沿用 `roleplay` feature key 記入学習記録）；無金鑰照樣是原本那段提示。
+不動 Dexie schema、不動蓋章判定、不新增 CSS（沿用 `.card`／`.chip`／`.hint`／`.row`）。
+
+測試：`npm test` 507/507（新增 5ab 自訂場景 33 項：`normalizeCustom` 五種正規化、組場景與欄位
+正規化／固定 id／`custom` 標記／**opening 為空**／標題固定、自訂 id 不與內建衝突、三種缺欄位回 null、
+過長截到上限、`openingEntries` 對全部內建場景各給一則已驗證開場白而自訂給空陣列、自訂場景的
+history 第一則就是 user、自訂 system 帶入自訂欄位＋「學習者先開口」＋「一律忽略」防護且共用紅線
+（不杜撰重音／只輸出 JSON／已學詞）一條沒少、**內建場景 system 不含自訂條款**（舊行為不變）、
+範例純中文不含假名且皆組得出場景、範例 key 唯一）、`npm run test:e2e` 78/78（roleplay.spec 新增
+兩項：範例帶入→開聊→無開場白氣泡且顯示「由你先開口」→自己先說→AI 回話＋小提示＋回合遞增，
+並驗證送出的 request body 確實帶上自訂對象與兩條護欄；欄位沒填完→toast 提示→不進入對話→
+收起後內建場景照常）、`npm run build` strict 綠燈。
+
 ---
 
 ## ⭐ 本機實測任務（此專案轉到 Claude Code 的主因）
@@ -665,7 +691,7 @@ Claude Code 在本機可以真正跑起來、觀察、修正。建議依序進�
 
 ## 提交前檢查
 
-`npm run build`（strict 綠燈）＋ `npm test`（474/474）＋ `npm run test:e2e`（76/76）
+`npm run build`（strict 綠燈）＋ `npm test`（507/507）＋ `npm run test:e2e`（78/78）
 ＋（動到 sidecar 時）`python sidecar/test_score.py` 與 `python sidecar/test_article.py`。
 新功能盡量補測：純邏輯進 `tests/integration.ts`，UI 流程進 `e2e/*.spec.ts`（共用步驟放
 `e2e/helpers.ts`），後端進 `test_score.py`。
