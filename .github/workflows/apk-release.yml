@@ -1,0 +1,71 @@
+name: APK Release
+
+# 把 debug APK 附到 GitHub Releases 頁，變成「點連結就能下載」的固定網址
+# （CI 的 artifact 要登入 GitHub 才拿得到，Releases 則是公開直連，手機瀏覽器可直接下載）。
+#
+# 兩種觸發：
+#   1. 推 tag：git tag v3.40 && git push origin v3.40
+#   2. Actions 頁面按「Run workflow」，填一個 tag 名稱（會用當下 commit 建 tag）
+#
+# ⚠️ 這裡產的是 **debug 簽章** 的 APK：可側載試用，但 Google Play 不收，
+#    也無法覆蓋安裝 release 簽章的版本。上架用的簽章 AAB 仍待接
+#    （見 docs/ANDROID_RELEASE_PLAN.md Phase 5）。
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release 的 tag 名稱（例：v3.40-test）'
+        required: true
+
+permissions:
+  contents: write # 建立 Release 需要
+
+jobs:
+  apk:
+    name: 產 debug APK 並附到 Release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: gradle/actions/setup-gradle@v4
+      - run: npm ci
+
+      - name: Web 資產（CAP_BUILD 模式，無 SW）＋ cap sync
+        run: npm run build:android
+      - name: 組 debug APK
+        run: cd android && ./gradlew assembleDebug --no-daemon
+
+      - name: 檔名帶上 tag
+        id: pack
+        env:
+          TAG: ${{ inputs.tag || github.ref_name }}
+        run: |
+          mkdir -p dist-apk
+          cp android/app/build/outputs/apk/debug/app-debug.apk \
+             "dist-apk/nihongo-michi-${TAG}-debug.apk"
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+
+      - name: 附到 GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.pack.outputs.tag }}
+          name: ${{ steps.pack.outputs.tag }}
+          # debug 簽章、非上架版 → 標為 pre-release，避免被誤認為正式發佈
+          prerelease: true
+          files: dist-apk/*.apk
+          body: |
+            日本語の道 ${{ steps.pack.outputs.tag }} — **debug 簽章 APK**（側載試用版）
+
+            - 手機瀏覽器直接點下方 `.apk` 即可下載安裝（需允許「安裝未知來源應用程式」）。
+            - ⚠️ debug 簽章：Google Play 不收，也**無法覆蓋安裝** release 簽章的版本。
+            - 原始碼版本：`${{ github.sha }}`

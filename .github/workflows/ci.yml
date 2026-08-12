@@ -4,6 +4,8 @@ on:
   push:
     branches: [main]
   pull_request:
+  # 想要 APK 時可直接在 Actions 頁面按「Run workflow」，不必等 push／PR
+  workflow_dispatch:
 
 jobs:
   web:
@@ -44,9 +46,15 @@ jobs:
         run: npm run build:android
       - name: 組 debug APK
         run: cd android && ./gradlew assembleDebug --no-daemon
+      # 檔名帶上短 SHA，下載多個版本時分得出是哪一版（app-debug.apk 每次同名）
+      - name: 檔名帶上 commit 短 SHA
+        run: |
+          mkdir -p dist-apk
+          cp android/app/build/outputs/apk/debug/app-debug.apk \
+             "dist-apk/nihongo-michi-${GITHUB_SHA::7}-debug.apk"
       - name: 上傳 APK artifact（供真機側載測試）
         uses: actions/upload-artifact@v4
         with:
           name: nihongo-michi-debug-apk
-          path: android/app/build/outputs/apk/debug/app-debug.apk
-          retention-days: 14
+          path: dist-apk/*.apk
+          retention-days: 90
