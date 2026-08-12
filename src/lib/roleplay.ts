@@ -64,7 +64,8 @@ export const CUSTOM_SCENE_SAMPLES: { partner: string; scene: string }[] = [
 
 /** 去頭尾空白、把連續空白（含全形）收斂成一個，並截到長度上限。 */
 export function normalizeCustom(s: string, max: number): string {
-  return s.replace(/[\s　]+/g, ' ').trim().slice(0, max)
+  // 截斷後再 trim 一次，避免剛好切在空白上留下尾巴
+  return s.replace(/[\s　]+/g, ' ').trim().slice(0, max).trim()
 }
 
 /**

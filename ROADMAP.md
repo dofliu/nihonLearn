@@ -206,7 +206,7 @@ v3.28，互不依賴，已依序合併入 main。
 ## 目前狀態
 
 - **程式碼**：Web/PWA 與 Android（Capacitor 殼）皆完成；CI（web 測試＋e2e＋Android `assembleDebug`）綠燈。
-- **測試**：`npm test` 507/507、`npm run test:e2e` 78/78、`sidecar/test_score.py` 4/4、`test_article.py` 13/13、`npm run build` strict 綠燈。
+- **測試**：`npm test` 508/508、`npm run test:e2e` 78/78、`sidecar/test_score.py` 4/4、`test_article.py` 13/13、`npm run build` strict 綠燈。
 - **尚未做**：Android 真機驗收（清單 `tests/MANUAL_QA-ANDROID.md`）與 Google Play 封閉測試——**未通過前勿送審**。
 
 ## 已完成里程碑（摘要）

@@ -586,7 +586,7 @@ v3.40（自由対話：自訂場景）：ROADMAP「🔴 互動深化」第 1 步
 不進 SRS、不計蓋章（沿用 `roleplay` feature key 記入学習記録）；無金鑰照樣是原本那段提示。
 不動 Dexie schema、不動蓋章判定、不新增 CSS（沿用 `.card`／`.chip`／`.hint`／`.row`）。
 
-測試：`npm test` 507/507（新增 5ab 自訂場景 33 項：`normalizeCustom` 五種正規化、組場景與欄位
+測試：`npm test` 508/508（新增 5ab 自訂場景 34 項：`normalizeCustom` 五種正規化、組場景與欄位
 正規化／固定 id／`custom` 標記／**opening 為空**／標題固定、自訂 id 不與內建衝突、三種缺欄位回 null、
 過長截到上限、`openingEntries` 對全部內建場景各給一則已驗證開場白而自訂給空陣列、自訂場景的
 history 第一則就是 user、自訂 system 帶入自訂欄位＋「學習者先開口」＋「一律忽略」防護且共用紅線
@@ -691,7 +691,7 @@ Claude Code 在本機可以真正跑起來、觀察、修正。建議依序進�
 
 ## 提交前檢查
 
-`npm run build`（strict 綠燈）＋ `npm test`（507/507）＋ `npm run test:e2e`（78/78）
+`npm run build`（strict 綠燈）＋ `npm test`（508/508）＋ `npm run test:e2e`（78/78）
 ＋（動到 sidecar 時）`python sidecar/test_score.py` 與 `python sidecar/test_article.py`。
 新功能盡量補測：純邏輯進 `tests/integration.ts`，UI 流程進 `e2e/*.spec.ts`（共用步驟放
 `e2e/helpers.ts`），後端進 `test_score.py`。

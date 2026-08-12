@@ -759,6 +759,7 @@ console.log('=== 5ab. 自由対話：自訂場景 ===')
   ok('normalizeCustom 換行也收斂', normalizeCustom('拉麵店\n店員', 20) === '拉麵店 店員')
   ok('normalizeCustom 截到上限', normalizeCustom('あ'.repeat(50), 20).length === 20)
   ok('normalizeCustom 全空白 → 空字串', normalizeCustom('  　\n ', 20) === '')
+  ok('normalizeCustom 截斷剛好切在空白上不留尾巴', normalizeCustom('あいう えお', 4) === 'あいう')
 
   // 組場景：兩欄都要有；沒有已驗證開場白 → opening 為空（由使用者先開口）
   const cs = buildCustomScene('  拉麵店店員 ', '你進拉麵店，點一碗拉麵。')
