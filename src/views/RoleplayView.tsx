@@ -1,7 +1,12 @@
 import { useState, useEffect, useRef } from 'react'
 import {
   ROLEPLAY_SCENES,
+  CUSTOM_SCENE_SAMPLES,
+  MAX_CUSTOM_PARTNER,
+  MAX_CUSTOM_SCENE,
+  buildCustomScene,
   buildRoleplaySystem,
+  openingEntries,
   roleplayHistory,
   entryFromTurn,
   myTurnCount,
@@ -62,15 +67,16 @@ export function RoleplayView({ onBack }: { onBack: () => void }) {
         </div>
         <h2>自己想句子，跟對方聊聊看</h2>
         <p className="sub">
-          場景跟固定腳本一樣，但這次<b>沒有稿子</b>——你自己說（或打）日文，對方會依你的話回應，
-          每回合再給你一行中文小提示。支援語音輸入的環境可以直接<b>用說的</b>，
-          聽到的字會先填進輸入框讓你確認。
+          場景可以沿用固定腳本，也可以<b>自己描述一個</b>，但這次<b>沒有稿子</b>——
+          你自己說（或打）日文，對方會依你的話回應，每回合再給你一行中文小提示。
+          支援語音輸入的環境可以直接<b>用說的</b>，聽到的字會先填進輸入框讓你確認。
         </p>
         <div className="hint" style={{ marginTop: 8 }}>
           ⚠️ 對方的台詞由 AI 即時生成，<b>僅供參考、可能有誤</b>；不會寫入你的學習資料，
           也不計入每日修行（純加練）。
         </div>
       </div>
+      <CustomSceneForm onStart={setSc} />
       {ROLEPLAY_SCENES.map((s) => (
         <div className="card" key={s.id}>
           <div className="row between">
@@ -93,12 +99,113 @@ export function RoleplayView({ onBack }: { onBack: () => void }) {
   )
 }
 
+const inputStyle = {
+  flex: 1,
+  fontSize: 15,
+  borderRadius: 8,
+  border: '1px solid var(--washi2)',
+  padding: '8px 10px',
+} as const
+
+/**
+ * 自訂場景：使用者自己用**中文**填「對方是誰」與「情境」。
+ * 這種場景沒有已驗證的開場白，所以刻意由使用者先開口（不讓 AI 生一句假的教科書開場白）。
+ */
+function CustomSceneForm({ onStart }: { onStart: (sc: RoleplayScene) => void }) {
+  const [open, setOpen] = useState(false)
+  const [partner, setPartner] = useState('')
+  const [scene, setScene] = useState('')
+
+  function start() {
+    const sc = buildCustomScene(partner, scene)
+    if (!sc) {
+      toast('請填「對方是誰」和「情境」兩欄')
+      return
+    }
+    onStart(sc)
+  }
+
+  return (
+    <div className="card">
+      <div className="row between">
+        <div>
+          <span className="chip">自訂</span>
+          <div className="sent" style={{ fontSize: 19, marginTop: 6 }}>
+            ✏️ 自訂場景
+          </div>
+          <div className="sub" style={{ marginTop: 2 }}>
+            上面沒有你想練的情境？自己用中文描述一個。
+          </div>
+        </div>
+        <button className="btn small ghost" onClick={() => setOpen((v) => !v)}>
+          {open ? '收起' : '設定 ▾'}
+        </button>
+      </div>
+
+      {open && (
+        <>
+          <div className="hint" style={{ marginTop: 10 }}>
+            ⚠️ 自訂場景<b>沒有教科書開場白</b>——由<b>你先開口</b>，對方的日文<b>全部</b>由 AI
+            即時生成，僅供參考、可能有誤。
+          </div>
+
+          <div className="row" style={{ marginTop: 10, gap: 6 }}>
+            <input
+              type="text"
+              value={partner}
+              maxLength={MAX_CUSTOM_PARTNER}
+              onChange={(ev) => setPartner(ev.target.value)}
+              placeholder="對方是誰（例：拉麵店店員）"
+              style={inputStyle}
+            />
+          </div>
+          <div className="row" style={{ marginTop: 6, gap: 6 }}>
+            <input
+              type="text"
+              value={scene}
+              maxLength={MAX_CUSTOM_SCENE}
+              onChange={(ev) => setScene(ev.target.value)}
+              onKeyDown={(ev) => {
+                if (ev.key === 'Enter') start()
+              }}
+              placeholder="情境（例：你進拉麵店，點一碗拉麵。）"
+              style={inputStyle}
+            />
+          </div>
+
+          <div className="sub" style={{ marginTop: 8 }}>
+            參考範例（點一下帶入，可再改）：
+          </div>
+          <div className="row" style={{ marginTop: 4, gap: 6, flexWrap: 'wrap' }}>
+            {CUSTOM_SCENE_SAMPLES.map((s) => (
+              <button
+                key={s.partner}
+                className="btn small ghost"
+                onClick={() => {
+                  setPartner(s.partner)
+                  setScene(s.scene)
+                }}
+              >
+                {s.partner}
+              </button>
+            ))}
+          </div>
+
+          <div className="row center" style={{ marginTop: 10 }}>
+            <button className="btn" onClick={start}>
+              この場面で 話す ▶
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
 function RoleplayChat({ sc, onBack }: { sc: RoleplayScene; onBack: () => void }) {
   const rate = useApp((s) => s.rate)
   const [known, setKnown] = useState<string[]>([])
-  const [entries, setEntries] = useState<RoleplayEntry[]>([
-    { who: 'partner', jp: sc.opening, zh: sc.openingZh },
-  ])
+  const [entries, setEntries] = useState<RoleplayEntry[]>(() => openingEntries(sc))
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const endRef = useRef<HTMLDivElement>(null)
@@ -107,8 +214,9 @@ function RoleplayChat({ sc, onBack }: { sc: RoleplayScene; onBack: () => void })
     void (async () => setKnown(await personalKnownWords()))()
   }, [])
 
-  // 開場白（已驗證台詞）自動朗讀
+  // 開場白（已驗證台詞）自動朗讀；自訂場景沒有開場白，跳過
   useEffect(() => {
+    if (!sc.opening) return
     const t = window.setTimeout(() => speak(sc.opening, rate), 400)
     return () => window.clearTimeout(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -165,10 +273,14 @@ function RoleplayChat({ sc, onBack }: { sc: RoleplayScene; onBack: () => void })
         對方：{sc.partner}。{sc.scene}
       </p>
       <div className="hint" style={{ marginTop: 6 }}>
-        ⚠️ AI 生成、僅供參考；不寫入學習資料、不計入蓋章。
+        ⚠️ {sc.custom ? '這是你自訂的場景，對方的日文全部由 AI 生成、' : 'AI 生成、'}
+        僅供參考；不寫入學習資料、不計入蓋章。
       </div>
 
       <div className="dlgBox">
+        {entries.length === 0 && (
+          <p className="sub">この場面で、あなたから はなしかけてください。（由你先開口）</p>
+        )}
         {entries.map((e, i) => (
           <div key={i} className={`dlgRow ${e.who === 'me' ? 'me' : ''}`}>
             <div className={`dlgBubble ${e.who === 'me' ? 'me' : ''}`}>
@@ -191,12 +303,7 @@ function RoleplayChat({ sc, onBack }: { sc: RoleplayScene; onBack: () => void })
             這一輪聊完了（{MAX_TURNS} 回合）。おつかれさま！
           </p>
           <div className="row center" style={{ marginTop: 6 }}>
-            <button
-              className="btn ghost"
-              onClick={() =>
-                setEntries([{ who: 'partner', jp: sc.opening, zh: sc.openingZh }])
-              }
-            >
+            <button className="btn ghost" onClick={() => setEntries(openingEntries(sc))}>
               もう一度
             </button>
             <button className="btn" onClick={onBack}>
@@ -214,13 +321,7 @@ function RoleplayChat({ sc, onBack }: { sc: RoleplayScene; onBack: () => void })
               if (ev.key === 'Enter') void send()
             }}
             placeholder="用日文回一句…"
-            style={{
-              flex: 1,
-              fontSize: 15,
-              borderRadius: 8,
-              border: '1px solid var(--washi2)',
-              padding: '8px 10px',
-            }}
+            style={inputStyle}
           />
           <button className="btn small" onClick={() => void send()} disabled={loading}>
             送る

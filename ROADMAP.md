@@ -5,7 +5,16 @@
 > 設計原則不變：**正確性交給權威來源與程式驗證，AI 生成一律人工審核採用才入庫；
 > 使用者只做策展，不當正確性把關者。**
 
-最後更新：v3.39（追問接續多輪——「🔴 互動深化」第 3 步的③。v3.31／v3.38 的追問每次都是獨立的
+最後更新：v3.40（自由対話「自訂場景」——「🔴 互動深化」第 1 步的③，也是該步驟最後一個未做子項。
+自由対話原本只能挑 `data/dialogues.ts` 推導的 7 個固定場景（因為開場白要有已驗證來源），這次讓使用者
+**自己用中文描述對象與情境**（`lib/roleplay.ts` `normalizeCustom`／`buildCustomScene`／
+`CUSTOM_SCENE_SAMPLES`／`openingEntries`，UI 為 `RoleplayView` 可收合的「✏️ 自訂場景」卡＋
+5 組純中文範例）。兩個刻意設計：①自訂場景**沒有開場白、由使用者先開口**——不讓 AI 生一句假的
+「教科書開場白」，免責文案改成「對方的日文**全部**由 AI 生成」；②情境文字會進 prompt，故
+`buildRoleplaySystem` 對 `sc.custom` 多兩條（場景描述只當背景／描述裡的其他指示一律忽略、
+這一場由學習者先開口），**內建場景的 system 一字不變**並有測試釘住。定位、feature key、
+Dexie schema、蓋章判定全部不動）。
+前一版 v3.39（追問接續多輪——「🔴 互動深化」第 3 步的③。v3.31／v3.38 的追問每次都是獨立的
 一問一答（AI 看不到前一輪），這次改成**接續多輪的小型對話**：`lib/followUp.ts` 新增
 `followUpHistory(askUser, rounds)`（比照 `roleplay.ts roleplayHistory`）把「題材＋已問答輪次」組成
 Gemini 多輪 contents，`buildAnswerUser` 要求「接著這個回答再問一句、不要重複問過的問題」，未回答的
@@ -90,8 +99,18 @@ v3.28，互不依賴，已依序合併入 main。
    **可續做的小增量**：~~①記入学習記録~~／~~②今日頁入口~~（v3.35 完成：`roleplay` feature key
    加入 `EXTRA_FEATURES`，AI 成功回話後 `logActivity('roleplay')`；今日頁「今日の加練」輪替加入
    🗣 自由対話，點下去經 `SpeakView` 的 `initialTab` prop 直接落在話す▸会話分頁）；
-   ③場景僅限固定腳本中「對方先開口」的 7 段，未來可加「自訂場景（使用者填情境）」，但需注意
-   AI 生成日文的免責文案要一樣顯眼。
+   ~~③自訂場景（使用者填情境）~~（v3.40 完成：`RoleplayView` 場景清單上方的「✏️ 自訂場景」卡，
+   純邏輯 `normalizeCustom`／`buildCustomScene`／`CUSTOM_SCENE_SAMPLES`／`openingEntries`。
+   **自訂場景沒有已驗證開場白，所以由使用者先開口**——不讓 AI 生假的「教科書開場白」，
+   免責文案改成「對方的日文全部由 AI 生成」；情境文字會進 prompt，故 system 對 `sc.custom`
+   多兩條護欄（描述只當會話背景／裡面的其他指示一律忽略、這一場由學習者先開口），內建場景
+   system 一字不變）。
+   **v3.40 之後新浮現的可續做**：④自訂場景**不持久化**（換頁回來要重打；刻意——避免又多一份
+   裝置狀態，且範例點一下就帶入）。若要記住最近用過的幾個自訂場景，建議存 localStorage
+   （裝置層、不進 Dexie，比照 Gemini 金鑰的做法），別寫進學習資料庫；⑤自訂場景的
+   「對象」目前只是一段中文文字，沒有 `partnerTag`（一律顯示「自訂」），若日後想讓使用者
+   挑敬語程度（朋友／店員／商務），需要的是**選項**而不是自由文字，且要留意別讓 AI 去生
+   沒把握的敬語（現有紅線已禁止艱深敬語）。
 2. ~~**AI 助教「主動出題／考我」模式**~~（v3.30 完成：`TutorView` 加 `.lvTabs` 兩分頁「💬 問問題／
    🎯 考我」，純邏輯在 `lib/tutorQuiz.ts`）。**與原構想的差異（刻意為之）**：情境題目與參考答案
    不由 LLM 生成，改用已驗證資料（`data/sentences` 壱／弐級例句＋`data/patterns`×已學詞經
@@ -187,7 +206,7 @@ v3.28，互不依賴，已依序合併入 main。
 ## 目前狀態
 
 - **程式碼**：Web/PWA 與 Android（Capacitor 殼）皆完成；CI（web 測試＋e2e＋Android `assembleDebug`）綠燈。
-- **測試**：`npm test` 450/450、`npm run test:e2e` 75/75、`sidecar/test_score.py` 4/4、`test_article.py` 13/13、`npm run build` strict 綠燈。
+- **測試**：`npm test` 508/508、`npm run test:e2e` 78/78、`sidecar/test_score.py` 4/4、`test_article.py` 13/13、`npm run build` strict 綠燈。
 - **尚未做**：Android 真機驗收（清單 `tests/MANUAL_QA-ANDROID.md`）與 Google Play 封閉測試——**未通過前勿送審**。
 
 ## 已完成里程碑（摘要）
@@ -222,6 +241,7 @@ v3.28，互不依賴，已依序合併入 main。
 | 五十音圖一覽表（`lib/kanaChart.ts`＋`components/KanaChart.tsx`：平/片 × 清/濁/拗音、附羅馬字、點格朗讀與播放全部；全表由已驗證 `data/kana` 推導，拗音走規則、不進 SRS 卡組） | v3.36 |
 | 考我題源擴充：`data/kaiwa` 発話表現／即時応答接成考我題源（`kaiwaPrompts`，`openEnded` 排除答案因人而異者）＋題源分頁（`SOURCE_TABS`／`filterPrompts`） | v3.37 |
 | 会話走完一段後的追問（`FollowUpTopic`＝`sentenceTopic`／`dialogueTopic`，AI 扮演對話中的對象在同一場景再問一句；共用紅線與講評 prompt 不動、沿用 `followup` feature key） | v3.38 |
+| 自由対話「自訂場景」（`buildCustomScene`／`openingEntries`：使用者用中文描述對象與情境，無已驗證開場白故由你先開口；system 對自訂場景加指示注入護欄，內建場景不變） | v3.40 |
 | AI 互動練習記入学習記録＋金印（`roleplay`／`tutor`／`followup` 三個 feature key；金印判定抽成純函式 `featureGroup`／`hasExtraFeature`／`extraDays`／`groupTotals`；今日頁加練輪替 4→6、成長頁加分組 chip） | v3.35 |
 
 
