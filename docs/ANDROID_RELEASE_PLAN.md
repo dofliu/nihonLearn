@@ -104,8 +104,16 @@
 ### Phase 5 — 發佈自動化
 - [x] GitHub Actions `.github/workflows/ci.yml`：PR/main 跑 web job（build＋`npm test`＋
       Playwright e2e）與 android job（`build:android`＋`gradlew assembleDebug`＋上傳
-      debug APK artifact——可直接下載側載到手機測）。
-- [ ] （選配）tag 時用 secrets 裡的 keystore 產簽章 AAB；再進一步 fastlane supply 上傳內測軌。
+      debug APK artifact——可直接下載側載到手機測）。`ci.yml` 另有 `workflow_dispatch`，
+      想要 APK 時可在 Actions 頁面手動按 Run workflow；artifact 保留 90 天、檔名帶 commit 短 SHA。
+- [x] **debug APK 附到 Releases**：`.github/workflows/apk-release.yml`——推 `v*` tag（或手動填
+      tag 觸發）就把 debug APK 附到 GitHub Release（標 pre-release），得到**公開直連下載網址**，
+      手機瀏覽器點了就能裝，不必登入 GitHub 進 Actions 找 artifact。
+      ⚠️ 仍是 debug 簽章：Play 不收、無法覆蓋安裝 release 版。
+- [ ] （選配）tag 時用 secrets 裡的 keystore 產**簽章 AAB**；再進一步 fastlane supply 上傳內測軌。
+      做法：keystore 以 base64 存進 GitHub Secrets，workflow 解碼還原 `android/keystore.properties`
+      與 `.jks`（`app/build.gradle` 已寫好「檔案存在就用 release 簽章」的分支，gradle 不必改），
+      再跑 `bundleRelease`。**keystore 與密碼絕不進 repo**。
 
 ---
 

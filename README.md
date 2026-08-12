@@ -147,13 +147,26 @@ docs/          ANDROID_RELEASE_PLAN、PRIVACY_POLICY、PLAY_LISTING
 | 層級 | 指令 | 結果 |
 |--|--|--|
 | 建置（strict） | `npm run build` | ✅ 綠燈，PWA SW 生成 |
-| 前端邏輯 | `npm test` | ✅ 289 / 289 |
-| 瀏覽器 E2E | `npm run test:e2e` | ✅ 58 / 58 |
+| 前端邏輯 | `npm test` | ✅ 508 / 508 |
+| 瀏覽器 E2E | `npm run test:e2e` | ✅ 78 / 78 |
 | 後端評分 | `python sidecar/test_score.py` | ✅ 4 / 4 |
 | 後端文章解析 | `python sidecar/test_article.py` | ✅ 13 / 13 |
 | Android 殼可編譯 | GitHub Actions `android` job（`gradlew assembleDebug`） | ✅ |
 
 詳見 `tests/INTEGRATION_REPORT.md`。真機驗收清單見 `tests/MANUAL_QA-ANDROID.md`（未通過前勿送審）。
+
+## 拿 APK（不需要 Android Studio）
+
+APK 由 GitHub Actions 產出，本機不必裝 Android Studio（它只在要跑模擬器／真機除錯時才需要）。
+兩種取件方式：
+
+| 想要 | 怎麼做 | 取件位置 |
+|--|--|--|
+| 隨時要一份最新的測試檔 | Actions → **CI** → **Run workflow**（或直接等 push／PR 跑完） | 該次 run 頁面下方 **Artifacts** ▸ `nihongo-michi-debug-apk`（保留 90 天，需登入 GitHub） |
+| 一個能直接分享的下載連結 | `git tag v3.40 && git push origin v3.40`（或 Actions → **APK Release** → Run workflow 填 tag） | **Releases** 頁的 `.apk`，公開直連，手機瀏覽器點了就能裝 |
+
+⚠️ 兩者都是 **debug 簽章**：可側載試用，但 Google Play 不收，也無法覆蓋安裝 release 簽章的版本。
+上架用的簽章 AAB 仍待接（見 `docs/ANDROID_RELEASE_PLAN.md` Phase 5）。
 
 ## Android 上架
 
