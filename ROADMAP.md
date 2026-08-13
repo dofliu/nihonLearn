@@ -5,7 +5,15 @@
 > 設計原則不變：**正確性交給權威來源與程式驗證，AI 生成一律人工審核採用才入庫；
 > 使用者只做策展，不當正確性把關者。**
 
-最後更新：v3.40（自由対話「自訂場景」——「🔴 互動深化」第 1 步的③，也是該步驟最後一個未做子項。
+最後更新：v3.41（自由対話「最近用過的自訂場景」——「🔴 互動深化」第 1 步 v3.40 之後浮現的④。
+自訂場景原本不持久化（換頁回來要重打），這次把最近用過的 5 個記在**裝置本機 localStorage**
+（新純函式檔 `lib/recentScenes.ts`：`sceneKey`／`parseRecent`（七種容錯）／`serializeRecent`／
+`addRecent`／`removeRecent`，欄位一律走 `roleplay.ts` 的 `normalizeCustom` 與同組長度上限，
+故每筆記錄必然還原得出可用場景），**刻意不進 Dexie**——使用者自己打的練習設定不是教材也不是
+學習進度。UI 在 `CustomSceneForm` 卡片上（收合狀態也看得到）：「再聊一次 ▶」直接開聊、
+「✎」帶回欄位修改、「✕」刪除。存的只有使用者填的兩欄中文，AI 生成的對話一如既往不寫入任何地方；
+自訂場景仍沒有開場白、由你先開口，system prompt 一字未動）。
+前一版 v3.40（自由対話「自訂場景」——「🔴 互動深化」第 1 步的③，也是該步驟最後一個未做子項。
 自由対話原本只能挑 `data/dialogues.ts` 推導的 7 個固定場景（因為開場白要有已驗證來源），這次讓使用者
 **自己用中文描述對象與情境**（`lib/roleplay.ts` `normalizeCustom`／`buildCustomScene`／
 `CUSTOM_SCENE_SAMPLES`／`openingEntries`，UI 為 `RoleplayView` 可收合的「✏️ 自訂場景」卡＋
@@ -105,9 +113,15 @@ v3.28，互不依賴，已依序合併入 main。
    免責文案改成「對方的日文全部由 AI 生成」；情境文字會進 prompt，故 system 對 `sc.custom`
    多兩條護欄（描述只當會話背景／裡面的其他指示一律忽略、這一場由學習者先開口），內建場景
    system 一字不變）。
-   **v3.40 之後新浮現的可續做**：④自訂場景**不持久化**（換頁回來要重打；刻意——避免又多一份
-   裝置狀態，且範例點一下就帶入）。若要記住最近用過的幾個自訂場景，建議存 localStorage
-   （裝置層、不進 Dexie，比照 Gemini 金鑰的做法），別寫進學習資料庫；⑤自訂場景的
+   **v3.40 之後新浮現的可續做**：~~④自訂場景不持久化~~（v3.41 完成：`lib/recentScenes.ts`
+   把最近用過的 5 個自訂場景記在 localStorage（key `nihongo-michi:recentScenes`），
+   **不進 Dexie**；純函式 `sceneKey`／`parseRecent`（壞 JSON／非陣列／欄位缺漏／空白／重複／
+   超量／過長七種容錯）／`addRecent`（最新在前、去重、丟最舊）／`removeRecent`，欄位共用
+   `normalizeCustom` 與同組長度上限，故每筆都還原得出可用場景（有測試保證）。UI 在自訂場景卡上
+   「再聊一次 ▶／✎ 帶回欄位／✕ 刪除」，收合狀態也看得到。存的只有使用者自己填的兩欄中文，
+   AI 產出仍不寫入任何地方）。**v3.41 之後新浮現的可續做**：⑥記錄目前只有「最近用過」，
+   沒有「釘選常用場景」的概念；若使用者常練同兩三個情境，可考慮加釘選（同樣存 localStorage），
+   但要先確定 5 筆的上限是否真的不夠用，別為了功能而功能；⑤自訂場景的
    「對象」目前只是一段中文文字，沒有 `partnerTag`（一律顯示「自訂」），若日後想讓使用者
    挑敬語程度（朋友／店員／商務），需要的是**選項**而不是自由文字，且要留意別讓 AI 去生
    沒把握的敬語（現有紅線已禁止艱深敬語）。
@@ -206,7 +220,7 @@ v3.28，互不依賴，已依序合併入 main。
 ## 目前狀態
 
 - **程式碼**：Web/PWA 與 Android（Capacitor 殼）皆完成；CI（web 測試＋e2e＋Android `assembleDebug`）綠燈。
-- **測試**：`npm test` 508/508、`npm run test:e2e` 78/78、`sidecar/test_score.py` 4/4、`test_article.py` 13/13、`npm run build` strict 綠燈。
+- **測試**：`npm test` 532/532、`npm run test:e2e` 79/79、`sidecar/test_score.py` 4/4、`test_article.py` 13/13、`npm run build` strict 綠燈。
 - **尚未做**：Android 真機驗收（清單 `tests/MANUAL_QA-ANDROID.md`）與 Google Play 封閉測試——**未通過前勿送審**。
 
 ## 已完成里程碑（摘要）
@@ -242,6 +256,7 @@ v3.28，互不依賴，已依序合併入 main。
 | 考我題源擴充：`data/kaiwa` 発話表現／即時応答接成考我題源（`kaiwaPrompts`，`openEnded` 排除答案因人而異者）＋題源分頁（`SOURCE_TABS`／`filterPrompts`） | v3.37 |
 | 会話走完一段後的追問（`FollowUpTopic`＝`sentenceTopic`／`dialogueTopic`，AI 扮演對話中的對象在同一場景再問一句；共用紅線與講評 prompt 不動、沿用 `followup` feature key） | v3.38 |
 | 自由対話「自訂場景」（`buildCustomScene`／`openingEntries`：使用者用中文描述對象與情境，無已驗證開場白故由你先開口；system 對自訂場景加指示注入護欄，內建場景不變） | v3.40 |
+| 自由対話「最近用過的自訂場景」（`lib/recentScenes.ts`：最多 5 筆存裝置本機 localStorage、不進 Dexie，容錯解析＋去重＋長度上限共用 `normalizeCustom`；卡片上可再聊／帶回欄位／刪除） | v3.41 |
 | AI 互動練習記入学習記録＋金印（`roleplay`／`tutor`／`followup` 三個 feature key；金印判定抽成純函式 `featureGroup`／`hasExtraFeature`／`extraDays`／`groupTotals`；今日頁加練輪替 4→6、成長頁加分組 chip） | v3.35 |
 
 

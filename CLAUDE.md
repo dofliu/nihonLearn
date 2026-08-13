@@ -40,7 +40,7 @@ src/
   db/         schema(Dexie v8)・repo（任務計數、蓋章、卡片、發音紀錄、生成句）
   srs/        scheduler：ts-fsrs 封裝（newCard/review/isDue/isMastered）
   audio/      tts（VOICEVOX▸原生▸WebSpeech 門面 + 逐字 boundary 回呼）・scorer（相似度 + ASR + whisper 錄音 + mora 型別）
-  lib/        date・importV1（v1→v2 遷移 + 備份匯出）・content（生成 client + 持久化審核佇列 + 採用）・listening（聽力理解＋JLPT 題型出題，純函式）・articles（NHK Easy 導入 client + 採用）・llm（Gemini 直連 + 金鑰/模型本機儲存）・llmParse（Gemini 回應純解析）・coverage（覆蓋率檢核，無依賴）・pitch（mora 切分 + 東京式 pattern）・sidecar（base URL 抽象 + probeHealth）・vocabGate（詞彙隨假名解鎖，純函式）・quiz（N5 模擬測驗出題，純函式）・karaoke（朗讀逐字上色對齊，純函式）・furigana（漢字↔假名注音對齊，純函式）・handwriting（手寫字形相似度評分，純函式）・activity（學習活動統計，純函式）・kanaChart（五十音圖表格結構＋拗音規則推導，純函式）・patternDrill（句型×已學單字組句，純函式）・roleplay（自由対話場景/prompt/歷史組裝，純函式）・tutorQuiz（助教「考我」出題＋講評 prompt/解析，純函式）・followUp（跟讀例句／会話腳本的 AI 追問 prompt/解析，純函式）・patternCompose（自由造句句型骨架程式檢核＋講評 prompt，純函式）・voiceInput（語音輸入候選挑選/合併/錯誤訊息，純函式）
+  lib/        date・importV1（v1→v2 遷移 + 備份匯出）・content（生成 client + 持久化審核佇列 + 採用）・listening（聽力理解＋JLPT 題型出題，純函式）・articles（NHK Easy 導入 client + 採用）・llm（Gemini 直連 + 金鑰/模型本機儲存）・llmParse（Gemini 回應純解析）・coverage（覆蓋率檢核，無依賴）・pitch（mora 切分 + 東京式 pattern）・sidecar（base URL 抽象 + probeHealth）・vocabGate（詞彙隨假名解鎖，純函式）・quiz（N5 模擬測驗出題，純函式）・karaoke（朗讀逐字上色對齊，純函式）・furigana（漢字↔假名注音對齊，純函式）・handwriting（手寫字形相似度評分，純函式）・activity（學習活動統計，純函式）・kanaChart（五十音圖表格結構＋拗音規則推導，純函式）・patternDrill（句型×已學單字組句，純函式）・roleplay（自由対話場景/prompt/歷史組裝，純函式）・recentScenes（自由対話最近用過的自訂場景，localStorage、純函式）・tutorQuiz（助教「考我」出題＋講評 prompt/解析，純函式）・followUp（跟讀例句／会話腳本的 AI 追問 prompt/解析，純函式）・patternCompose（自由造句句型骨架程式檢核＋講評 prompt，純函式）・voiceInput（語音輸入候選挑選/合併/錯誤訊息，純函式）
   state/      store（zustand：今日/streak/rate/tts/showKanji）
   views/      Today・Kana(含 Write 書寫練習・五十音圖一覽表)・Listen(含 Pitch)・Speak(含 Dialogue 会話＋Roleplay 自由対話，跟読與会話走完皆可 AI 追問)・Read・Progress・Review・Pattern(文型ドリル，含自由造句)
   components/ Nav・ui(toast/大印/進度條)・KanaChart(五十音圖)・VocabCard・Karaoke・Ruby・StrokeOrder・FollowUp(跟讀追問)・VoiceInput(共用麥克風鈕)
@@ -596,6 +596,31 @@ history 第一則就是 user、自訂 system 帶入自訂欄位＋「學習者�
 並驗證送出的 request body 確實帶上自訂對象與兩條護欄；欄位沒填完→toast 提示→不進入對話→
 收起後內建場景照常）、`npm run build` strict 綠燈。
 
+v3.41（自由対話：最近用過的自訂場景）：ROADMAP「🔴 互動深化」第 1 步 v3.40 之後浮現的④——
+自訂場景原本**不持久化**（換頁回來就得重打，手機上打中文尤其煩）。這次把「最近用過的自訂場景」
+記在**裝置本機 localStorage**（新純函式檔 `lib/recentScenes.ts`，key `nihongo-michi:recentScenes`，
+最多 5 筆），**刻意不進 Dexie**——這是使用者自己打的練習設定，既不是教材也不是學習進度，
+不該跟著學習資料備份／遷移（比照 Gemini 金鑰與 sidecar 位址的做法，也是 ROADMAP 當初的建議）。
+存的內容只有使用者填的**兩欄中文**（對象／情境），**AI 生成的對話本身一如既往不寫入任何地方**。
+純邏輯：`sceneKey`（正規化後的比對鍵——只差空白不算新的一筆）／`parseRecent`（容錯解析：壞 JSON／
+非陣列／欄位缺漏或型別不對／空白欄位一律過濾，並去重、截長度與筆數）／`serializeRecent`／
+`addRecent`（最新在前、重複移到最前、超過上限丟最舊）／`removeRecent`，欄位一律走 `roleplay.ts`
+的 `normalizeCustom` 與同一組長度上限，所以**記下來的每一筆都必然還原得出一個可用的自訂場景**
+（有測試對全清單保證）。UI：`RoleplayView` 的 `CustomSceneForm` 卡片上顯示「最近用過」清單
+（**收合狀態下也看得到**，一眼就能重用），每筆三個動作——「再聊一次 ▶」直接開聊、
+「✎」帶回欄位修改（自動展開表單）、「✕」刪除該筆；成功開始一個自訂場景時 `rememberScene`。
+定位與 v3.40 完全不變：自訂場景仍**沒有開場白、由你先開口**，AI 生成日文僅供參考、不入庫、
+不進 SRS、不計蓋章；system prompt 一字未動（含指示注入護欄）。不動 Dexie schema、不動蓋章判定；
+CSS 只加 `.recentScene` 一條。localStorage 不可用（私密模式／配額滿）時靜默略過，對話練習照常。
+
+測試：`npm test` 532/532（新增 5ac 最近場景 24 項：`sceneKey` 兩欄比對與空白正規化、`addRecent`
+排序／去重／正規化／空欄位不記／超過上限丟最舊、`removeRecent` 三情境、序列化↔解析 round trip
+與「只存 partner/scene 兩個欄位」、`parseRecent` 七種容錯（無記錄／壞 JSON／非陣列／欄位缺漏／
+空白欄位／重複／超量／過長截斷）、**記錄可還原成自訂場景且欄位一字不差**）、`npm run test:e2e`
+79/79（roleplay.spec 新增一項：用過一次自訂場景→回清單出現「最近用過」→**重整後仍在**→
+點「再聊一次 ▶」直接開聊且仍是「由你先開口」→✎ 帶回欄位→✕ 刪除且重整不復活→內建場景不受影響）、
+`npm run build` strict 綠燈。
+
 ---
 
 ## ⭐ 本機實測任務（此專案轉到 Claude Code 的主因）
@@ -691,7 +716,7 @@ Claude Code 在本機可以真正跑起來、觀察、修正。建議依序進�
 
 ## 提交前檢查
 
-`npm run build`（strict 綠燈）＋ `npm test`（508/508）＋ `npm run test:e2e`（78/78）
+`npm run build`（strict 綠燈）＋ `npm test`（532/532）＋ `npm run test:e2e`（79/79）
 ＋（動到 sidecar 時）`python sidecar/test_score.py` 與 `python sidecar/test_article.py`。
 新功能盡量補測：純邏輯進 `tests/integration.ts`，UI 流程進 `e2e/*.spec.ts`（共用步驟放
 `e2e/helpers.ts`），後端進 `test_score.py`。

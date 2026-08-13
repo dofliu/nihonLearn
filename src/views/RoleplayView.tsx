@@ -15,6 +15,14 @@ import {
   type RoleplayScene,
   type RoleplayEntry,
 } from '../lib/roleplay'
+import {
+  loadRecentScenes,
+  rememberScene,
+  forgetScene,
+  sceneKey,
+  MAX_RECENT_SCENES,
+  type RecentScene,
+} from '../lib/recentScenes'
 import { chatGeminiJSON, hasLLM } from '../lib/llm'
 import { parseRoleplayTurn } from '../lib/llmParse'
 import { personalKnownWords } from '../lib/content'
@@ -110,11 +118,15 @@ const inputStyle = {
 /**
  * 自訂場景：使用者自己用**中文**填「對方是誰」與「情境」。
  * 這種場景沒有已驗證的開場白，所以刻意由使用者先開口（不讓 AI 生一句假的教科書開場白）。
+ *
+ * v3.41 起用過的自訂場景會記在**裝置本機 localStorage**（`lib/recentScenes.ts`，
+ * 最多 5 筆），下次點一下就能再聊或帶回欄位修改——不進 Dexie 學習資料庫。
  */
 function CustomSceneForm({ onStart }: { onStart: (sc: RoleplayScene) => void }) {
   const [open, setOpen] = useState(false)
   const [partner, setPartner] = useState('')
   const [scene, setScene] = useState('')
+  const [recent, setRecent] = useState<RecentScene[]>(() => loadRecentScenes())
 
   function start() {
     const sc = buildCustomScene(partner, scene)
@@ -122,6 +134,19 @@ function CustomSceneForm({ onStart }: { onStart: (sc: RoleplayScene) => void }) 
       toast('請填「對方是誰」和「情境」兩欄')
       return
     }
+    // 記住（已正規化的欄位），下次點一下就能再聊
+    setRecent(rememberScene({ partner: sc.partner, scene: sc.scene }))
+    onStart(sc)
+  }
+
+  /** 最近用過的一筆 → 直接開聊（欄位當時已檢核過，理論上必成立）。 */
+  function startRecent(r: RecentScene) {
+    const sc = buildCustomScene(r.partner, r.scene)
+    if (!sc) {
+      setRecent(forgetScene(r))
+      return
+    }
+    setRecent(rememberScene({ partner: sc.partner, scene: sc.scene }))
     onStart(sc)
   }
 
@@ -141,6 +166,51 @@ function CustomSceneForm({ onStart }: { onStart: (sc: RoleplayScene) => void }) 
           {open ? '收起' : '設定 ▾'}
         </button>
       </div>
+
+      {recent.length > 0 && (
+        <div className="recentScenes">
+          <div className="sub" style={{ marginTop: 10 }}>
+            最近用過（存在這台裝置，最多 {MAX_RECENT_SCENES} 個）：
+          </div>
+          {recent.map((r) => (
+            <div className="row between recentScene" key={sceneKey(r)}>
+              <div style={{ minWidth: 0 }}>
+                <div className="sent" style={{ fontSize: 16 }}>
+                  {r.partner}
+                </div>
+                <div className="sub" style={{ marginTop: 2 }}>
+                  {r.scene}
+                </div>
+              </div>
+              <div className="row" style={{ gap: 6, flexShrink: 0 }}>
+                <button
+                  className="btn small ghost"
+                  aria-label={`修改 ${r.partner}`}
+                  title="帶入欄位修改"
+                  onClick={() => {
+                    setPartner(r.partner)
+                    setScene(r.scene)
+                    setOpen(true)
+                  }}
+                >
+                  ✎
+                </button>
+                <button
+                  className="btn small ghost"
+                  aria-label={`刪除 ${r.partner}`}
+                  title="刪除這筆記錄"
+                  onClick={() => setRecent(forgetScene(r))}
+                >
+                  ✕
+                </button>
+                <button className="btn small" onClick={() => startRecent(r)}>
+                  再聊一次 ▶
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {open && (
         <>

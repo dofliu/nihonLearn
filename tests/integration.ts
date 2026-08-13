@@ -30,6 +30,15 @@ import {
   MAX_TURNS,
   type RoleplayEntry,
 } from '../src/lib/roleplay.ts'
+import {
+  sceneKey,
+  parseRecent,
+  serializeRecent,
+  addRecent,
+  removeRecent,
+  MAX_RECENT_SCENES,
+  type RecentScene,
+} from '../src/lib/recentScenes.ts'
 import { generateQuiz, seededRng, MIN_POOL } from '../src/lib/quiz.ts'
 import { karaokeChars, activeCharIndices } from '../src/lib/karaoke.ts'
 import { listeningQuestions, pickParagraphs, responseQuestions, expressionQuestions, LISTEN_MIN_POOL, type ListenItem } from '../src/lib/listening.ts'
@@ -815,6 +824,79 @@ console.log('=== 5ab. 自由対話：自訂場景 ===')
   )
   ok('每個範例都組得出場景', CUSTOM_SCENE_SAMPLES.every((s) => !!buildCustomScene(s.partner, s.scene)))
   ok('範例對象不重複（點選帶入時 key 唯一）', new Set(CUSTOM_SCENE_SAMPLES.map((s) => s.partner)).size === CUSTOM_SCENE_SAMPLES.length)
+}
+
+console.log('=== 5ac. 自由対話：最近用過的自訂場景（裝置本機記錄） ===')
+{
+  const a = { partner: '拉麵店店員', scene: '你進拉麵店，點一碗拉麵。' }
+  const b = { partner: '車站站務員', scene: '你在車站問怎麼去東京。' }
+  const c = { partner: '飯店櫃檯', scene: '你到飯店 check in。' }
+
+  // 比對鍵：只差空白 → 同一筆（不會因為多打一個空白就多存一份）
+  ok('sceneKey 兩欄都納入比對', sceneKey(a) !== sceneKey({ partner: a.partner, scene: b.scene }))
+  ok('sceneKey 忽略頭尾空白差異', sceneKey(a) === sceneKey({ partner: ' 拉麵店店員 ', scene: a.scene + ' ' }))
+  ok(
+    'sceneKey 收斂連續空白（含全形）',
+    sceneKey({ partner: '拉麵店　店員', scene: a.scene }) === sceneKey({ partner: '拉麵店 店員', scene: a.scene }),
+  )
+
+  // 加入：最新在最前、重複移到最前、超過上限丟最舊
+  const l1 = addRecent([], a)
+  ok('加入第一筆', l1.length === 1 && l1[0].partner === a.partner)
+  const l2 = addRecent(l1, b)
+  ok('新的一筆排在最前', l2.length === 2 && l2[0].partner === b.partner && l2[1].partner === a.partner)
+  const l3 = addRecent(l2, { partner: ' 拉麵店店員 ', scene: a.scene })
+  ok('重複的場景移到最前、不重複佔位', l3.length === 2 && l3[0].partner === a.partner)
+  ok('加入時欄位已正規化', addRecent([], { partner: '  店員  ', scene: ' 你點餐。 ' })[0].partner === '店員')
+  ok('空欄位不記錄（清單原封不動）', addRecent(l2, { partner: '  ', scene: '你點餐。' }) === l2)
+  const many = ['一', '二', '三', '四', '五', '六', '七'].reduce(
+    (acc, n) => addRecent(acc, { partner: `對象${n}`, scene: `情境${n}` }),
+    [] as RecentScene[],
+  )
+  ok('超過上限只留最近的幾筆', many.length === MAX_RECENT_SCENES && many[0].partner === '對象七')
+  ok('被擠掉的是最舊的一筆', !many.some((r) => r.partner === '對象一'))
+
+  // 刪除
+  ok('刪除指定的一筆', removeRecent(l2, a).length === 1 && removeRecent(l2, a)[0].partner === b.partner)
+  ok('刪除時忽略空白差異', removeRecent(l2, { partner: ' 拉麵店店員 ', scene: a.scene }).length === 1)
+  ok('刪除不存在的一筆 → 清單不變', removeRecent(l2, c).length === 2)
+
+  // 序列化 ↔ 解析（存進 localStorage 再讀回來要一模一樣）
+  const round = parseRecent(serializeRecent(l2))
+  ok(
+    '序列化再解析＝原清單（順序與欄位皆保留）',
+    round.length === 2 && round[0].partner === b.partner && round[1].scene === a.scene,
+  )
+  ok('只存兩個欄位（不夾帶其他東西）', JSON.parse(serializeRecent(l1)).every((o: object) => Object.keys(o).sort().join(',') === 'partner,scene'))
+
+  // 解析容錯：存在裝置上的東西可能被改壞／被舊版寫成別的格式
+  ok('沒有記錄 → 空清單', parseRecent(null).length === 0 && parseRecent('').length === 0)
+  ok('壞掉的 JSON → 空清單', parseRecent('{{{').length === 0)
+  ok('不是陣列 → 空清單', parseRecent('{"partner":"店員"}').length === 0 && parseRecent('"x"').length === 0)
+  ok('欄位缺漏／型別不對的項目被過濾', parseRecent('[{"partner":"店員"},{"scene":"你點餐。"},{"partner":1,"scene":2},null,"x"]').length === 0)
+  ok('空白欄位的項目被過濾', parseRecent('[{"partner":"  ","scene":"你點餐。"}]').length === 0)
+  ok(
+    '解析時去重（只差空白視為同一筆）',
+    parseRecent(JSON.stringify([a, { partner: ' 拉麵店店員 ', scene: a.scene }])).length === 1,
+  )
+  ok(
+    '解析時截到上限',
+    parseRecent(JSON.stringify(Array.from({ length: 20 }, (_, i) => ({ partner: `對象${i}`, scene: `情境${i}` })))).length ===
+      MAX_RECENT_SCENES,
+  )
+  ok(
+    '解析時截掉過長欄位（沿用自訂場景的長度上限）',
+    parseRecent(JSON.stringify([{ partner: '客'.repeat(60), scene: '情'.repeat(200) }]))[0].partner.length === MAX_CUSTOM_PARTNER,
+  )
+
+  // 與自訂場景一致：記下來的每一筆都必須還原得出一個可用的場景
+  ok(
+    '記錄可還原成自訂場景（欄位一字不差）',
+    many.every((r) => {
+      const sc = buildCustomScene(r.partner, r.scene)
+      return !!sc && sc.partner === r.partner && sc.scene === r.scene && sc.custom === true
+    }),
+  )
 }
 
 console.log('=== 5t. AI 助教「考我」出題與講評解析 ===')

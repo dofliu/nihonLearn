@@ -1182,6 +1182,19 @@ select {
   padding: 7px 10px;
 }
 
+/* 自由対話：最近用過的自訂場景（存裝置本機，點一下再聊／修改／刪除） */
+.recentScene {
+  margin-top: 8px;
+  padding: 8px 10px;
+  gap: 8px;
+  border-radius: 10px;
+  background: var(--washi);
+  border: 1px solid var(--washi2);
+}
+.recentScene .sub {
+  overflow-wrap: anywhere;
+}
+
 /* 漢字模式：漢字＋假名注音並列（初學者也能唸；v3.11 起不再隱藏振り仮名） */
 .kanji-mode ruby {
   margin: 0 1px;
