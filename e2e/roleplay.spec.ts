@@ -211,6 +211,60 @@ test.describe('自由対話（AI 角色扮演）', () => {
     await expect(page.locator('main')).toContainText('你走進便利商店')
   })
 
+  test('自訂場景：用過後留在「最近用過」，重整仍在；可帶回欄位修改、可刪除', async ({ page }) => {
+    await page.route('**/generativelanguage.googleapis.com/**', (route) =>
+      route.fulfill({
+        json: geminiText(JSON.stringify({ jp: 'はい。', zh: '好的。', hint: '很好！' })),
+      }),
+    )
+    await gotoApp(page)
+    await setKey(page)
+    await openRoleplay(page)
+
+    // 一開始沒有任何記錄
+    await expect(page.locator('main')).not.toContainText('最近用過')
+
+    // 用一次自訂場景（範例帶入）
+    await page.getByRole('button', { name: '設定 ▾' }).click()
+    await page.getByRole('button', { name: '車站站務員' }).click()
+    await page.getByRole('button', { name: 'この場面で 話す ▶' }).click()
+    await expect(page.locator('main')).toContainText('由你先開口')
+    await page.getByRole('button', { name: '返回' }).click()
+
+    // 回到場景清單 → 記錄已在「最近用過」（存裝置本機，不進學習資料庫）
+    const recent = page.locator('.recentScene')
+    await expect(recent).toHaveCount(1)
+    await expect(recent.first()).toContainText('車站站務員')
+    await expect(recent.first()).toContainText('你在車站問怎麼去東京，還有票價多少。')
+
+    // 重整後仍在（真的持久化，不是只存在記憶體）
+    await page.reload()
+    await openRoleplay(page)
+    await expect(page.locator('.recentScene')).toHaveCount(1)
+
+    // 點一下直接再聊（自訂場景仍是「由你先開口」）
+    await page.getByRole('button', { name: '再聊一次 ▶' }).click()
+    await expect(page.locator('.card .eyebrow', { hasText: '自由対話' })).toContainText('自訂場景')
+    await expect(page.locator('.dlgBubble')).toHaveCount(0)
+    await expect(page.locator('main')).toContainText('由你先開口')
+    await page.getByRole('button', { name: '返回' }).click()
+
+    // ✎ 帶回欄位可修改（表單自動展開）
+    await page.getByRole('button', { name: '修改 車站站務員' }).click()
+    await expect(page.locator('input[placeholder="對方是誰（例：拉麵店店員）"]')).toHaveValue(
+      '車站站務員',
+    )
+
+    // ✕ 刪除，且重整後不會又跑回來
+    await page.getByRole('button', { name: '刪除 車站站務員' }).click()
+    await expect(page.locator('.recentScene')).toHaveCount(0)
+    await page.reload()
+    await openRoleplay(page)
+    await expect(page.locator('main')).not.toContainText('最近用過')
+    // 內建場景不受影響
+    await expect(page.getByRole('button', { name: '話す ▶' }).first()).toBeVisible()
+  })
+
   test('AI 回應格式壞掉：提示重試、對話不被污染（輸入保留）', async ({ page }) => {
     await page.route('**/generativelanguage.googleapis.com/**', (route) =>
       route.fulfill({ json: geminiText('抱歉，我不太確定。') }),
