@@ -999,6 +999,88 @@ h2 {
   font-size: 44px;
   min-height: 56px;
 }
+
+/* 分數揭曉：環形進度＋數字滾動＋等第徽章（書寫字形評分／跟讀發音評分共用） */
+.scoreReveal {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+/* 跟讀評分：未評分時保留原本那行大字的高度（不留下整圈環形的空白） */
+.scoreSlot {
+  min-height: 56px;
+}
+.scoreRingWrap {
+  position: relative;
+  width: 138px;
+  height: 138px;
+}
+.scoreRing {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.scoreRingTrack {
+  fill: none;
+  stroke: rgba(43, 42, 38, 0.1);
+  stroke-width: 9;
+}
+.scoreRingFill {
+  fill: none;
+  stroke-width: 9;
+  stroke-linecap: round;
+  transform: rotate(-90deg);
+  transform-origin: 50% 50%;
+  transition: stroke-dashoffset 0.75s cubic-bezier(0.22, 0.9, 0.3, 1);
+}
+.scoreRingWrap .scoreBig {
+  position: absolute;
+  inset: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  line-height: 1.05;
+}
+.scoreMark {
+  font-size: 20px;
+}
+.scoreNum {
+  font-size: 40px;
+}
+.scoreUnit {
+  font-size: 12px;
+  color: var(--nezu);
+}
+.scoreBadge {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 3px 12px;
+  border: 1px solid;
+  border-radius: 999px;
+  background: var(--card);
+  font-size: 14px;
+  font-family: var(--disp);
+  animation: scoreBadgeIn 0.42s cubic-bezier(0.2, 1.3, 0.4, 1) 0.35s backwards;
+}
+.scoreBadgeHint {
+  font-size: 12px;
+  font-family: var(--body);
+  color: var(--nezu);
+}
+@keyframes scoreBadgeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.8) translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
 .recTxt {
   text-align: center;
   font-size: 13px;

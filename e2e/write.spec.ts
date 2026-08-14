@@ -177,6 +177,39 @@ test.describe('假名書寫練習', () => {
     await expect(page.locator('main')).toContainText('僅供參考')
   })
 
+  test('評分揭曉：環形進度＋數字滾動到最終分數＋等第徽章', async ({ page }) => {
+    await gotoApp(page)
+    await navTo(page, 'かな')
+    await page.getByRole('button', { name: /書寫練習/ }).click()
+
+    const canvas = page.locator('canvas.writeCanvas')
+    const box = (await canvas.boundingBox())!
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height * 0.25)
+    await page.mouse.down()
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height * 0.75, { steps: 8 })
+    await page.mouse.up()
+    await page.getByRole('button', { name: '評分', exact: true }).click()
+
+    // 環形進度（含填色的那一圈）出現
+    await expect(page.locator('.scoreRingFill')).toBeVisible()
+
+    // 等第徽章：三段其中之一，並附一句話講評
+    const badge = page.locator('.scoreBadge')
+    await expect(badge).toBeVisible()
+    await expect(badge).toContainText(/優秀|良好|再加油/)
+    await expect(badge).toContainText(/漂亮|工整|再多描/)
+
+    // 數字滾動最後停在 aria-label 宣告的分數（不會卡在動畫中途）
+    const label = await page.locator('.scoreRingWrap').getAttribute('aria-label')
+    const final = label!.match(/(\d+)\s*分/)![1]
+    await expect(page.locator('.scoreNum')).toHaveText(final)
+    await expect(page.locator('.scoreUnit')).toContainText('100')
+
+    // 換下一個字 → 整組揭曉收起
+    await page.getByRole('button', { name: /下一個/ }).click()
+    await expect(page.locator('.scoreReveal')).toHaveCount(0)
+  })
+
   test('沒寫就評分 → 提示先寫', async ({ page }) => {
     await gotoApp(page)
     await navTo(page, 'かな')

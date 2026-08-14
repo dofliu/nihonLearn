@@ -49,6 +49,18 @@ import { DIALOGUES } from '../src/data/dialogues.ts'
 import { SENTS } from '../src/data/sentences.ts'
 import { scoreHandwriting, dilate, gradeOf } from '../src/lib/handwriting.ts'
 import {
+  scoreBand,
+  clampScore,
+  easeOutCubic,
+  countUpValue,
+  ringDashOffset,
+  WRITE_BANDS,
+  SPEAK_BANDS,
+  NO_SCORE_BAND,
+  RING_RADIUS,
+  RING_CIRCUMFERENCE,
+} from '../src/lib/scoreReveal.ts'
+import {
   totalsByDay,
   totalsByFeature,
   featuresOnDay,
@@ -1416,6 +1428,149 @@ console.log('=== 5y. 五十音圖（表格結構與拗音推導） ===')
   ok(
     '清音＋濁音＝KANA 的一半（142 枚卡組未被更動）',
     cellsOf('seion').length + cellsOf('dakuon').length === HALF && KANA.length === 142,
+  )
+}
+
+console.log('=== 5ad. 分數揭曉（數字滾動／環形進度／等第徽章，純呈現） ===')
+{
+  const scores = Array.from({ length: 101 }, (_, i) => i)
+
+  // --- 等第：門檻與兩處原本寫死的判斷一致 ---
+  ok(
+    '書寫等第記號＝handwriting gradeOf（0-100 逐分核對）',
+    scores.every((s) => scoreBand(s, WRITE_BANDS).mark === gradeOf(s)),
+  )
+  ok(
+    '書寫門檻 80／60 邊界',
+    scoreBand(80, WRITE_BANDS).key === 'great' &&
+      scoreBand(79, WRITE_BANDS).key === 'good' &&
+      scoreBand(60, WRITE_BANDS).key === 'good' &&
+      scoreBand(59, WRITE_BANDS).key === 'work',
+  )
+  ok(
+    '跟讀門檻 80／55 邊界（沿用 SpeakView 原本判斷）',
+    scoreBand(80, SPEAK_BANDS).mark === '◎' &&
+      scoreBand(79, SPEAK_BANDS).mark === '○' &&
+      scoreBand(55, SPEAK_BANDS).mark === '○' &&
+      scoreBand(54, SPEAK_BANDS).mark === '△',
+  )
+  ok(
+    '自評三顆鈕（90／65／40）落在 ◎○△',
+    scoreBand(90, SPEAK_BANDS).mark === '◎' &&
+      scoreBand(65, SPEAK_BANDS).mark === '○' &&
+      scoreBand(40, SPEAK_BANDS).mark === '△',
+  )
+  ok(
+    '每個等第都有顏色／標籤／一句話講評',
+    scores.every((s) =>
+      [WRITE_BANDS, SPEAK_BANDS].every((p) => {
+        const b = scoreBand(s, p)
+        return !!b.color && !!b.label && !!b.hint
+      }),
+    ),
+  )
+  ok(
+    '等第標籤三段互異（優秀／良好／再加油）',
+    new Set([0, 70, 95].map((s) => scoreBand(s, WRITE_BANDS).label)).size === 3,
+  )
+  ok(
+    '書寫講評文字沿用原本三句',
+    scoreBand(95, WRITE_BANDS).hint === '漂亮！' &&
+      scoreBand(70, WRITE_BANDS).hint === '不錯，再工整一點' &&
+      scoreBand(10, WRITE_BANDS).hint === '再多描幾次',
+  )
+  ok(
+    '不合法／未評分分數 → 未評分等第（—）',
+    [NaN, -1, Infinity].every((s) => {
+      const b = scoreBand(s as number, WRITE_BANDS)
+      return b.key === 'none' && b.mark === '—' && b.hint === ''
+    }) && NO_SCORE_BAND.mark === '—',
+  )
+
+  // --- 分數夾限 ---
+  ok(
+    'clampScore 夾在 0..100 並取整',
+    clampScore(-5) === 0 &&
+      clampScore(0) === 0 &&
+      clampScore(62.4) === 62 &&
+      clampScore(62.6) === 63 &&
+      clampScore(180) === 100 &&
+      clampScore(NaN) === 0,
+  )
+
+  // --- 緩動與數字滾動 ---
+  ok('easeOutCubic 兩端固定 0／1', easeOutCubic(0) === 0 && easeOutCubic(1) === 1 && easeOutCubic(-3) === 0 && easeOutCubic(9) === 1)
+  ok(
+    'easeOutCubic 單調遞增且落在 0..1',
+    (() => {
+      let prev = -1
+      for (let i = 0; i <= 100; i++) {
+        const v = easeOutCubic(i / 100)
+        if (!(v >= prev) || v < 0 || v > 1) return false
+        prev = v
+      }
+      return true
+    })(),
+  )
+  ok('數字滾動起點為 0', countUpValue(87, 0, 700) === 0 && countUpValue(87, -50, 700) === 0)
+  ok(
+    '數字滾動終點剛好落在目標值',
+    countUpValue(87, 700, 700) === 87 && countUpValue(87, 5000, 700) === 87,
+  )
+  ok(
+    '數字滾動過程單調不減且不超過目標值',
+    (() => {
+      let prev = -1
+      for (let t = 0; t <= 800; t += 10) {
+        const v = countUpValue(87, t, 700)
+        if (!(v >= prev) || v > 87) return false
+        prev = v
+      }
+      return prev === 87
+    })(),
+  )
+  ok(
+    '中段確實在動（不是一次跳到底也不是卡在 0）',
+    (() => {
+      const mid = countUpValue(100, 350, 700)
+      return mid > 0 && mid < 100
+    })(),
+  )
+  ok(
+    'duration ≤0／非數字 → 直接顯示目標值（動畫不可用時不卡在 0）',
+    countUpValue(87, 0, 0) === 87 && countUpValue(87, 10, -1) === 87 && countUpValue(87, 10, NaN) === 87,
+  )
+  ok(
+    '目標值超出範圍時同樣被夾限',
+    countUpValue(150, 700, 700) === 100 && countUpValue(-20, 700, 700) === 0,
+  )
+
+  // --- 環形進度 ---
+  ok(
+    '環形 dashOffset：0 分＝整圈空、100 分＝填滿',
+    Math.abs(ringDashOffset(0, 100) - 100) < 1e-9 && Math.abs(ringDashOffset(100, 100)) < 1e-9,
+  )
+  ok('環形 dashOffset 隨分數單調遞減', (() => {
+    let prev = Infinity
+    for (const s of scores) {
+      const v = ringDashOffset(s, RING_CIRCUMFERENCE)
+      if (!(v <= prev)) return false
+      prev = v
+    }
+    return true
+  })())
+  ok(
+    '環形 dashOffset 永遠落在 0..周長（含超界分數）',
+    [-50, 0, 50, 100, 999, NaN].every((s) => {
+      const v = ringDashOffset(s as number, RING_CIRCUMFERENCE)
+      return v >= 0 && v <= RING_CIRCUMFERENCE
+    }),
+  )
+  ok(
+    '周長預設值＝2πr，且非法周長不會產生 NaN',
+    Math.abs(RING_CIRCUMFERENCE - 2 * Math.PI * RING_RADIUS) < 1e-9 &&
+      ringDashOffset(50, NaN) === 0 &&
+      ringDashOffset(50, -10) === 0,
   )
 }
 
