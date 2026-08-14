@@ -18,13 +18,8 @@ import { FollowUp } from '../components/FollowUp'
 import { sentenceTopic } from '../lib/followUp'
 import { hasKanji } from '../lib/furigana'
 import { DialogueView } from './DialogueView'
-
-function mark(score: number) {
-  return score >= 80 ? '◎' : score >= 55 ? '○' : '△'
-}
-function markColor(score: number) {
-  return score >= 80 ? 'var(--take)' : score >= 55 ? 'var(--yama)' : 'var(--shu)'
-}
+import { ScoreReveal } from '../components/ScoreReveal'
+import { scoreBand, SPEAK_BANDS } from '../lib/scoreReveal'
 
 export function SpeakView({
   onOpenReview,
@@ -40,8 +35,7 @@ export function SpeakView({
   const [lv, setLv] = useState<1 | 2 | 3>(1)
   const [idx, setIdx] = useState(0)
   const [recording, setRecording] = useState(false)
-  const [scoreTxt, setScoreTxt] = useState('')
-  const [scoreColor, setScoreColor] = useState('var(--sumi)')
+  const [score, setScore] = useState<number | null>(null)
   const [recTxt, setRecTxt] = useState('')
   const [selfMode, setSelfMode] = useState(false)
   const [engine, setEngine] = useState<ScoreEngine>('none')
@@ -75,7 +69,7 @@ export function SpeakView({
   const targets = sent.alt ? [sent.jp, sent.alt] : [sent.jp]
 
   function reset() {
-    setScoreTxt('')
+    setScore(null)
     setRecTxt('')
     setSelfMode(false)
     setMoraDiff(null)
@@ -105,8 +99,7 @@ export function SpeakView({
     source: 'asr' | 'self'
     moraDiff?: MoraDiff[]
   }) {
-    setScoreTxt(`${mark(res.score)} ${res.score}点`)
-    setScoreColor(markColor(res.score))
+    setScore(res.score)
     if (res.transcript) setRecTxt('聽到：' + res.transcript)
     setMoraDiff(res.moraDiff && res.moraDiff.length ? res.moraDiff : null)
     await logAttempt({
@@ -127,7 +120,7 @@ export function SpeakView({
           await recorderRef.current.start()
           setRecording(true)
           setRecTxt('錄音中…再按一次停止並評分')
-          setScoreTxt('')
+          setScore(null)
         } catch {
           setRecTxt('無法取得麥克風 — 改用自我評分')
           setSelfMode(true)
@@ -173,9 +166,8 @@ export function SpeakView({
     setSelfMode(true)
   }
 
-  async function selfMark(m: string, s: number) {
-    setScoreTxt(m)
-    setScoreColor(markColor(s))
+  async function selfMark(s: number) {
+    setScore(s)
     setSelfMode(false)
     await logAttempt({ sentenceId: sent.id, score: s, transcript: '(self)', source: 'self' })
     await bump('speak', 1)
@@ -256,8 +248,15 @@ export function SpeakView({
         </button>
 
         <div className="spacer" />
-        <div className="scoreBig" style={{ color: scoreColor }}>
-          {scoreTxt}
+        <div className="scoreSlot">
+          {score != null && (
+            <ScoreReveal
+              score={score}
+              band={scoreBand(score, SPEAK_BANDS)}
+              unit="点"
+              ariaPrefix="發音相似度"
+            />
+          )}
         </div>
         <div className="recTxt">{recTxt}</div>
 
@@ -298,13 +297,13 @@ export function SpeakView({
 
         {selfMode && (
           <div className="row center">
-            <button className="btn small ghost" onClick={() => void selfMark('◎', 90)}>
+            <button className="btn small ghost" onClick={() => void selfMark(90)}>
               ◎ 很像
             </button>
-            <button className="btn small ghost" onClick={() => void selfMark('○', 65)}>
+            <button className="btn small ghost" onClick={() => void selfMark(65)}>
               ○ 還行
             </button>
-            <button className="btn small ghost" onClick={() => void selfMark('△', 40)}>
+            <button className="btn small ghost" onClick={() => void selfMark(40)}>
               △ 再練
             </button>
           </div>

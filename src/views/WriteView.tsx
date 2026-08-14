@@ -4,10 +4,12 @@ import { WRITE_KANJI } from '../data/kanjiWrite'
 import { KANJI_STROKES, KANJI_STROKE_VIEWBOX } from '../data/kanjiStrokes'
 import { scoreHandwriting, type WriteScore } from '../lib/handwriting'
 import { judgeStrokeOrder, type StrokeOrderResult } from '../lib/strokeOrder'
+import { scoreBand, NO_SCORE_BAND, WRITE_BANDS } from '../lib/scoreReveal'
 import { saveWriteScore, writeBestMap, logActivity } from '../db/repo'
 import { speak } from '../audio/tts'
 import { toast } from '../components/ui'
 import { StrokeOrder } from '../components/StrokeOrder'
+import { ScoreReveal } from '../components/ScoreReveal'
 
 const GRID = 32 // 評分光柵解析度（GRID×GRID）
 const CANVAS = 260 // 顯示畫布邏輯尺寸（px）
@@ -28,8 +30,9 @@ const SCRIPT_LABEL: Record<Script, string> = {
   kanji: '漢字',
 }
 
-function markColor(g: WriteScore['grade']) {
-  return g === '◎' ? 'var(--take)' : g === '○' ? 'var(--yama)' : g === '△' ? 'var(--shu)' : 'var(--nezu)'
+/** 評分結果 → 等第（沒寫時 grade 為「—」，不套用分數等第）。 */
+function bandOf(r: WriteScore) {
+  return r.grade === '—' ? NO_SCORE_BAND : scoreBand(r.score, WRITE_BANDS)
 }
 
 /** 把一個字元渲染到 GRID×GRID 離屏畫布，回 boolean 墨格（範本）。 */
@@ -265,15 +268,18 @@ export function WriteView() {
 
         {result ? (
           <>
-            <div className="scoreBig" style={{ color: markColor(result.grade) }}>
-              {result.grade}　{result.score}
-              <span style={{ fontSize: 14 }}> / 100</span>
-            </div>
-            <p className="sub center">
-              字形相似度 {result.score}（覆蓋 {Math.round(result.recall * 100)}%・準度{' '}
-              {Math.round(result.precision * 100)}%）
-              {result.score >= 80 ? '　漂亮！' : result.score >= 60 ? '　不錯，再工整一點' : '　再多描幾次'}
-            </p>
+            <ScoreReveal
+              score={result.score}
+              band={bandOf(result)}
+              unit=" / 100"
+              ariaPrefix="字形相似度"
+              caption={
+                <p className="sub center">
+                  字形相似度 {result.score}（覆蓋 {Math.round(result.recall * 100)}%・準度{' '}
+                  {Math.round(result.precision * 100)}%）
+                </p>
+              }
+            />
             {strokeResult && (
               <>
                 <p className="sub center strokeOrderNote">

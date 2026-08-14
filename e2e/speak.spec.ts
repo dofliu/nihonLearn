@@ -30,6 +30,29 @@ test.describe('話す：跟讀與評分降級', () => {
     await expect(taskRow(page, '口の修行')).toContainText('1 / 3')
   })
 
+  test('跟讀分數同樣以環形進度＋等第徽章揭曉', async ({ page }) => {
+    await disableSpeechRecognition(page)
+    await gotoApp(page)
+    await navTo(page, '話す')
+    await expect(page.getByText('評分：自我評分')).toBeVisible({ timeout: 10_000 })
+
+    // 未評分前不顯示分數
+    await expect(page.locator('.scoreReveal')).toHaveCount(0)
+
+    await page.locator('button.micBtn').click()
+    await page.getByRole('button', { name: '◎ 很像' }).click()
+
+    await expect(page.locator('.scoreRingFill')).toBeVisible()
+    await expect(page.locator('.scoreBadge')).toContainText('優秀')
+    // 自評「◎ 很像」＝90 点，數字滾動最後停在 90
+    await expect(page.locator('.scoreNum')).toHaveText('90')
+    await expect(page.locator('.scoreUnit')).toContainText('点')
+
+    // 換下一句 → 分數收起
+    await page.getByRole('button', { name: /次の句/ }).click()
+    await expect(page.locator('.scoreReveal')).toHaveCount(0)
+  })
+
   test('句子以逐字 span 呈現（朗讀逐字上色的結構）', async ({ page }) => {
     await gotoApp(page)
     await navTo(page, '話す')

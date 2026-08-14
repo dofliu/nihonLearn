@@ -5,7 +5,17 @@
 > 設計原則不變：**正確性交給權威來源與程式驗證，AI 生成一律人工審核採用才入庫；
 > 使用者只做策展，不當正確性把關者。**
 
-最後更新：v3.41（自由対話「最近用過的自訂場景」——「🔴 互動深化」第 1 步 v3.40 之後浮現的④。
+最後更新：v3.42（分數揭曉動畫：環形進度＋數字滾動＋等第徽章——「動畫／視覺輔助續做」的延伸。
+v3.28 只做了「多題作答流程」的進度條與對錯動畫，分數型回饋（0-100 分）仍是一行靜態大字；這次把
+**書寫的字形相似度**與**跟讀的發音相似度**兩處改用共用元件 `components/ScoreReveal.tsx`：
+環形進度圈（SVG `stroke-dashoffset` transition）＋數字由 0 滾到最終分（`requestAnimationFrame`）＋
+等第徽章彈入（◎ 優秀／○ 良好／△ 再加油，附原有的一句話講評）。**純呈現層、不動任何評分演算法**
+（字形分數仍出自 `lib/handwriting.ts`、跟讀分數仍走既有降級鏈），也不動 Dexie schema／蓋章判定／
+任務計數。純函式抽 `lib/scoreReveal.ts`（`scoreBand`＋`WRITE_BANDS`(80/60)／`SPEAK_BANDS`(80/55)
+沿用兩處原本各自寫死的門檻、`countUpValue`／`easeOutCubic`／`clampScore`／`ringDashOffset`），
+測試逐分核對 `scoreBand(s, WRITE_BANDS).mark === gradeOf(s)`，等第行為與改動前一致；
+無障礙：環圈 `role="img"` 帶分數＋等第 `aria-label`，`prefers-reduced-motion` 時直接顯示最終值）。
+前一版 v3.41（自由対話「最近用過的自訂場景」——「🔴 互動深化」第 1 步 v3.40 之後浮現的④。
 自訂場景原本不持久化（換頁回來要重打），這次把最近用過的 5 個記在**裝置本機 localStorage**
 （新純函式檔 `lib/recentScenes.ts`：`sceneKey`／`parseRecent`（七種容錯）／`serializeRecent`／
 `addRecent`／`removeRecent`，欄位一律走 `roleplay.ts` 的 `normalizeCustom` 與同組長度上限，
@@ -220,7 +230,7 @@ v3.28，互不依賴，已依序合併入 main。
 ## 目前狀態
 
 - **程式碼**：Web/PWA 與 Android（Capacitor 殼）皆完成；CI（web 測試＋e2e＋Android `assembleDebug`）綠燈。
-- **測試**：`npm test` 532/532、`npm run test:e2e` 79/79、`sidecar/test_score.py` 4/4、`test_article.py` 13/13、`npm run build` strict 綠燈。
+- **測試**：`npm test` 553/553、`npm run test:e2e` 81/81、`sidecar/test_score.py` 4/4、`test_article.py` 13/13、`npm run build` strict 綠燈。
 - **尚未做**：Android 真機驗收（清單 `tests/MANUAL_QA-ANDROID.md`）與 Google Play 封閉測試——**未通過前勿送審**。
 
 ## 已完成里程碑（摘要）
@@ -257,6 +267,7 @@ v3.28，互不依賴，已依序合併入 main。
 | 会話走完一段後的追問（`FollowUpTopic`＝`sentenceTopic`／`dialogueTopic`，AI 扮演對話中的對象在同一場景再問一句；共用紅線與講評 prompt 不動、沿用 `followup` feature key） | v3.38 |
 | 自由対話「自訂場景」（`buildCustomScene`／`openingEntries`：使用者用中文描述對象與情境，無已驗證開場白故由你先開口；system 對自訂場景加指示注入護欄，內建場景不變） | v3.40 |
 | 自由対話「最近用過的自訂場景」（`lib/recentScenes.ts`：最多 5 筆存裝置本機 localStorage、不進 Dexie，容錯解析＋去重＋長度上限共用 `normalizeCustom`；卡片上可再聊／帶回欄位／刪除） | v3.41 |
+| 分數揭曉動畫（`lib/scoreReveal.ts`＋`components/ScoreReveal.tsx`：環形進度＋數字滾動＋等第徽章，書寫字形評分與跟讀發音評分共用；純呈現、門檻沿用原判斷） | v3.42 |
 | AI 互動練習記入学習記録＋金印（`roleplay`／`tutor`／`followup` 三個 feature key；金印判定抽成純函式 `featureGroup`／`hasExtraFeature`／`extraDays`／`groupTotals`；今日頁加練輪替 4→6、成長頁加分組 chip） | v3.35 |
 
 
@@ -315,9 +326,16 @@ v3.28，互不依賴，已依序合併入 main。
 
 ### 6. 動畫／視覺輔助續做 〔呈現層，風險最低，可挑一子項〕
 - v3.28 只做了「多題作答流程」的進度條與對錯動畫（六處：`QuizView`／`ListenView` 四型／`KanaView`
-  兩處）。**尚未涵蓋**：`PatternView`（文型ドリル／回想テスト的「說對了/再一次」按鈕）、
-  `DialogueView`（會話引導逐句完成時）、`WriteView`（字形評分結果 0-100 分可加動畫數字滾動或
-  分數等第徽章）——可挑一處延伸同一套 `ProgressBar`／pop-in 語彙。
+  兩處）。~~`WriteView`（字形評分結果 0-100 分的數字滾動／等第徽章）~~（v3.42 完成，並一併套用到
+  `SpeakView` 的跟讀發音分數：共用元件 `components/ScoreReveal.tsx`＋純函式 `lib/scoreReveal.ts`，
+  環形進度＋數字滾動＋等第徽章；門檻沿用兩處原本的判斷，有逐分對照 `gradeOf` 的測試釘住）。
+  **仍未涵蓋**：`PatternView`（文型ドリル／回想テスト的「說對了/再一次」按鈕）、`DialogueView`
+  （會話引導逐句完成時）——可挑一處延伸同一套 `ProgressBar`／pop-in／`ScoreReveal` 語彙。
+- **v3.42 之後新浮現的可續做**：①`ScoreReveal` 目前只用在兩處分數，`lib/quiz` 的 N5 測驗結算分數
+  （答對題數／百分比）與 `ProgressView` 的發音成長曲線也可共用同一套等第語彙，但要先想清楚
+  「測驗的百分比」與「相似度分數」語意不同，別讓同一個徽章在不同語境代表不同意思；
+  ②書寫的「筆順」「方向」兩行提示仍是純文字，可比照徽章化（✓／△／✗ 三態），但務必維持
+  v3.25／v3.26 立下的誠實文案（起筆點順序／行筆方向的粗略比對，非精確路徑評分）。
 - 測驗/聽力答對達成滿分（100%）或連續答對時，可考慮加一次性慶祝動畫（呼應既有 `BigStamp`／金印
   的視覺語言），但注意不要過度打斷學習節奏、且需可被 `prefers-reduced-motion` 關閉（沿用既有全域
   規則即可，不需額外處理）。
