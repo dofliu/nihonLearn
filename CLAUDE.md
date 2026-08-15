@@ -664,7 +664,7 @@ v3.43（單字帳：查得到、看得到進度）：這次是**收斂／整合*
 假名／漢字／中文三種比對入口與不誤中、**每個詞都查得回自己的假名與中文釋義**的全詞庫掃描、
 分類／狀態／查詢三種篩選可疊加且維持原順序、分組數與順序＝資料出現順序且不漏詞、
 分類摘要與統計加總一致、標記四種優先序與「待解鎖判定與 `vocabGate` 一致」的全詞庫核對）、
-`npm run test:e2e` 84/84（vocab-read.spec 由原本「列出全部詞彙」一項擴為三項：預設收合／展開一類／
+`npm run test:e2e` 83/83（vocab-read.spec 由原本「列出全部詞彙」一項擴為三項：預設收合／展開一類／
 再收合、中文＋假名＋平假名查片假名詞＋查無結果提示、未學假名標 🔒 → 學一輪後標 ● 且「已學」
 篩選只剩學過的）、`npm run build` strict 綠燈。
 
@@ -763,7 +763,7 @@ Claude Code 在本機可以真正跑起來、觀察、修正。建議依序進�
 
 ## 提交前檢查
 
-`npm run build`（strict 綠燈）＋ `npm test`（597/597）＋ `npm run test:e2e`（84/84）
+`npm run build`（strict 綠燈）＋ `npm test`（597/597）＋ `npm run test:e2e`（83/83）
 ＋（動到 sidecar 時）`python sidecar/test_score.py` 與 `python sidecar/test_article.py`。
 新功能盡量補測：純邏輯進 `tests/integration.ts`，UI 流程進 `e2e/*.spec.ts`（共用步驟放
 `e2e/helpers.ts`），後端進 `test_score.py`。
