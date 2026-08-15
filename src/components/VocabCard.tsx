@@ -1,12 +1,12 @@
 import { useState, useEffect, useCallback } from 'react'
 import { VOCAB, type Vocab } from '../data/vocab'
-import { KANA_BY_ID } from '../data/kana'
 import { db } from '../db/schema'
 import {
   ensureCard,
   gradeCard,
   incNewVocab,
   getToday,
+  learnedKanaChars,
   DAILY_VOCAB_NEW_LIMIT,
 } from '../db/repo'
 import { isDue, isMastered, type GradeKey } from '../srs/scheduler'
@@ -15,17 +15,6 @@ import { speak } from '../audio/tts'
 import { useApp } from '../state/store'
 import { toast } from '../components/ui'
 import { RubyText } from './Ruby'
-
-/** 已學假名的字元集合（詞彙解鎖用）。 */
-async function learnedKanaChars(): Promise<Set<string>> {
-  const kanaCards = await db.cards.where('type').equals('kana').toArray()
-  const chars = new Set<string>()
-  for (const c of kanaCards) {
-    const ch = KANA_BY_ID[c.refId]?.ch
-    if (ch) chars.add(ch)
-  }
-  return chars
-}
 
 export function VocabCard() {
   const bump = useApp((s) => s.bump)

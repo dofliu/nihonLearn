@@ -95,11 +95,81 @@ test.describe('詞彙 FSRS 與閱讀', () => {
     await expect(taskRow(page, '読む修行')).toContainText('1 / 1')
   })
 
-  test('單字帳依分類列出全部詞彙', async ({ page }) => {
+  test('單字帳：預設分類收合，展開一類才列出詞', async ({ page }) => {
     await gotoApp(page)
     await navTo(page, '読む')
-    const rows = page.locator('.wordRow')
-    // 詞庫約 190 詞，全數渲染
-    expect(await rows.count()).toBeGreaterThan(150)
+
+    const book = page.locator('.card', { hasText: '單字帳' })
+    // 不再是一面 300 多列的牆：預設全部收合
+    await expect(book.locator('.wordRow')).toHaveCount(0)
+
+    const firstCat = book.locator('.vbCatBtn').first()
+    await expect(firstCat).toHaveAttribute('aria-expanded', 'false')
+    // 收合時就看得到「共幾詞・已學幾個」
+    await expect(firstCat.locator('.vbCatMeta')).toContainText('詞・已學')
+
+    await firstCat.click()
+    await expect(firstCat).toHaveAttribute('aria-expanded', 'true')
+    const rows = book.locator('.wordRow')
+    expect(await rows.count()).toBeGreaterThan(0)
+    // 只展開一類 → 遠少於整個詞庫
+    expect(await rows.count()).toBeLessThan(100)
+
+    await firstCat.click()
+    await expect(book.locator('.wordRow')).toHaveCount(0)
+  })
+
+  test('單字帳搜尋：中文／假名／漢字都查得到，查無結果有提示', async ({ page }) => {
+    await gotoApp(page)
+    await navTo(page, '読む')
+
+    const book = page.locator('.card', { hasText: '單字帳' })
+    const search = book.getByLabel('搜尋單字')
+
+    // 中文查詢 → 攤平結果（跨分類，附分類 tag）
+    await search.fill('水')
+    const rows = book.locator('.wordRow')
+    expect(await rows.count()).toBeGreaterThan(0)
+    await expect(rows.first().locator('.wcat')).toBeVisible()
+    await expect(book).toContainText('みず')
+
+    // 假名查詢
+    await search.fill('みず')
+    await expect(book.locator('.wordRow')).toHaveCount(1)
+    await expect(book.locator('.wordRow').first()).toContainText('みず')
+
+    // 平假名也查得到片假名詞（片→平純機械轉換）
+    await search.fill('じゅーす')
+    await expect(book.locator('.wordRow').first()).toContainText('ジュース')
+
+    // 查無結果
+    await search.fill('ぱぴぷぺぽぽぽ')
+    await expect(book.locator('.wordRow')).toHaveCount(0)
+    await expect(book.locator('.vbEmpty')).toContainText('找不到符合的詞')
+  })
+
+  test('單字帳標記：未學假名的詞標 🔒；學過後標 ● 且「已學」篩選只剩它們', async ({ page }) => {
+    // 全新使用者（未學任何假名）→ 詞彙都還沒解鎖
+    await gotoApp(page)
+    await navTo(page, '読む')
+    const book = page.locator('.card', { hasText: '單字帳' })
+    await book.getByLabel('搜尋單字').fill('みず')
+    await expect(book.locator('.wordRow .vbMark.locked')).toHaveCount(1)
+
+    // 學一輪詞彙（會先預埋全部假名）→ 學過的詞標 ●
+    await gotoWithAllKana(page)
+    await completeVocabRound(page)
+    await expect(book.locator('.wordRow')).toHaveCount(0) // 回到收合狀態
+    await expect(book).toContainText('已學 6')
+
+    // 「已學」篩選：攤開任一分類前先確認統計，再展開看標記
+    await book.getByRole('button', { name: '已學', exact: true }).click()
+    await expect(book).toContainText('共 6 詞')
+    await book.locator('.vbCatBtn').first().click()
+    const rows = book.locator('.wordRow')
+    expect(await rows.count()).toBeGreaterThan(0)
+    for (const m of await rows.locator('.vbMark').all()) {
+      await expect(m).toHaveClass(/learn|master/)
+    }
   })
 })
