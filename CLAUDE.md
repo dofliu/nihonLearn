@@ -664,12 +664,13 @@ v3.44（段落聽解題庫擴充＋同輪不重複同一篇）：ROADMAP #5「�
 採用的 AI 題），所以**大意題／細節題／AI 採用題都算同一篇**、一輪必來自三篇不同短文。
 純資料＋純函式，不經 LLM、不動 Dexie schema、不動蓋章判定與「耳」任務計數、不新增 CSS。
 
-測試：`npm test` 572/572（新增 5h 延伸 7 項結構檢核＋5h2 選材分散 12 項：攤開不遺漏不重複／前 3 個
+測試：`npm test` 616/616（本版新增 5h 延伸 7 項結構檢核＋5h2 選材分散 12 項：攤開不遺漏不重複／前 3 個
 來自 3 篇／組內與組間順序、空陣列、全同組、組數不足時先攤完不同組才回頭、`pickParagraphs` 給 groupOf
 後 30 個 seed 都取到 3 篇不同短文、不給 groupOf 時與舊版逐字相同、seed 可重現、對**真實題庫**同樣掃 30 個
-seed）、`npm run test:e2e` 82/82（listen.spec 新增「一輪三題來自三篇不同短文」——用揭曉的「對話內容」
+seed）、`npm run test:e2e` 84/84（listen.spec 新增「一輪三題來自三篇不同短文」——用揭曉的「對話內容」
 第一行辨識是哪一篇）、`npm run build` strict 綠燈。
-（與 v3.43「單字帳」為同期兩支獨立分支、各自延伸自 v3.42，互不依賴、改動檔案不重疊。）
+（與 v3.43「單字帳」為同期兩支獨立分支、各自延伸自 v3.42、改動檔案不重疊；v3.43 先合併入 main，
+本版於分支上併入 main 後重跑全測——上列數字為合併後的總數。）
 v3.43（單字帳：查得到、看得到進度）：這次是**收斂／整合**而非加功能——読む頁底部的「單字帳」
 原本把 321 個詞一次攤平列出（分類標題＋全部詞列），手機上是一面滾不完的牆，而且**沒辦法查一個詞**：
 初學者在短文／聞き取り／文型ドリル遇到不認得的詞，想回來查「水怎麼說」只能自己滾。這次改成
@@ -788,8 +789,7 @@ Claude Code 在本機可以真正跑起來、觀察、修正。建議依序進�
 
 ## 提交前檢查
 
-`npm run build`（strict 綠燈）＋ `npm test`（572/572）＋ `npm run test:e2e`（82/82）
-`npm run build`（strict 綠燈）＋ `npm test`（597/597）＋ `npm run test:e2e`（83/83）
+`npm run build`（strict 綠燈）＋ `npm test`（616/616）＋ `npm run test:e2e`（84/84）
 ＋（動到 sidecar 時）`python sidecar/test_score.py` 與 `python sidecar/test_article.py`。
 新功能盡量補測：純邏輯進 `tests/integration.ts`，UI 流程進 `e2e/*.spec.ts`（共用步驟放
 `e2e/helpers.ts`），後端進 `test_score.py`。
