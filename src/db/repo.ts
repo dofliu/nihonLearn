@@ -2,6 +2,7 @@ import { db, type Card, type CardType } from './schema'
 import { newCard, review, type GradeKey } from '../srs/scheduler'
 import { todayStr } from '../lib/date'
 import { extraDays } from '../lib/activity'
+import { KANA_BY_ID } from '../data/kana'
 import type { Card as FSRSCard } from 'ts-fsrs'
 
 /** 每日五項修行的定義（驅動今日頁與蓋章） */
@@ -23,6 +24,20 @@ export async function getCard(id: string): Promise<Card | undefined> {
 
 export async function allCards(type?: CardType): Promise<Card[]> {
   return type ? db.cards.where('type').equals(type).toArray() : db.cards.toArray()
+}
+
+/**
+ * 已學假名的字元集合（詞彙解鎖判定用，餵給 `lib/vocabGate.ts` 的 `isVocabUnlocked`）。
+ * 詞彙修行（VocabCard）與單字帳（VocabBook）共用同一份判定，避免兩處各寫一次。
+ */
+export async function learnedKanaChars(): Promise<Set<string>> {
+  const kanaCards = await db.cards.where('type').equals('kana').toArray()
+  const chars = new Set<string>()
+  for (const c of kanaCards) {
+    const ch = KANA_BY_ID[c.refId]?.ch
+    if (ch) chars.add(ch)
+  }
+  return chars
 }
 
 export async function ensureCard(

@@ -1156,6 +1156,75 @@ ruby rt {
   color: var(--nezu);
 }
 
+/* 單字帳：搜尋 + 分類收合 + 學習狀態標記 */
+.vbSearch {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 9px 12px;
+  border: 1px solid var(--washi2);
+  border-radius: 10px;
+  background: #fff;
+  font-size: 15px;
+  color: var(--sumi);
+}
+.vbSearch:focus {
+  outline: none;
+  border-color: var(--ai);
+}
+.vbLegend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 10px 0 2px;
+  font-size: 11px;
+  color: var(--nezu);
+}
+.vbMark {
+  font-size: 11px;
+  margin-right: 5px;
+}
+.vbMark.master {
+  color: var(--take);
+}
+.vbMark.learn {
+  color: var(--ai);
+}
+.vbMark.locked {
+  filter: grayscale(1);
+  opacity: 0.7;
+}
+.vbCatBtn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 4px;
+  margin-top: 6px;
+  border: none;
+  border-bottom: 1px solid var(--washi2);
+  background: none;
+  cursor: pointer;
+  text-align: left;
+}
+.vbCatBtn .vbCatMeta {
+  font-size: 11px;
+  color: var(--nezu);
+  margin-left: auto;
+}
+.vbCatBtn .vbCatChevron {
+  font-size: 11px;
+  color: var(--nezu);
+}
+.wordRow .wcat {
+  font-size: 10px;
+  color: var(--shu);
+  letter-spacing: 0.1em;
+  margin-right: 6px;
+}
+.vbEmpty {
+  margin-top: 12px;
+}
+
 /* toast + big stamp */
 .toast {
   position: fixed;

@@ -1,12 +1,11 @@
 import { useState } from 'react'
-import { VOCAB } from '../data/vocab'
 import { PASSAGES, PASSAGE_CATS, type Passage, type PassageLine } from '../data/passages'
 import { speak } from '../audio/tts'
 import { useApp } from '../state/store'
 import { toast } from '../components/ui'
 import { VocabCard } from '../components/VocabCard'
+import { VocabBook } from '../components/VocabBook'
 import { Karaoke } from '../components/Karaoke'
-import { RubyText } from '../components/Ruby'
 
 /**
  * 短文標題解析：`壱 ─ じこしょうかい（自我介紹・全假名）`
@@ -29,7 +28,6 @@ interface ReaderDoc {
 
 export function ReadView() {
   const bump = useApp((s) => s.bump)
-  const showKanji = useApp((s) => s.showKanji)
   const [doc, setDoc] = useState<ReaderDoc | null>(null)
   const [openLines, setOpenLines] = useState<Set<number>>(new Set())
   const [showAllZh, setShowAllZh] = useState(true) // 初學者預設整篇中文對照
@@ -69,11 +67,6 @@ export function ReadView() {
     const txt = doc.lines.map((l) => l.read || l.jp.replace(/<[^>]+>/g, '')).join('。')
     speak(txt, useApp.getState().rate)
   }
-
-  const cats: string[] = []
-  VOCAB.forEach((w) => {
-    if (!cats.includes(w.cat)) cats.push(w.cat)
-  })
 
   return (
     <>
@@ -165,28 +158,7 @@ export function ReadView() {
         </div>
       )}
 
-      <div className="card">
-        <div className="eyebrow">單字帳（點擊發音）</div>
-        <div>
-          {cats.map((cat) => (
-            <div key={cat}>
-              <div className="catTag">{cat}</div>
-              {VOCAB.filter((w) => w.cat === cat).map((w) => (
-                <div key={w.jp} className="wordRow" onClick={() => speak(w.jp, 0.85)}>
-                  <span className="wj">
-                    {showKanji && w.kanji ? (
-                      <RubyText display={w.kanji} reading={w.jp} />
-                    ) : (
-                      w.jp
-                    )}
-                  </span>
-                  <span className="wz">{w.zh} 🔊</span>
-                </div>
-              ))}
-            </div>
-          ))}
-        </div>
-      </div>
+      <VocabBook />
     </>
   )
 }

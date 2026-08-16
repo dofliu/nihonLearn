@@ -119,6 +119,18 @@ import {
   FOLLOWUP_SKIPPED,
   MAX_FOLLOWUPS,
 } from '../src/lib/followUp.ts'
+import {
+  toHiragana,
+  normalizeQuery,
+  matchVocab,
+  filterVocab,
+  groupByCat,
+  catSummaries,
+  bookStats,
+  vocabMark,
+  VOCAB_CATS,
+  MARK_LABEL,
+} from '../src/lib/vocabBook.ts'
 
 let pass = 0
 let fail = 0
@@ -1639,6 +1651,129 @@ console.log('=== 5ad. 分數揭曉（數字滾動／環形進度／等第徽章�
     Math.abs(RING_CIRCUMFERENCE - 2 * Math.PI * RING_RADIUS) < 1e-9 &&
       ringDashOffset(50, NaN) === 0 &&
       ringDashOffset(50, -10) === 0,
+  )
+}
+
+console.log('=== 5ae. 單字帳（查詢／篩選／分組，純函式） ===')
+{
+  const NONE = { learned: new Set<string>(), mastered: new Set<string>(), locked: new Set<string>() }
+
+  // --- 片假名→平假名（純機械位移，不涉讀音判斷） ---
+  ok('片假名轉平假名', toHiragana('コーヒー') === 'こーひー')
+  ok('小書き片假名也轉（ャュョッ）', toHiragana('ジュース') === 'じゅーす')
+  ok('平假名與其他字元原樣保留', toHiragana('みず water 水。') === 'みず water 水。')
+  ok('ヶ/ァ 邊界字元都在轉換範圍內', toHiragana('ァヶ') === 'ぁゖ')
+
+  // --- 查詢正規化 ---
+  ok('正規化去頭尾空白', normalizeQuery('  みず  ') === 'みず')
+  ok('正規化移除內部全形／半形空白', normalizeQuery('こん　に ちは') === 'こんにちは')
+  ok('正規化英文轉小寫', normalizeQuery('Water') === 'water')
+  ok('正規化片假名轉平假名', normalizeQuery('コーヒー') === 'こーひー')
+  ok('空字串正規化後仍為空', normalizeQuery('   ') === '')
+
+  // --- 比對：假名／漢字／中文三種入口 ---
+  const mizu = VOCAB.find((v) => v.jp === 'みず')!
+  ok('詞庫有「みず」且標了漢字 水', !!mizu && mizu.kanji === '水')
+  ok('用假名找得到', matchVocab(mizu, normalizeQuery('みず')))
+  ok('用漢字找得到', matchVocab(mizu, normalizeQuery('水')))
+  ok('用中文釋義找得到', matchVocab(mizu, normalizeQuery(mizu.zh)))
+  ok('部分比對即可（前綴）', matchVocab(mizu, normalizeQuery('み')))
+  ok('空查詢一律符合', matchVocab(mizu, ''))
+  ok('不相干的字串不誤中', !matchVocab(mizu, normalizeQuery('ぱぴぷぺぽ')))
+  const kata = VOCAB.find((v) => v.jp === 'ジュース')!
+  ok('片假名詞可用平假名查詢找到', matchVocab(kata, normalizeQuery('じゅーす')))
+  ok('沒有 kanji 欄位的詞不會因此出錯', VOCAB.filter((v) => !v.kanji).every((v) => matchVocab(v, normalizeQuery(v.jp))))
+
+  // --- 每個詞都找得回自己（搜尋不會漏詞） ---
+  ok(
+    '每個詞都能用自己的假名查到（唯一或至少包含自己）',
+    VOCAB.every((v) => filterVocab(VOCAB, { q: v.jp }, new Set()).some((r) => r.jp === v.jp)),
+  )
+  ok(
+    '每個詞都能用自己的中文釋義查到',
+    VOCAB.every((v) => filterVocab(VOCAB, { q: v.zh }, new Set()).some((r) => r.jp === v.jp)),
+  )
+
+  // --- 篩選 ---
+  const learnedSet = new Set([VOCAB[0].jp, VOCAB[1].jp])
+  ok('無條件＝全部', filterVocab(VOCAB, {}, new Set()).length === VOCAB.length)
+  ok(
+    '分類篩選只留該分類',
+    filterVocab(VOCAB, { cat: '挨拶' }, new Set()).every((v) => v.cat === '挨拶'),
+  )
+  ok('不存在的分類→空清單', filterVocab(VOCAB, { cat: 'ぜんぜんない' }, new Set()).length === 0)
+  ok(
+    '已學篩選＝有卡的詞',
+    filterVocab(VOCAB, { status: 'learned' }, learnedSet).map((v) => v.jp).join(',') ===
+      [VOCAB[0].jp, VOCAB[1].jp].join(','),
+  )
+  ok(
+    '未學篩選＝沒卡的詞，且與已學互補',
+    filterVocab(VOCAB, { status: 'new' }, learnedSet).length === VOCAB.length - 2,
+  )
+  ok(
+    '查詢＋分類＋狀態可疊加',
+    filterVocab(VOCAB, { q: VOCAB[0].jp, cat: VOCAB[0].cat, status: 'learned' }, learnedSet).every(
+      (v) => v.cat === VOCAB[0].cat && learnedSet.has(v.jp),
+    ),
+  )
+  ok('篩選維持原順序', (() => {
+    const sub = filterVocab(VOCAB, { cat: '挨拶' }, new Set())
+    const orig = VOCAB.filter((v) => v.cat === '挨拶')
+    return sub.map((v) => v.jp).join(',') === orig.map((v) => v.jp).join(',')
+  })())
+
+  // --- 分組 ---
+  const groups = groupByCat(VOCAB)
+  ok('分組數＝分類數', groups.length === VOCAB_CATS.length)
+  ok('分組順序＝資料出現順序', groups.map((g) => g.cat).join(',') === VOCAB_CATS.join(','))
+  ok('分組不漏詞', groups.reduce((n, g) => n + g.words.length, 0) === VOCAB.length)
+  ok('每組非空且組內同分類', groups.every((g) => g.words.length > 0 && g.words.every((w) => w.cat === g.cat)))
+  ok('空輸入→空分組', groupByCat([]).length === 0)
+
+  // --- 摘要與統計 ---
+  const sums = catSummaries(VOCAB, learnedSet)
+  ok('分類摘要與分組一一對應', sums.map((s) => s.cat).join(',') === groups.map((g) => g.cat).join(','))
+  ok('分類摘要總數加總＝詞庫大小', sums.reduce((n, s) => n + s.total, 0) === VOCAB.length)
+  ok('分類摘要已學數加總＝已學詞數', sums.reduce((n, s) => n + s.learned, 0) === 2)
+  const st = bookStats(VOCAB, learnedSet, new Set([VOCAB[0].jp]))
+  ok('統計：總數／已學／定著', st.total === VOCAB.length && st.learned === 2 && st.mastered === 1)
+  ok('統計：空清單全 0', (() => {
+    const z = bookStats([], learnedSet, learnedSet)
+    return z.total === 0 && z.learned === 0 && z.mastered === 0
+  })())
+
+  // --- 標記（定著 > 已學 > 待解鎖 > 無） ---
+  const w0 = VOCAB[0]
+  ok('定著優先於已學', vocabMark(w0, { learned: new Set([w0.jp]), mastered: new Set([w0.jp]), locked: new Set() }) === 'master')
+  ok('已學', vocabMark(w0, { learned: new Set([w0.jp]), mastered: new Set(), locked: new Set() }) === 'learn')
+  ok('已學優先於待解鎖', vocabMark(w0, { learned: new Set([w0.jp]), mastered: new Set(), locked: new Set([w0.jp]) }) === 'learn')
+  ok('待假名解鎖', vocabMark(w0, { learned: new Set(), mastered: new Set(), locked: new Set([w0.jp]) }) === 'locked')
+  ok('都不符合＝無標記', vocabMark(w0, NONE) === 'none')
+  ok(
+    '三種標記的符號與說明皆非空且互異',
+    (() => {
+      const signs = Object.values(MARK_LABEL).map((m) => m.sign)
+      const texts = Object.values(MARK_LABEL).map((m) => m.text)
+      return (
+        signs.length === 3 &&
+        new Set(signs).size === 3 &&
+        new Set(texts).size === 3 &&
+        signs.every((s) => s.length > 0) &&
+        texts.every((t) => t.length > 0)
+      )
+    })(),
+  )
+  ok(
+    '待解鎖判定與 vocabGate 一致（未學任何假名時，非純片假名/符號的詞都鎖著）',
+    (() => {
+      const nothingLearned = new Set<string>()
+      const locked = new Set(VOCAB.filter((v) => !isVocabUnlocked(v.jp, nothingLearned)).map((v) => v.jp))
+      return locked.size > 0 && VOCAB.every((v) => {
+        const m = vocabMark(v, { learned: new Set(), mastered: new Set(), locked })
+        return m === (locked.has(v.jp) ? 'locked' : 'none')
+      })
+    })(),
   )
 }
 
