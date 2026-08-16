@@ -33,17 +33,42 @@ function shuffle<T>(arr: T[], rng: RNG): T[] {
 }
 
 /**
- * 段落聽解：從「已附理解題」的題庫洗牌取 n 篇，並洗牌每篇的選項。
+ * 依 groupOf 分組後輪流取（round-robin），讓同一組的項目不要擠在前面。
+ * 組的先後與組內順序都沿用傳入的順序（呼叫端先洗牌 → 這裡只負責「攤開」），
+ * 且回傳的元素個數與內容與輸入完全相同（只是順序不同）。
+ */
+export function spreadByGroup<T>(items: T[], groupOf: (it: T) => string): T[] {
+  const groups = new Map<string, T[]>()
+  for (const it of items) {
+    const k = groupOf(it)
+    const arr = groups.get(k)
+    if (arr) arr.push(it)
+    else groups.set(k, [it])
+  }
+  const buckets = [...groups.values()]
+  const out: T[] = []
+  for (let round = 0; out.length < items.length; round++) {
+    for (const b of buckets) if (round < b.length) out.push(b[round])
+  }
+  return out
+}
+
+/**
+ * 段落聽解：從「已附理解題」的題庫洗牌取 n 題，並洗牌每題的選項。
  * 選項為預先撰寫（答案由短文內容直接支持），此處只負責選材與選項順序。
+ *
+ * 給 groupOf（例如「這題屬於哪一篇短文」）時，同一篇短文的題目會被攤開——
+ * 一篇短文可能有大意題＋多題細節題，不加處理的話一輪三題可能連聽三次同一段音檔。
  */
 export function pickParagraphs<T extends { options: string[] }>(
   items: T[],
   n: number,
   rng: RNG = Math.random,
+  groupOf?: (it: T) => string,
 ): T[] {
-  return shuffle(items, rng)
-    .slice(0, n)
-    .map((it) => ({ ...it, options: shuffle(it.options, rng) }))
+  const shuffled = shuffle(items, rng)
+  const order = groupOf ? spreadByGroup(shuffled, groupOf) : shuffled
+  return order.slice(0, n).map((it) => ({ ...it, options: shuffle(it.options, rng) }))
 }
 
 // ── JLPT 題型：即時応答・発話表現 ──

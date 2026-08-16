@@ -86,6 +86,28 @@ test.describe('聴く：辨音與重音', () => {
     await expect(page.locator('.toast')).toContainText('段落聽解 完成！', { timeout: 15_000 })
   })
 
+  test('聞き取り（段落）：一輪三題來自三篇不同短文', async ({ page }) => {
+    // 一篇短文可有大意題＋多題細節題，不做分散的話一輪可能連聽三次同一段音檔。
+    await gotoApp(page)
+    await navTo(page, '聴く')
+
+    await page.locator('.lvTabs button', { hasText: '聞き取り' }).click()
+    await page.getByRole('button', { name: /段落對話/ }).click()
+
+    const firstLines: string[] = []
+    for (let n = 1; n <= 3; n++) {
+      await expect(
+        page.locator('.card .eyebrow', { hasText: `第 ${n} / 3 題` }),
+      ).toBeVisible({ timeout: 15_000 })
+      await page.locator('button.qopt').first().click()
+      // 揭曉的「對話內容」第一行＝該篇短文的第一句，可用來辨識是哪一篇
+      const first = await page.locator('.rline.open .jp').first().innerText()
+      firstLines.push(first.trim())
+      await page.getByRole('button', { name: n < 3 ? /下一題/ : /完成/ }).click()
+    }
+    expect(new Set(firstLines).size).toBe(3)
+  })
+
   test('即時応答：聽短問 → 選回應 → 揭曉正解', async ({ page }) => {
     await gotoApp(page)
     await navTo(page, '聴く')

@@ -677,7 +677,9 @@ function ParagraphQuiz({ onBack }: { onBack: () => void }) {
     void (async () => {
       const userQs = await listUserListenQ()
       if (cancelled) return
-      const chosen = pickParagraphs(buildParaPool(userQs), 3)
+      // groupOf：同一篇短文（大意題／細節題／採用的 AI 題）不要擠在同一輪，
+      // 否則一輪三題可能連聽三次同一段音檔。id 形如 `p4`／`p4:d0`／`p4:u7`。
+      const chosen = pickParagraphs(buildParaPool(userQs), 3, Math.random, (it) => it.id.split(':')[0])
       setItems(chosen)
       setN(1)
       window.setTimeout(() => speak(chosen[0].play, rate), 400)

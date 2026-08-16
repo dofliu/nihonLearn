@@ -41,7 +41,7 @@ import {
 } from '../src/lib/recentScenes.ts'
 import { generateQuiz, seededRng, MIN_POOL } from '../src/lib/quiz.ts'
 import { karaokeChars, activeCharIndices } from '../src/lib/karaoke.ts'
-import { listeningQuestions, pickParagraphs, responseQuestions, expressionQuestions, LISTEN_MIN_POOL, type ListenItem } from '../src/lib/listening.ts'
+import { listeningQuestions, pickParagraphs, spreadByGroup, responseQuestions, expressionQuestions, LISTEN_MIN_POOL, type ListenItem } from '../src/lib/listening.ts'
 import { PASSAGES, PASSAGE_CATS } from '../src/data/passages.ts'
 import { RESPONSES, EXPRESSIONS } from '../src/data/kaiwa.ts'
 import { alignFurigana, hasKanji, stripIgnored } from '../src/lib/furigana.ts'
@@ -355,6 +355,74 @@ console.log('=== 5h. 短文分類與段落理解題 ===')
       return p.detailQuiz!.every((dq) => zhText.includes(dq.answer))
     }),
   )
+
+  // v3.44：段落聽解題庫擴充——每一篇短文都進得了段落聽解池，且都有細節題
+  ok('每篇短文都有大意題', PASSAGES.every((p) => !!p.quiz))
+  ok('每篇短文都有細節題', PASSAGES.every((p) => (p.detailQuiz?.length ?? 0) >= 1))
+  ok('大意題正解不重複出現在選項中', PASSAGES.every((p) => p.quiz!.options.filter((o) => o === p.quiz!.answer).length === 1))
+  ok(
+    '細節題選項互異',
+    withDetail.every((p) => p.detailQuiz!.every((dq) => new Set(dq.options).size === dq.options.length)),
+  )
+  ok('細節題題目皆非空且以問號結尾', withDetail.every((p) => p.detailQuiz!.every((dq) => dq.q.trim().length > 0 && dq.q.endsWith('？'))))
+  ok(
+    '同一篇短文的細節題不重複問同一題',
+    withDetail.every((p) => new Set(p.detailQuiz!.map((dq) => dq.q)).size === p.detailQuiz!.length),
+  )
+  const totalParaQ = PASSAGES.reduce((s, p) => s + (p.quiz ? 1 : 0) + (p.detailQuiz?.length ?? 0), 0)
+  ok('段落聽解題庫 ≥ 35 題（一輪 3 題，夠久不重複）', totalParaQ >= 35)
+}
+
+console.log('=== 5h2. 段落聽解選材：同一輪不重複同一篇短文 ===')
+{
+  // 同一篇短文可有大意題＋多題細節題；一輪三題若都抽到同一篇，等於連聽三次同一段音檔。
+  type G = { id: string; options: string[] }
+  const g = (id: string): G => ({ id, options: ['a', 'b', 'c', 'd'] })
+  const groupOf = (it: G) => it.id.split(':')[0]
+
+  const spread = spreadByGroup([g('p1'), g('p1:d0'), g('p1:d1'), g('p2'), g('p3')], groupOf)
+  ok('攤開後不遺漏也不重複', spread.length === 5 && new Set(spread.map((x) => x.id)).size === 5)
+  ok('攤開後前 3 個來自 3 篇不同短文', new Set(spread.slice(0, 3).map(groupOf)).size === 3)
+  ok('組內順序維持原樣', spread.filter((x) => groupOf(x) === 'p1').map((x) => x.id).join() === 'p1,p1:d0,p1:d1')
+  ok('組的先後沿用首次出現順序', spread.slice(0, 3).map(groupOf).join() === 'p1,p2,p3')
+  ok('空陣列不當機', spreadByGroup([] as G[], groupOf).length === 0)
+  ok('全部同組時＝原順序', spreadByGroup([g('p1'), g('p1:d0')], groupOf).map((x) => x.id).join() === 'p1,p1:d0')
+
+  // 只有兩篇短文卻要三題 → 必然有一篇出兩次，但不能因此漏題或當機
+  const only2 = spreadByGroup([g('p1'), g('p1:d0'), g('p1:d1'), g('p2')], groupOf)
+  ok('組數不足時仍回傳全部項目', only2.length === 4 && new Set(only2.map((x) => x.id)).size === 4)
+  ok('組數不足時先攤完不同組才回頭', only2.slice(0, 2).map(groupOf).join() === 'p1,p2')
+
+  // 接上 pickParagraphs：給 groupOf 時三題必來自三篇不同短文
+  const pool = [g('p1'), g('p1:d0'), g('p1:d1'), g('p1:d2'), g('p2'), g('p2:d0'), g('p3')]
+  let allDistinct = true
+  for (let seed = 1; seed <= 30; seed++) {
+    const picked = pickParagraphs(pool, 3, seededRng(seed), groupOf)
+    if (picked.length !== 3 || new Set(picked.map(groupOf)).size !== 3) allDistinct = false
+  }
+  ok('pickParagraphs 給 groupOf 後 30 個 seed 都取到 3 篇不同短文', allDistinct)
+  ok(
+    '不給 groupOf 時行為與舊版相同',
+    JSON.stringify(pickParagraphs(pool, 3, seededRng(9))) ===
+      JSON.stringify(pickParagraphs(pool, 3, seededRng(9), undefined)),
+  )
+  ok(
+    '給 groupOf 仍會洗牌選項且 seed 可重現',
+    JSON.stringify(pickParagraphs(pool, 3, seededRng(4), groupOf)) ===
+      JSON.stringify(pickParagraphs(pool, 3, seededRng(4), groupOf)),
+  )
+
+  // 對真實題庫做同樣檢查（短文篇數 ≥ 3 才有意義）
+  const realPool = PASSAGES.flatMap((p) => [
+    ...(p.quiz ? [{ id: p.id, options: p.quiz.options }] : []),
+    ...(p.detailQuiz ?? []).map((dq, i) => ({ id: `${p.id}:d${i}`, options: dq.options })),
+  ])
+  let realDistinct = true
+  for (let seed = 1; seed <= 30; seed++) {
+    const picked = pickParagraphs(realPool, 3, seededRng(seed), groupOf)
+    if (new Set(picked.map(groupOf)).size !== 3) realDistinct = false
+  }
+  ok('真實題庫抽 3 題也必來自 3 篇不同短文', realDistinct)
 }
 
 console.log('=== 5i. JLPT 題型：即時応答・発話表現 ===')
