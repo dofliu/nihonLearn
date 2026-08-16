@@ -5,7 +5,19 @@
 > 設計原則不變：**正確性交給權威來源與程式驗證，AI 生成一律人工審核採用才入庫；
 > 使用者只做策展，不當正確性把關者。**
 
-最後更新：v3.42（分數揭曉動畫：環形進度＋數字滾動＋等第徽章——「動畫／視覺輔助續做」的延伸。
+最後更新：v3.44（段落聽解題庫擴充＋同輪不重複同一篇——ROADMAP #5「聽力題型續強化」的續做。
+v3.27 只給 6 篇短文加了 `detailQuiz`，段落聽解題池一直只有 22 題（12 大意＋10 細節），一輪 3 題，
+每天練的人很快就把題目背起來。這次把 `data/passages.ts` **全部 14 篇補齊**：原本沒有 `quiz`、
+**從沒進過段落聽解池**的兩篇文學短文（`p3` ことばの にんじゃ／`p6` たびびと）補上大意題，
+另外 8 篇補上 2～3 題細節題——**題池 22 → 43 題**。細節題只用中文問「短文自己就寫明的事」，
+答案逐字出現在該篇 `zh` 台詞裡（既有測試逐條核對），**日文台詞與中文對照一字未動、不經 LLM**。
+順手修掉題庫變大才浮現的問題：一篇短文現在可能有 1 大意＋3 細節，原本 `pickParagraphs` 只是洗牌，
+一輪三題可能連聽三次同一段音檔——新增純函式 `spreadByGroup(items, groupOf)`（依組 round-robin 攤開，
+不遺漏不重複、順序沿用傳入），`pickParagraphs` 加**可選**第四參數 `groupOf`（不給時與舊版逐字相同、
+有測試釘住），`ListenView` 傳 `it.id.split(':')[0]`，故大意題／細節題／採用的 AI 題都算同一篇，
+一輪必來自三篇不同短文。純資料＋純函式，不動 Dexie schema／蓋章判定／「耳」任務計數／CSS。
+與 v3.43「單字帳」為同期兩支獨立分支、改動檔案不重疊）。
+前一版 v3.42（分數揭曉動畫：環形進度＋數字滾動＋等第徽章——「動畫／視覺輔助續做」的延伸。
 v3.28 只做了「多題作答流程」的進度條與對錯動畫，分數型回饋（0-100 分）仍是一行靜態大字；這次把
 **書寫的字形相似度**與**跟讀的發音相似度**兩處改用共用元件 `components/ScoreReveal.tsx`：
 環形進度圈（SVG `stroke-dashoffset` transition）＋數字由 0 滾到最終分（`requestAnimationFrame`）＋
@@ -230,7 +242,7 @@ v3.28，互不依賴，已依序合併入 main。
 ## 目前狀態
 
 - **程式碼**：Web/PWA 與 Android（Capacitor 殼）皆完成；CI（web 測試＋e2e＋Android `assembleDebug`）綠燈。
-- **測試**：`npm test` 553/553、`npm run test:e2e` 81/81、`sidecar/test_score.py` 4/4、`test_article.py` 13/13、`npm run build` strict 綠燈。
+- **測試**：`npm test` 572/572、`npm run test:e2e` 82/82、`sidecar/test_score.py` 4/4、`test_article.py` 13/13、`npm run build` strict 綠燈。
 - **尚未做**：Android 真機驗收（清單 `tests/MANUAL_QA-ANDROID.md`）與 Google Play 封閉測試——**未通過前勿送審**。
 
 ## 已完成里程碑（摘要）
@@ -267,6 +279,7 @@ v3.28，互不依賴，已依序合併入 main。
 | 会話走完一段後的追問（`FollowUpTopic`＝`sentenceTopic`／`dialogueTopic`，AI 扮演對話中的對象在同一場景再問一句；共用紅線與講評 prompt 不動、沿用 `followup` feature key） | v3.38 |
 | 自由対話「自訂場景」（`buildCustomScene`／`openingEntries`：使用者用中文描述對象與情境，無已驗證開場白故由你先開口；system 對自訂場景加指示注入護欄，內建場景不變） | v3.40 |
 | 自由対話「最近用過的自訂場景」（`lib/recentScenes.ts`：最多 5 筆存裝置本機 localStorage、不進 Dexie，容錯解析＋去重＋長度上限共用 `normalizeCustom`；卡片上可再聊／帶回欄位／刪除） | v3.41 |
+| 段落聽解題庫擴充（全 14 篇短文都有大意題＋細節題，題池 22→43）＋同輪不重複同一篇（`spreadByGroup`＋`pickParagraphs` 可選 `groupOf`） | v3.44 |
 | 分數揭曉動畫（`lib/scoreReveal.ts`＋`components/ScoreReveal.tsx`：環形進度＋數字滾動＋等第徽章，書寫字形評分與跟讀發音評分共用；純呈現、門檻沿用原判斷） | v3.42 |
 | AI 互動練習記入学習記録＋金印（`roleplay`／`tutor`／`followup` 三個 feature key；金印判定抽成純函式 `featureGroup`／`hasExtraFeature`／`extraDays`／`groupTotals`；今日頁加練輪替 4→6、成長頁加分組 chip） | v3.35 |
 
@@ -319,9 +332,22 @@ v3.28，互不依賴，已依序合併入 main。
 
 ### 5. 聽力題型續強化 〔內容深化，可選〕
 - ~~段落理解題細節題~~（v3.27：6 篇短文加 `detailQuiz`，時間／數量／人物，答案逐字對照 zh 台詞
-  並有測試核對）。可續擴到其餘 8 篇有 `quiz` 但尚無 `detailQuiz` 的短文（`p6`／`p13`／`p14` 等
-  對話式短文因無明確數字/時間細節、暫不強加）。
+  並有測試核對）。~~可續擴到其餘 8 篇~~（v3.44 完成：**全部 14 篇短文都有大意題＋細節題**，
+  題池 22 → 43 題。原本擔心「`p6`／`p13`／`p14` 無明確數字/時間細節」——改問**短文自己寫明的
+  事物與說法**（星星／不停下腳步／敝姓 Dof／彼此彼此／早安／我先走一步了）就成立了，
+  一樣通過「答案逐字出現在 zh 台詞」的檢核。另外 `p3`／`p6` 原本連 `quiz` 都沒有、**從沒進過
+  段落聽解池**，這次一併補上大意題）。
+- ~~一輪三題可能重複同一篇短文~~（v3.44 完成：純函式 `lib/listening.ts` `spreadByGroup`＋
+  `pickParagraphs` 可選第四參數 `groupOf`；`ListenView` 以 `id.split(':')[0]` 分組，
+  故大意題／細節題／採用的 AI 題都算同一篇。不給 `groupOf` 時行為與舊版逐字相同）。
+- **v3.44 之後新浮現的可續做**：①`spreadByGroup` 目前只用在段落聽解，`ListenView` 的
+  **句子聽解**（`listeningQuestions`）取材自例句＋短文每一行，同一篇短文的相鄰句子也可能連著出——
+  可考慮沿用同一個分散函式，但要先確認句子題的重複感是否真的困擾（每題只播一句、成本比段落低）；
+  ②細節題目前一律 4 選項，JLPT 課題理解確實是 4 選項，維持不變即可；
+  ③題池變大後，**同一輪不重複**已解決，但**跨輪**仍可能連兩天抽到同幾題——若要做「最近出過的
+  先不出」需要持久化（Dexie 或 localStorage），先觀察 43 題夠不夠用再說，別為了功能而功能。
 - 句子聽解題庫偏日常，可補商業／旅遊情境單句（`data/sentences.ts`／`data/passages.ts`）。
+  ⚠ 這一項需要**新寫日文**，本雲端環境無法查證日文正確性（proxy 擋外部字典），需本機或提供素材才做。
 - 素材一律走已驗證資料或「LLM 只生中文題／選項」路線，不讓 LLM 生日文。
 
 ### 6. 動畫／視覺輔助續做 〔呈現層，風險最低，可挑一子項〕
