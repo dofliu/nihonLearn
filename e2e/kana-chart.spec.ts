@@ -49,8 +49,8 @@ test.describe('五十音圖（一覽表）', () => {
     const y = page.locator('.kanaChart .kcCell:not(.empty)').first()
     await expect(y.locator('.kcCh')).toHaveText('きゃ')
     await expect(y.locator('.kcRo')).toHaveText('kya')
-    // 拗音是查閱用參考表，明說不進卡組
-    await expect(page.locator('main')).toContainText('不列入每日修行')
+    // 拗音是查閱用參考表，明說不進卡組（要練走選配的拗音ドリル）
+    await expect(page.locator('main')).toContainText('不在 SRS 卡組內')
 
     // 片假名的拗音同步
     await page.getByRole('button', { name: 'ア 片假名' }).click()

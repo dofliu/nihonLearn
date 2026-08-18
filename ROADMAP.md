@@ -5,7 +5,19 @@
 > 設計原則不變：**正確性交給權威來源與程式驗證，AI 生成一律人工審核採用才入庫；
 > 使用者只做策展，不當正確性把關者。**
 
-最後更新：v3.44（段落聽解題庫擴充＋同輪不重複同一篇——ROADMAP #5「聽力題型續強化」的續做。
+最後更新：v3.45（拗音ドリル：33 音看字選音——ROADMAP 「2.5 五十音圖續做」的①。使用者是
+「剛學完五十音的成人」，但五十音卡組（`data/kana.ts` 142 枚）**只有清音與濁音**，拗音刻意不在其中；
+v3.36 的五十音圖把 33 個拗音列出來可以查、可以點聽，卻**沒有任何地方能練**——而且拗音分頁上那顆
+「📇 用單字卡練習」其實會去開清音／濁音的 FSRS 一輪（拗音根本沒有卡片），是個對不上的入口。
+這次補上練習本身：`lib/yoonDrill.ts`（題目與選項全部由 `lib/kanaChart.ts` 推導、一路回到已驗證的
+`data/kana.ts`，**本檔一個假名／羅馬字都沒有手打**）＋`components/YoonDrill.tsx`（看拗音 → 選羅馬字，
+一輪 10 題）。誘答依混淆程度分三層（同列不同母音／同欄不同子音／其餘），每題固定 1 個①＋2 個②，
+所以每題都同時考母音與子音辨別。練的是「兩個字合起來只唸一拍」的認讀（きょう＝kyo-u，不是 ki-yo-u），
+**不依賴 TTS 品質**，離線／降級照樣能練。入口兩處：かな頁主畫面「🔡 拗音ドリル」與五十音圖拗音分頁
+（該分頁的按鈕改成拗音ドリル，清音／濁音維持「用單字卡練習」）。定位為**選配加練**（新 feature key
+`yoon`，`EXTRA_FEATURES` 7→8）：記入学習記録、可讓済印變金，但**不卡蓋章、不進 SRS、`KANA` 維持
+142 枚一枚不動**（有測試守衛）。今日頁加練輪替 6→7。不動 Dexie schema、不動蓋章判定、不新增 CSS）。
+前一版 v3.44（段落聽解題庫擴充＋同輪不重複同一篇——ROADMAP #5「聽力題型續強化」的續做。
 v3.27 只給 6 篇短文加了 `detailQuiz`，段落聽解題池一直只有 22 題（12 大意＋10 細節），一輪 3 題，
 每天練的人很快就把題目背起來。這次把 `data/passages.ts` **全部 14 篇補齊**：原本沒有 `quiz`、
 **從沒進過段落聽解池**的兩篇文學短文（`p3` ことばの にんじゃ／`p6` たびびと）補上大意題，
@@ -179,7 +191,7 @@ AI 的產出內容仍然不入庫、不進 SRS。口說作答（`components/Voic
 ## 目前狀態
 
 - **程式碼**：Web/PWA 與 Android（Capacitor 殼）皆完成；CI（web 測試＋e2e＋Android `assembleDebug`）綠燈。
-- **測試**：`npm test` 616/616、`npm run test:e2e` 84/84、`sidecar/test_score.py` 4/4、`test_article.py` 13/13、`npm run build` strict 綠燈。
+- **測試**：`npm test` 652/652、`npm run test:e2e` 86/86、`sidecar/test_score.py` 4/4、`test_article.py` 13/13、`npm run build` strict 綠燈。
 - **尚未做**：Android 真機驗收（清單 `tests/MANUAL_QA-ANDROID.md`）與 Google Play 封閉測試——**未通過前勿送審**。
 
 ## 已完成里程碑（摘要）
@@ -219,6 +231,7 @@ AI 的產出內容仍然不入庫、不進 SRS。口說作答（`components/Voic
 | 分數揭曉動畫（`lib/scoreReveal.ts`＋`components/ScoreReveal.tsx`：環形進度＋數字滾動＋等第徽章，書寫字形評分與跟讀發音評分共用；純呈現、門檻沿用原判斷） | v3.42 |
 | 單字帳查詞與進度（`lib/vocabBook.ts`＋`components/VocabBook.tsx`：搜尋假名/漢字/中文、分類收合、狀態篩選、◎/●/🔒 標記；由 321 列的牆收斂成可查閱的工具，零新內容） | v3.43 |
 | 段落聽解題庫擴充（全 14 篇短文都有大意題＋細節題，題池 22→43）＋同輪不重複同一篇（`spreadByGroup`＋`pickParagraphs` 可選 `groupOf`） | v3.44 |
+| 拗音ドリル（`lib/yoonDrill.ts`＋`components/YoonDrill.tsx`：33 音看字選音、誘答分層考母音＋子音辨別；題目全由 `kanaChart` 推導、不手打讀音；選配加練不進 SRS、卡組仍 142 枚） | v3.45 |
 | AI 互動練習記入学習記録＋金印（`roleplay`／`tutor`／`followup` 三個 feature key；金印判定抽成純函式 `featureGroup`／`hasExtraFeature`／`extraDays`／`groupTotals`；今日頁加練輪替 4→6、成長頁加分組 chip） | v3.35 |
 
 
@@ -245,10 +258,17 @@ AI 的產出內容仍然不入庫、不進 SRS。口說作答（`components/Voic
   相依性**。下次可先 `npm view`/`npm search` 找看看有無這類 OJAD／字典衍生封裝。
 
 ### 2.5 五十音圖續做 〔呈現層〕　**✅ nightly 做得了**
-- ~~五十音圖一覽表~~（v3.36：`lib/kanaChart.ts`＋`components/KanaChart.tsx`）。可續做：
-  ①**拗音目前不進 SRS**（刻意——加進去會讓 `KANA` 從 142 變 208、影響每日修行範圍與
-  `lib/vocabGate.ts` 的解鎖判定）。若日後要練拗音，建議做成**獨立的選配練習**（比照書寫／測驗），
-  而不是塞進核心卡組；②圖上的格子目前用底線標已學／定著，可考慮加「只看還沒學的」篩選；
+- ~~五十音圖一覽表~~（v3.36：`lib/kanaChart.ts`＋`components/KanaChart.tsx`）。
+  ~~①拗音沒得練~~（v3.45 完成：`lib/yoonDrill.ts`＋`components/YoonDrill.tsx`，做成
+  **獨立的選配練習**（feature key `yoon`）而不是塞進核心卡組——`KANA` 仍維持 142 枚，
+  `lib/vocabGate.ts` 的解鎖判定不受影響；順手把拗音分頁上那顆對不上的「用單字卡練習」
+  換成拗音ドリル入口）。**v3.45 之後新浮現的可續做**：
+  ⓐ目前只有「看字選音」一種題型，可加「聽音選字」（比照 `KanaView` 的音→字），但那會**依賴
+  TTS 對 きゃ／ぎゃ 的區辨品質**，容器內測不了聽感，建議等真機驗收時一併確認再做；
+  ⓑ答錯的拗音不記錄（要做弱項追蹤需 Dexie v9，比照 `quizResults`）——先觀察 33 音夠不夠小、
+  是否真的需要針對性複習；ⓒ拗音練習與詞彙沒有連動（例如「きょう」這種含拗音的已學詞可以當例詞
+  出現在結算畫面），素材都是已驗證的 `data/vocab`，做得了，但要留意別讓一輪變太長。
+  ②圖上的格子目前用底線標已學／定著，可考慮加「只看還沒學的」篩選；
   ③長音・促音（ー／っ）與外來語專用音（ファ／ティ 等）未收——這些不是五十音圖的一部分，
   要做應另開一張「特殊音」對照表，且同樣不可讓 LLM 生讀音。
 

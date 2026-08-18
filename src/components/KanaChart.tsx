@@ -27,11 +27,14 @@ export function KanaChart({
   learnedSet,
   masteredMap,
   onPractice,
+  onYoonDrill,
 }: {
   learnedSet: Set<string>
   masteredMap: Record<string, boolean>
   /** 「用單字卡練習」：交回呼叫端開始 FSRS 一輪 */
   onPractice: () => void
+  /** 「拗音ドリル」：拗音沒有 SRS 卡片，故該分頁改開選配的拗音練習（沿用當下的平／片假名選擇） */
+  onYoonDrill: (script: ChartScript) => void
 }) {
   const rate = useApp((s) => s.rate)
   const [script, setScript] = useState<ChartScript>('hiragana')
@@ -105,9 +108,15 @@ export function KanaChart({
         ))}
       </div>
 
-      <button className="btn" style={{ width: '100%' }} onClick={onPractice}>
-        📇 用單字卡練習
-      </button>
+      {set === 'yoon' ? (
+        <button className="btn" style={{ width: '100%' }} onClick={() => onYoonDrill(script)}>
+          🔡 拗音ドリル（練這 33 音）
+        </button>
+      ) : (
+        <button className="btn" style={{ width: '100%' }} onClick={onPractice}>
+          📇 用單字卡練習
+        </button>
+      )}
 
       <div
         className="kanaChart"
@@ -136,7 +145,7 @@ export function KanaChart({
       <p className="sub" style={{ marginTop: 10 }}>
         點任一格聽發音。
         {set === 'yoon'
-          ? '拗音＝い段假名＋小さい ゃ／ゅ／ょ，屬查閱用參考表，不列入每日修行的卡組。'
+          ? '拗音＝い段假名＋小さい ゃ／ゅ／ょ，兩字合起來只唸一拍。不在 SRS 卡組內，要練請用上方的拗音ドリル（選配加練，不卡蓋章）。'
           : '底線標記為你的修行進度：藍＝已學、綠＝定著。'}
       </p>
     </div>

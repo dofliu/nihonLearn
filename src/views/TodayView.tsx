@@ -71,6 +71,7 @@ export function TodayView({
 
   // 選配加練：每天輪替主推一項（不影響蓋章）
   const EXTRAS = [
+    { key: 'yoon', emoji: '🔡', label: '拗音ドリル', hint: 'きゃ／しゅ／ちょ 33 音，看字選音', onClick: () => onNav('kana') },
     { key: 'write', emoji: '✍', label: '書寫練習', hint: '手寫假名／漢字，練字形', onClick: () => onNav('kana') },
     { key: 'quiz', emoji: '📝', label: 'N5 測驗', hint: '從學過的詞出題，抓弱點', onClick: onOpenQuiz },
     { key: 'pitch', emoji: '📈', label: '重音道場', hint: '辨識東京式高低音', onClick: () => onNav('listen') },
