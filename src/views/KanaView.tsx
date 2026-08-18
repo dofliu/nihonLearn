@@ -8,8 +8,10 @@ import { useApp } from '../state/store'
 import { toast, ProgressBar } from '../components/ui'
 import { WriteView } from './WriteView'
 import { KanaChart } from '../components/KanaChart'
+import type { ChartScript } from '../lib/kanaChart'
+import { YoonDrill } from '../components/YoonDrill'
 
-type Mode = 'home' | 'session' | 'ear' | 'write' | 'chart'
+type Mode = 'home' | 'session' | 'ear' | 'write' | 'chart' | 'yoon'
 
 export function KanaView() {
   const bump = useApp((s) => s.bump)
@@ -20,6 +22,7 @@ export function KanaView() {
   const [cardMap, setCardMap] = useState<Record<string, boolean>>({}) // id -> mastered
   const [learnedSet, setLearnedSet] = useState<Set<string>>(new Set())
   const [dueCount, setDueCount] = useState(0)
+  const [yoonScript, setYoonScript] = useState<ChartScript>('hiragana')
 
   const refreshMap = useCallback(async () => {
     const cards = await db.cards.where('type').equals('kana').toArray()
@@ -156,9 +159,17 @@ export function KanaView() {
           learnedSet={learnedSet}
           masteredMap={cardMap}
           onPractice={() => void start()}
+          onYoonDrill={(sc) => {
+            setYoonScript(sc)
+            setMode('yoon')
+          }}
         />
       </>
     )
+  }
+
+  if (mode === 'yoon') {
+    return <YoonDrill initialScript={yoonScript} onExit={() => setMode('home')} />
   }
 
   if (mode === 'write') {
@@ -202,6 +213,9 @@ export function KanaView() {
         </button>
         <button className="btn ghost" onClick={() => setMode('ear')}>
           音 → 字 測驗
+        </button>
+        <button className="btn ghost" onClick={() => setMode('yoon')}>
+          🔡 拗音ドリル
         </button>
         <button className="btn ghost" onClick={() => setMode('write')}>
           ✍ 書寫練習

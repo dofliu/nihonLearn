@@ -106,6 +106,16 @@ import {
   HALF,
 } from '../src/lib/kanaChart.ts'
 import {
+  yoonPool,
+  yoonBase,
+  yoonSmall,
+  distractorTiers,
+  buildYoonQuestion,
+  buildYoonQuiz,
+  YOON_QUIZ_LEN,
+  YOON_OPTIONS,
+} from '../src/lib/yoonDrill.ts'
+import {
   buildAskSystem,
   buildAskUser,
   buildDialogueAskUser,
@@ -1775,6 +1785,88 @@ console.log('=== 5ae. 單字帳（查詢／篩選／分組，純函式） ===')
       })
     })(),
   )
+}
+
+console.log('=== 5af. 拗音ドリル（出題與誘答，純函式） ===')
+{
+  const pool = yoonPool()
+
+  // ---- 題庫：完全取自五十音圖的拗音格，不新增任何手打假名 ----
+  ok('題庫 33 音', pool.length === 33)
+  ok('題庫＝五十音圖拗音格（逐枚相同）', (() => {
+    const chart = cellsOf('yoon')
+    return pool.length === chart.length && pool.every((c, i) => c.h === chart[i].h && c.k === chart[i].k && c.ro === chart[i].ro)
+  })())
+  ok('每格皆為 2 字（基底＋小假名）', pool.every((c) => c.h.length === 2 && c.k.length === 2))
+  ok('小假名只有 ゃ／ゅ／ょ', pool.every((c) => 'ゃゅょ'.includes(yoonSmall(c))))
+  ok('基底皆為い段假名（可回查 KANA）', pool.every((c) => KANA.some((k) => k.ch === yoonBase(c) && k.ro.endsWith('i'))))
+  ok('羅馬字互異', new Set(pool.map((c) => c.ro)).size === 33)
+  ok('拗音不在 SRS 卡組（id 皆 null）', pool.every((c) => c.id === null))
+  ok('KANA 仍為 142 枚（卡組未被拗音動到）', KANA.length === 142)
+
+  // ---- 誘答分層 ----
+  const kya = pool.find((c) => c.ro === 'kya')!
+  const tiers = distractorTiers(kya, pool, seededRng(1))
+  ok('第①層＝同列不同母音（きゅ／きょ）', tiers[0].length === 2 && tiers[0].every((c) => yoonBase(c) === 'き') && new Set(tiers[0].map((c) => c.ro)).size === 2)
+  ok('第②層＝同欄不同子音（都是 ゃ）', tiers[1].length === 10 && tiers[1].every((c) => yoonSmall(c) === 'ゃ' && yoonBase(c) !== 'き'))
+  ok('第③層＝其餘', tiers[2].length === 20 && tiers[2].every((c) => yoonBase(c) !== 'き' && yoonSmall(c) !== 'ゃ'))
+  ok('三層互斥且不含正解', (() => {
+    const all = tiers.flat().map((c) => c.ro)
+    return new Set(all).size === all.length && all.length === 32 && !all.includes('kya')
+  })())
+
+  // ---- 單題 ----
+  const q = buildYoonQuestion(kya, pool, seededRng(7))
+  ok('四個選項', q.options.length === YOON_OPTIONS && YOON_OPTIONS === 4)
+  ok('選項互異', new Set(q.options).size === q.options.length)
+  ok('正解在選項內且＝該格羅馬字', q.options.includes(q.answer) && q.answer === 'kya' && q.cell.ro === 'kya')
+  ok('選項皆為題庫中真實存在的拗音羅馬字', q.options.every((o) => pool.some((c) => c.ro === o)))
+  ok('必有 1 個同列誘答（練母音辨別）', q.options.filter((o) => o !== 'kya' && o.startsWith('ky')).length === 1)
+  ok('必有 2 個同欄誘答（練子音辨別）', q.options.filter((o) => o !== 'kya' && !o.startsWith('ky')).length === 2)
+  ok('同一 seed 可重現', JSON.stringify(buildYoonQuestion(kya, pool, seededRng(7))) === JSON.stringify(q))
+  ok('不同 seed 會換誘答／順序', (() => {
+    const set = new Set<string>()
+    for (let s = 1; s <= 20; s++) set.add(buildYoonQuestion(kya, pool, seededRng(s)).options.join())
+    return set.size > 1
+  })())
+  ok('全 33 音各自出題皆合法', pool.every((c) => {
+    const qq = buildYoonQuestion(c, pool, seededRng(3))
+    return qq.options.length === 4 && new Set(qq.options).size === 4 && qq.options.includes(c.ro) && qq.answer === c.ro
+  }))
+
+  // 小題庫（層不夠時往後補，不會產生重複或少於 size 的選項）
+  ok('小題庫仍湊滿選項', (() => {
+    const small = pool.slice(0, 5)
+    const qq = buildYoonQuestion(small[0], small, seededRng(2))
+    return qq.options.length === 4 && new Set(qq.options).size === 4 && qq.options.includes(small[0].ro)
+  })())
+  ok('題庫比選項數還小時不重複填充', (() => {
+    const tiny = pool.slice(0, 3)
+    const qq = buildYoonQuestion(tiny[0], tiny, seededRng(2))
+    return qq.options.length === 3 && new Set(qq.options).size === 3
+  })())
+
+  // ---- 一輪 ----
+  const quiz = buildYoonQuiz(seededRng(11))
+  ok('一輪 10 題', quiz.length === YOON_QUIZ_LEN && YOON_QUIZ_LEN === 10)
+  ok('同一輪題目不重複', new Set(quiz.map((x) => x.answer)).size === quiz.length)
+  ok('每題正解都在自己的選項內', quiz.every((x) => x.options.includes(x.answer)))
+  ok('題目全部來自題庫', quiz.every((x) => pool.some((c) => c.ro === x.answer)))
+  ok('同一 seed 整輪可重現', JSON.stringify(buildYoonQuiz(seededRng(11))) === JSON.stringify(quiz))
+  ok('n 超過題庫大小 → 取整個題庫', buildYoonQuiz(seededRng(5), 99).length === 33)
+  ok('n = 0 → 空', buildYoonQuiz(seededRng(5), 0).length === 0)
+  ok('n 為負 → 空（不炸）', buildYoonQuiz(seededRng(5), -3).length === 0)
+  ok('多個 seed 都取得到全部 33 音的不同組合', (() => {
+    const seen = new Set<string>()
+    for (let s = 1; s <= 30; s++) for (const x of buildYoonQuiz(seededRng(s))) seen.add(x.answer)
+    return seen.size === 33
+  })())
+
+  // ---- 與学習記録的接線（選配加練、不卡蓋章）----
+  ok('yoon 為選配加練', featureGroup('yoon') === 'extra' && (EXTRA_FEATURES as readonly string[]).includes('yoon'))
+  ok('yoon 不是核心五修行', !(CORE_FEATURES as readonly string[]).includes('yoon'))
+  ok('yoon 有中文標籤且不與他項重複', FEATURE_LABEL['yoon'] === '拗音' && Object.values(FEATURE_LABEL).filter((v) => v === '拗音').length === 1)
+  ok('yoon 練了會讓済印變金', hasExtraFeature(['yoon']))
 }
 
 console.log('=== 6. 資料完整性 ===')

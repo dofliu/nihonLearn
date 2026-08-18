@@ -13,6 +13,7 @@ export interface ActivityLike {
 export const CORE_FEATURES = ['kana', 'vocab', 'listen', 'speak', 'read'] as const
 /** 選配額外練習（不卡蓋章；做了會讓當日済印變金）。 */
 export const EXTRA_FEATURES = [
+  'yoon',
   'write',
   'quiz',
   'pitch',
@@ -33,6 +34,7 @@ export const FEATURE_LABEL: Record<string, string> = {
   listen: '聴解',
   speak: '口說',
   read: '閱讀',
+  yoon: '拗音',
   write: '書寫',
   quiz: '測驗',
   pitch: '重音',

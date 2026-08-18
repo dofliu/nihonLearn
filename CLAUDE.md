@@ -40,10 +40,10 @@ src/
   db/         schema(Dexie v8)・repo（任務計數、蓋章、卡片、發音紀錄、生成句）
   srs/        scheduler：ts-fsrs 封裝（newCard/review/isDue/isMastered）
   audio/      tts（VOICEVOX▸原生▸WebSpeech 門面 + 逐字 boundary 回呼）・scorer（相似度 + ASR + whisper 錄音 + mora 型別）
-  lib/        date・importV1（v1→v2 遷移 + 備份匯出）・content（生成 client + 持久化審核佇列 + 採用）・listening（聽力理解＋JLPT 題型出題，純函式）・articles（NHK Easy 導入 client + 採用）・llm（Gemini 直連 + 金鑰/模型本機儲存）・llmParse（Gemini 回應純解析）・coverage（覆蓋率檢核，無依賴）・pitch（mora 切分 + 東京式 pattern）・sidecar（base URL 抽象 + probeHealth）・vocabGate（詞彙隨假名解鎖，純函式）・quiz（N5 模擬測驗出題，純函式）・karaoke（朗讀逐字上色對齊，純函式）・furigana（漢字↔假名注音對齊，純函式）・handwriting（手寫字形相似度評分，純函式）・activity（學習活動統計，純函式）・kanaChart（五十音圖表格結構＋拗音規則推導，純函式）・patternDrill（句型×已學單字組句，純函式）・roleplay（自由対話場景/prompt/歷史組裝，純函式）・recentScenes（自由対話最近用過的自訂場景，localStorage、純函式）・scoreReveal（分數等第／數字滾動／環形幾何，純函式）・tutorQuiz（助教「考我」出題＋講評 prompt/解析，純函式）・followUp（跟讀例句／会話腳本的 AI 追問 prompt/解析，純函式）・patternCompose（自由造句句型骨架程式檢核＋講評 prompt，純函式）・voiceInput（語音輸入候選挑選/合併/錯誤訊息，純函式）・vocabBook（單字帳查詢/篩選/分組/狀態標記，純函式）
+  lib/        date・importV1（v1→v2 遷移 + 備份匯出）・content（生成 client + 持久化審核佇列 + 採用）・listening（聽力理解＋JLPT 題型出題，純函式）・articles（NHK Easy 導入 client + 採用）・llm（Gemini 直連 + 金鑰/模型本機儲存）・llmParse（Gemini 回應純解析）・coverage（覆蓋率檢核，無依賴）・pitch（mora 切分 + 東京式 pattern）・sidecar（base URL 抽象 + probeHealth）・vocabGate（詞彙隨假名解鎖，純函式）・quiz（N5 模擬測驗出題，純函式）・karaoke（朗讀逐字上色對齊，純函式）・furigana（漢字↔假名注音對齊，純函式）・handwriting（手寫字形相似度評分，純函式）・activity（學習活動統計，純函式）・kanaChart（五十音圖表格結構＋拗音規則推導，純函式）・yoonDrill（拗音出題與分層誘答，純函式）・patternDrill（句型×已學單字組句，純函式）・roleplay（自由対話場景/prompt/歷史組裝，純函式）・recentScenes（自由対話最近用過的自訂場景，localStorage、純函式）・scoreReveal（分數等第／數字滾動／環形幾何，純函式）・tutorQuiz（助教「考我」出題＋講評 prompt/解析，純函式）・followUp（跟讀例句／会話腳本的 AI 追問 prompt/解析，純函式）・patternCompose（自由造句句型骨架程式檢核＋講評 prompt，純函式）・voiceInput（語音輸入候選挑選/合併/錯誤訊息，純函式）・vocabBook（單字帳查詢/篩選/分組/狀態標記，純函式）
   state/      store（zustand：今日/streak/rate/tts/showKanji）
-  views/      Today・Kana(含 Write 書寫練習・五十音圖一覽表)・Listen(含 Pitch)・Speak(含 Dialogue 会話＋Roleplay 自由対話，跟読與会話走完皆可 AI 追問)・Read・Progress・Review・Pattern(文型ドリル，含自由造句)
-  components/ Nav・ui(toast/大印/進度條)・KanaChart(五十音圖)・VocabCard・VocabBook(單字帳：搜尋/收合/狀態標記)・Karaoke・Ruby・StrokeOrder・FollowUp(跟讀追問)・VoiceInput(共用麥克風鈕)・ScoreReveal(分數揭曉：環形進度＋數字滾動＋等第徽章)
+  views/      Today・Kana(含 Write 書寫練習・五十音圖一覽表・拗音ドリル)・Listen(含 Pitch)・Speak(含 Dialogue 会話＋Roleplay 自由対話，跟読與会話走完皆可 AI 追問)・Read・Progress・Review・Pattern(文型ドリル，含自由造句)
+  components/ Nav・ui(toast/大印/進度條)・KanaChart(五十音圖)・YoonDrill(拗音ドリル)・VocabCard・VocabBook(單字帳：搜尋/收合/狀態標記)・Karaoke・Ruby・StrokeOrder・FollowUp(跟讀追問)・VoiceInput(共用麥克風鈕)・ScoreReveal(分數揭曉：環形進度＋數字滾動＋等第徽章)
 sidecar/      FastAPI：/health /tts /speakers /score /content /article/*；article.py（NHK Easy 解析，純函式）；mock_voicevox.py（假 engine）；test_score.py・test_article.py
 tests/        integration.ts（npm test）・INTEGRATION_REPORT.md・MANUAL_QA.md
 e2e/          Playwright 端到端測試（npm run test:e2e）・helpers.ts（共用步驟）
@@ -694,6 +694,41 @@ v3.43（單字帳：查得到、看得到進度）：這次是**收斂／整合*
 再收合、中文＋假名＋平假名查片假名詞＋查無結果提示、未學假名標 🔒 → 學一輪後標 ● 且「已學」
 篩選只剩學過的）、`npm run build` strict 綠燈。
 
+v3.45（拗音ドリル：33 音看字選音）：使用者是「剛學完五十音的成人」，而五十音卡組（`data/kana.ts`
+142 枚）**只有清音與濁音**——拗音（きゃ／しゃ／ちょ… 33 音）刻意不在其中（加進去會讓卡組膨脹到
+208 枚、影響每日修行範圍與 `lib/vocabGate.ts` 的解鎖判定）。v3.36 的五十音圖把拗音**列出來可以查、
+可以點來聽**，但**沒有任何地方能練**；更明確的破口是：拗音分頁上那顆「📇 用單字卡練習」按鈕
+其實會去開清音／濁音的 FSRS 一輪（拗音根本沒有卡片），等於一個對不上的入口。這次補上練習本身。
+**題目與選項全部由 `lib/yoonDrill.ts` 從 `lib/kanaChart.ts` 推導**（＝一路回到已驗證的
+`data/kana.ts`：拗音格是「い段假名＋小さい ゃ／ゅ／ょ」、羅馬字由 `yoonRomaji` 規則生成），
+**本檔一個假名／羅馬字都沒有手打**，只負責挑選與洗牌——不經 LLM、零正確性風險。
+題型是**看拗音 → 選羅馬字**（一輪 10 題）：初學者真正的卡點是「きょう 被唸成 ki-yo-u 而不是
+kyo-u」，所以練的是「兩個字合起來只唸一拍」的認讀；不依賴 TTS 品質，離線／降級時照樣能練
+（作答後才朗讀該音，朗讀不到也不影響流程）。誘答**依混淆程度分三層**（`distractorTiers`）：
+①同列不同母音（きゃ↔きゅ↔きょ）②同欄不同子音（きゃ↔しゃ↔ちゃ）③其餘，每題固定取
+1 個①＋2 個②，所以**每一題都同時考母音與子音的辨別**（層不足時往後補，小題庫也湊得滿）。
+UI `components/YoonDrill.tsx` 沿用既有語彙：`ProgressBar`（v3.28）＋`.qopt.ok`／`.ng` 對錯動畫＋
+`.kanaFace` 大字，答完**不自動跳題**（比照 v3.18 聞き取り，答案停留到自己按「下一題 →」），
+可在練習中切平／片假名（片假名拗音 キャ 同樣要練）。入口兩處：かな頁主畫面「🔡 拗音ドリル」，
+以及五十音圖**拗音分頁上那顆按鈕改成拗音ドリル**（清音／濁音分頁維持「📇 用單字卡練習」不變，
+`KanaChart` 新增 `onYoonDrill(script)` prop 並帶著當下的平／片假名選擇）。
+**定位：選配加練**——`lib/activity.ts` `EXTRA_FEATURES` 由 7 項增為 8 項（新 feature key `yoon`／
+標籤「拗音」），練完一輪 `logActivity('yoon')`，會出現在成長頁「学習記録」並讓當日済印變金；
+**不卡蓋章、不進 SRS、`KANA` 維持 142 枚一枚不動**（有測試守衛）。今日頁「今日の加練」輪替
+6→7 項（🔡 拗音ドリル，點了導到かな頁，該按鈕就在主畫面上）。不動 Dexie schema（沿用 v8
+`activityLog`，新 feature 只是新的字串值）、不動蓋章判定、不新增 CSS。
+
+測試：`npm test` 652/652（新增 5af 拗音ドリル共 36 項：題庫逐枚等同五十音圖拗音格、每格皆
+「い段假名＋小假名」且基底可回查 `KANA`、id 皆 null 且 `KANA` 仍 142 枚的卡組守衛、三層誘答
+互斥不含正解且分層條件逐項成立、單題四選項互異／正解在內／必有 1 同列＋2 同欄誘答、同 seed
+可重現而不同 seed 會換、全 33 音各自出題皆合法、小題庫與「題庫比選項還小」不重複填充、
+一輪 10 題不重複／n 超量取全庫／n=0 與負數回空、30 個 seed 掃得到全部 33 音、
+`yoon` 為選配加練且有不重複的中文標籤、練了會讓済印變金）、`npm run test:e2e` 86/86
+（新增 `yoon.spec.ts` 兩項：一輪 10 題逐題驗證進度條 `aria-valuenow`、作答後必有一格 `.qopt.ok`、
+**答完不自動跳題**、結算後 `activityCount('yoon')`＝1 而 `kana`＝0 且「字の修行」仍 0/10、
+今日加練清單打勾；五十音圖拗音分頁不再有「用單字卡練習」而是拗音ドリル入口、片假名選擇帶進練習、
+練習內可切回平假名。kana-chart.spec 的拗音分頁說明文案斷言同步更新）、`npm run build` strict 綠燈。
+
 ---
 
 ## ⭐ 本機實測任務（此專案轉到 Claude Code 的主因）
@@ -789,7 +824,7 @@ Claude Code 在本機可以真正跑起來、觀察、修正。建議依序進�
 
 ## 提交前檢查
 
-`npm run build`（strict 綠燈）＋ `npm test`（616/616）＋ `npm run test:e2e`（84/84）
+`npm run build`（strict 綠燈）＋ `npm test`（652/652）＋ `npm run test:e2e`（86/86）
 ＋（動到 sidecar 時）`python sidecar/test_score.py` 與 `python sidecar/test_article.py`。
 新功能盡量補測：純邏輯進 `tests/integration.ts`，UI 流程進 `e2e/*.spec.ts`（共用步驟放
 `e2e/helpers.ts`），後端進 `test_score.py`。
