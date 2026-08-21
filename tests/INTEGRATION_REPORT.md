@@ -8,8 +8,8 @@ Capacitor 7.6（Android 殼）。
 | 層級 | 方式 | 結果 |
 |------|------|------|
 | 建置 | `tsc -b && vite build`（strict） | ✅ 綠燈，PWA sw 生成（`CAP_BUILD=1` 時停用 SW） |
-| 前端邏輯 | `npm test`（Node 直跑真實 .ts 原始碼） | ✅ 171 / 171 |
-| **瀏覽器 E2E** | `npm run test:e2e`（Playwright + Chromium，真 dev server） | ✅ 46 / 46 |
+| 前端邏輯 | `npm test`（Node 直跑真實 .ts 原始碼） | ✅ 684 / 684 |
+| **瀏覽器 E2E** | `npm run test:e2e`（Playwright + Chromium，真 dev server） | ✅ 86 / 86 |
 | 後端評分 | `sidecar/test_score.py`（注入假 whisper） | ✅ 4 / 4 |
 | 後端文章解析 | `sidecar/test_article.py`（fixture HTML，NHK 解析） | ✅ 13 / 13 |
 | **Android 殼可編譯** | GitHub Actions `android` job（`gradlew assembleDebug` + APK artifact） | ✅ |
@@ -17,9 +17,9 @@ Capacitor 7.6（Android 殼）。
 真機／真服務項目（原生語音、真 VOICEVOX/whisper、真 Gemini 生成品質、PWA 安裝離線、
 Android 裝置），見 `MANUAL_QA.md` 與 `MANUAL_QA-ANDROID.md`——未在真機/真服務跑過的一律不打勾。
 
-## 瀏覽器 E2E（63 項，Playwright 對真 dev server 點按）
+## 瀏覽器 E2E（86 項，Playwright 對真 dev server 點按）
 
-`e2e/`，15 個 spec 檔，執行：`npm run test:e2e`（容器/CI 用 `PW_CHROMIUM_PATH` 指定預裝 Chromium）。
+`e2e/`，17 個 spec 檔，執行：`npm run test:e2e`（容器/CI 用 `PW_CHROMIUM_PATH` 指定預裝 Chromium）。
 sidecar 與 Gemini API 皆以 `page.route` 攔截，不需真服務。
 
 ### v2 基線 E2E

@@ -1,6 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
 import { PATTERNS, type Pattern } from '../data/patterns'
-import { itemsFor, dailyPattern } from '../lib/patternDrill'
+import { itemsFor, dailyPattern, type DrillItem } from '../lib/patternDrill'
+import {
+  buildRound,
+  roundSummary,
+  missedItems,
+  roundNote,
+} from '../lib/patternRound'
 import {
   checkShape,
   shapeSummary,
@@ -20,7 +26,7 @@ import { Karaoke } from '../components/Karaoke'
 import { RubyText } from '../components/Ruby'
 import { VoiceInput } from '../components/VoiceInput'
 import { hasKanji } from '../lib/furigana'
-import { toast } from '../components/ui'
+import { toast, ProgressBar } from '../components/ui'
 
 type Mode = 'practice' | 'recall' | 'compose'
 
@@ -29,6 +35,7 @@ type Mode = 'practice' | 'recall' | 'compose'
  * 三種模式：
  *  ・練習：看日文＋中文、聽發音（逐字上色），把學過的詞輪流套進句型。
  *  ・回想テスト：只看中文，先在心裡（或小聲）說出日文 → 看答案自評。**主動產出＝加深印象**。
+ *    一輪固定題數（`lib/patternRound.ts`），答完結算，可「只練沒說對的」再開一輪。
  *  ・自由造句：自己挑詞用該句型造一句 → 程式檢核句型骨架與填空詞（零風險、無金鑰照樣可用），
  *    有 Gemini 金鑰時再加一段**中文**講評（僅供參考、不寫入學習庫）。
  * 句型與詞皆來自已驗證來源、不經 LLM。屬今日頁「+α 選配練習」，記入学習記録、不卡蓋章。
@@ -45,6 +52,11 @@ export function PatternView({ onDone }: { onDone: () => void }) {
   const [revealed, setRevealed] = useState(false)
   const [practiced, setPracticed] = useState(0)
   const [recallOk, setRecallOk] = useState(0)
+  // 回想テスト：一輪制（題目、逐題自評結果、目前第幾題、是否已答完整輪）
+  const [round, setRound] = useState<DrillItem[]>([])
+  const [marks, setMarks] = useState<boolean[]>([])
+  const [qi, setQi] = useState(0)
+  const [finished, setFinished] = useState(false)
   // 自由造句
   const [known, setKnown] = useState<string[]>([])
   const [input, setInput] = useState('')
@@ -64,6 +76,28 @@ export function PatternView({ onDone }: { onDone: () => void }) {
   const pat = PATTERNS.find((p) => p.id === patId) ?? PATTERNS[0]
   const items = useMemo(() => itemsFor(pat, learned), [pat, learned])
   const item = items.length ? items[idx % items.length] : null
+  // 詞池會在 learned 從 Dexie 讀回來之後變動，故以「填空詞」組成 key 判斷是否要重開一輪
+  const itemsKey = useMemo(() => items.map((i) => i.word.jp).join(','), [items])
+
+  /** 開一輪回想テスト（pool 給 items＝整個詞池，給 missed＝只練沒說對的那幾句）。 */
+  function startRound(pool: readonly DrillItem[]) {
+    setRound(buildRound(pool))
+    setMarks([])
+    setQi(0)
+    setFinished(false)
+    setRevealed(false)
+  }
+
+  // 切到回想テスト／換句型／詞池變動 → 重開一輪
+  useEffect(() => {
+    if (mode !== 'recall') return
+    startRound(items)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode, itemsKey, pat.id])
+
+  const cur = round.length ? round[Math.min(qi, round.length - 1)] : null
+  const summary = roundSummary(round, marks)
+  const missed = missedItems(round, marks)
 
   function resetCompose() {
     setInput('')
@@ -122,10 +156,10 @@ export function PatternView({ onDone }: { onDone: () => void }) {
     }
   }
 
-  async function play(r: number) {
-    if (!item) return
+  async function play(it: DrillItem | null, r: number) {
+    if (!it) return
     setRange([0, 0])
-    await speak(item.jp, r, { onBoundary: (s, e) => setRange([s, e]) })
+    await speak(it.jp, r, { onBoundary: (s, e) => setRange([s, e]) })
     setRange(null)
     if (mode === 'practice') {
       setPracticed((n) => n + 1)
@@ -138,18 +172,27 @@ export function PatternView({ onDone }: { onDone: () => void }) {
     setPracticed((n) => n + 1)
     void logActivity('pattern')
   }
+  /** 回想テスト自評：記下這一題，未答完就進下一題，答完整輪則進結算。 */
   function grade(ok: boolean) {
     if (ok) setRecallOk((n) => n + 1)
-    nextWord()
+    const next = [...marks, ok]
+    setMarks(next)
+    if (qi + 1 >= round.length) {
+      setFinished(true)
+      toast(next.every(Boolean) ? '整輪都說對了！お見事！' : '一輪完成！')
+      return
+    }
+    setQi(qi + 1)
+    setRevealed(false)
   }
 
-  const jpEl =
-    item &&
-    (showKanji && item.alt && hasKanji(item.alt) ? (
-      <RubyText display={item.alt} reading={item.jp} className="sent" />
+  function jpOf(it: DrillItem) {
+    return showKanji && it.alt && hasKanji(it.alt) ? (
+      <RubyText display={it.alt} reading={it.jp} className="sent" />
     ) : (
-      <Karaoke text={item.jp} range={range} className="sent" />
-    ))
+      <Karaoke text={it.jp} range={range} className="sent" />
+    )
+  }
 
   return (
     <>
@@ -311,39 +354,66 @@ export function PatternView({ onDone }: { onDone: () => void }) {
             </p>
           )}
         </div>
-      ) : item ? (
+      ) : mode === 'recall' ? (
         <div className="card">
+          {/* 回想テスト：一輪固定題數 → 結算 → 可只練沒說對的（lib/patternRound.ts） */}
           <div className="row between">
             <div className="eyebrow">{pat.zh}</div>
             <span className="chip">
-              {idx + 1} / {items.length}
+              {finished
+                ? `一輪 ${round.length} 題`
+                : `${Math.min(qi + 1, round.length)} / ${round.length}`}
             </span>
           </div>
+          {round.length > 0 && (
+            <ProgressBar current={finished ? round.length : qi} total={round.length} />
+          )}
 
-          {mode === 'practice' ? (
+          {finished ? (
             <>
-              {jpEl}
-              <div className="sentZh">{item.zh}</div>
-              <div className="slotWord">
-                填入的單字：<b>{item.word.jp}</b>（{item.word.zh}）
-                {item.fallback && <span className="patFallback"> ・尚未學到，先熟悉</span>}
+              <div className="recallZh">
+                說對 {summary.ok} / {summary.total}
               </div>
+              <p className="sub" style={{ textAlign: 'center', marginTop: 2 }}>
+                {roundNote(summary)}
+              </p>
+              {missed.length > 0 && (
+                <div className="composeCk">
+                  <div className="sub" style={{ marginBottom: 2 }}>
+                    還沒說順的句子：
+                  </div>
+                  {missed.map((m) => (
+                    <div
+                      key={m.word.jp}
+                      className="slotWord"
+                      style={{ textAlign: 'left', lineHeight: 1.9 }}
+                    >
+                      {m.zh} ─ <b>{m.jp}</b>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <p className="sub" style={{ marginTop: 8 }}>
+                以上是<b>你自己的判斷</b>（說對了／再一次），不是系統評分。
+              </p>
               <div className="row center" style={{ marginTop: 10 }}>
-                <button className="btn small ghost" onClick={() => void play(0.75)}>
-                  🔊 慢速
-                </button>
-                <button className="btn small ghost" onClick={() => void play(rate)}>
-                  🔊 常速
-                </button>
-                <button className="btn small" onClick={nextWord}>
-                  換一個單字 →
+                {missed.length > 0 && (
+                  <button className="btn" onClick={() => startRound(missed)}>
+                    🔁 只練沒說對的（{missed.length} 句）
+                  </button>
+                )}
+                <button
+                  className={'btn' + (missed.length > 0 ? ' ghost' : '')}
+                  onClick={() => startRound(items)}
+                >
+                  ▶ 再來一輪
                 </button>
               </div>
             </>
-          ) : (
+          ) : cur ? (
             <>
-              {/* 回想テスト：只看中文，先自己說出日文再揭曉 */}
-              <div className="recallZh">{item.zh}</div>
+              {/* 只看中文，先自己說出日文再揭曉 */}
+              <div className="recallZh">{cur.zh}</div>
               {!revealed ? (
                 <>
                   <p className="sub" style={{ textAlign: 'center', marginTop: 8 }}>
@@ -357,15 +427,13 @@ export function PatternView({ onDone }: { onDone: () => void }) {
                 </>
               ) : (
                 <>
-                  {jpEl}
+                  {jpOf(cur)}
                   <div className="slotWord" style={{ marginTop: 4 }}>
-                    單字：<b>{item.word.jp}</b>（{item.word.zh}）
-                    {item.fallback && (
-                      <span className="patFallback"> ・尚未學到，先熟悉</span>
-                    )}
+                    單字：<b>{cur.word.jp}</b>（{cur.word.zh}）
+                    {cur.fallback && <span className="patFallback"> ・尚未學到，先熟悉</span>}
                   </div>
                   <div className="row center" style={{ marginTop: 6 }}>
-                    <button className="btn small ghost" onClick={() => void play(rate)}>
+                    <button className="btn small ghost" onClick={() => void play(cur, rate)}>
                       🔊 聽一次
                     </button>
                   </div>
@@ -380,6 +448,8 @@ export function PatternView({ onDone }: { onDone: () => void }) {
                 </>
               )}
             </>
+          ) : (
+            <p className="sub">此句型暫時沒有可用的單字。</p>
           )}
 
           <p className="sub" style={{ marginTop: 12 }}>
@@ -387,9 +457,43 @@ export function PatternView({ onDone }: { onDone: () => void }) {
           </p>
           {(practiced > 0 || recallOk > 0) && (
             <p className="sub" style={{ marginTop: 4 }}>
-              今回已練 <b>{practiced}</b> 句
-              {mode === 'recall' && <>・說對 <b>{recallOk}</b> 句</>}
-              ——已記入学習記録。
+              今回已練 <b>{practiced}</b> 句・說對 <b>{recallOk}</b> 句——已記入学習記録。
+            </p>
+          )}
+        </div>
+      ) : item ? (
+        <div className="card">
+          <div className="row between">
+            <div className="eyebrow">{pat.zh}</div>
+            <span className="chip">
+              {idx + 1} / {items.length}
+            </span>
+          </div>
+
+          {jpOf(item)}
+          <div className="sentZh">{item.zh}</div>
+          <div className="slotWord">
+            填入的單字：<b>{item.word.jp}</b>（{item.word.zh}）
+            {item.fallback && <span className="patFallback"> ・尚未學到，先熟悉</span>}
+          </div>
+          <div className="row center" style={{ marginTop: 10 }}>
+            <button className="btn small ghost" onClick={() => void play(item, 0.75)}>
+              🔊 慢速
+            </button>
+            <button className="btn small ghost" onClick={() => void play(item, rate)}>
+              🔊 常速
+            </button>
+            <button className="btn small" onClick={nextWord}>
+              換一個單字 →
+            </button>
+          </div>
+
+          <p className="sub" style={{ marginTop: 12 }}>
+            💡 {pat.note}
+          </p>
+          {practiced > 0 && (
+            <p className="sub" style={{ marginTop: 4 }}>
+              今回已練 <b>{practiced}</b> 句——已記入学習記録。
             </p>
           )}
         </div>

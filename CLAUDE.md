@@ -40,7 +40,7 @@ src/
   db/         schema(Dexie v8)・repo（任務計數、蓋章、卡片、發音紀錄、生成句）
   srs/        scheduler：ts-fsrs 封裝（newCard/review/isDue/isMastered）
   audio/      tts（VOICEVOX▸原生▸WebSpeech 門面 + 逐字 boundary 回呼）・scorer（相似度 + ASR + whisper 錄音 + mora 型別）
-  lib/        date・importV1（v1→v2 遷移 + 備份匯出）・content（生成 client + 持久化審核佇列 + 採用）・listening（聽力理解＋JLPT 題型出題，純函式）・articles（NHK Easy 導入 client + 採用）・llm（Gemini 直連 + 金鑰/模型本機儲存）・llmParse（Gemini 回應純解析）・coverage（覆蓋率檢核，無依賴）・pitch（mora 切分 + 東京式 pattern）・sidecar（base URL 抽象 + probeHealth）・vocabGate（詞彙隨假名解鎖，純函式）・quiz（N5 模擬測驗出題，純函式）・karaoke（朗讀逐字上色對齊，純函式）・furigana（漢字↔假名注音對齊，純函式）・handwriting（手寫字形相似度評分，純函式）・activity（學習活動統計，純函式）・kanaChart（五十音圖表格結構＋拗音規則推導，純函式）・yoonDrill（拗音出題與分層誘答，純函式）・patternDrill（句型×已學單字組句，純函式）・roleplay（自由対話場景/prompt/歷史組裝，純函式）・recentScenes（自由対話最近用過的自訂場景，localStorage、純函式）・scoreReveal（分數等第／數字滾動／環形幾何，純函式）・tutorQuiz（助教「考我」出題＋講評 prompt/解析，純函式）・followUp（跟讀例句／会話腳本的 AI 追問 prompt/解析，純函式）・patternCompose（自由造句句型骨架程式檢核＋講評 prompt，純函式）・voiceInput（語音輸入候選挑選/合併/錯誤訊息，純函式）・vocabBook（單字帳查詢/篩選/分組/狀態標記，純函式）
+  lib/        date・importV1（v1→v2 遷移 + 備份匯出）・content（生成 client + 持久化審核佇列 + 採用）・listening（聽力理解＋JLPT 題型出題，純函式）・articles（NHK Easy 導入 client + 採用）・llm（Gemini 直連 + 金鑰/模型本機儲存）・llmParse（Gemini 回應純解析）・coverage（覆蓋率檢核，無依賴）・pitch（mora 切分 + 東京式 pattern）・sidecar（base URL 抽象 + probeHealth）・vocabGate（詞彙隨假名解鎖，純函式）・quiz（N5 模擬測驗出題，純函式）・karaoke（朗讀逐字上色對齊，純函式）・furigana（漢字↔假名注音對齊，純函式）・handwriting（手寫字形相似度評分，純函式）・activity（學習活動統計，純函式）・kanaChart（五十音圖表格結構＋拗音規則推導，純函式）・yoonDrill（拗音出題與分層誘答，純函式）・patternDrill（句型×已學單字組句，純函式）・patternRound（回想テスト一輪制取樣／結算／只練沒說對的，純函式）・roleplay（自由対話場景/prompt/歷史組裝，純函式）・recentScenes（自由対話最近用過的自訂場景，localStorage、純函式）・scoreReveal（分數等第／數字滾動／環形幾何，純函式）・tutorQuiz（助教「考我」出題＋講評 prompt/解析，純函式）・followUp（跟讀例句／会話腳本的 AI 追問 prompt/解析，純函式）・patternCompose（自由造句句型骨架程式檢核＋講評 prompt，純函式）・voiceInput（語音輸入候選挑選/合併/錯誤訊息，純函式）・vocabBook（單字帳查詢/篩選/分組/狀態標記，純函式）
   state/      store（zustand：今日/streak/rate/tts/showKanji）
   views/      Today・Kana(含 Write 書寫練習・五十音圖一覽表・拗音ドリル)・Listen(含 Pitch)・Speak(含 Dialogue 会話＋Roleplay 自由対話，跟読與会話走完皆可 AI 追問)・Read・Progress・Review・Pattern(文型ドリル，含自由造句)
   components/ Nav・ui(toast/大印/進度條)・KanaChart(五十音圖)・YoonDrill(拗音ドリル)・VocabCard・VocabBook(單字帳：搜尋/收合/狀態標記)・Karaoke・Ruby・StrokeOrder・FollowUp(跟讀追問)・VoiceInput(共用麥克風鈕)・ScoreReveal(分數揭曉：環形進度＋數字滾動＋等第徽章)
@@ -729,6 +729,35 @@ UI `components/YoonDrill.tsx` 沿用既有語彙：`ProgressBar`（v3.28）＋`.
 今日加練清單打勾；五十音圖拗音分頁不再有「用單字卡練習」而是拗音ドリル入口、片假名選擇帶進練習、
 練習內可切回平假名。kana-chart.spec 的拗音分頁說明文案斷言同步更新）、`npm run build` strict 綠燈。
 
+
+v3.46（文型ドリル「回想テスト」改為一輪制＋只練沒說對的）：ROADMAP #6「動畫／視覺輔助續做」點名
+**仍未涵蓋 `PatternView`** 的續做，但真正的破口不只是缺進度條——回想テスト原本是**無止盡的循環**
+（`idx` 一直 +1 繞回去），沒有一輪的概念、沒有結束、沒有結算，「說對 n 句」只是累加不會停。對
+「每天只練 10 分鐘」的使用者，這代表**不知道什麼時候算練完**；更實際的損失是自評「🔁 再一次」
+的那幾句只是排到隊尾——詞池大時繞完一圈前不會重逢、詞池小時又一直重複，**等於自評結果沒被用到**。
+這次把它收成一輪制：①一輪固定題數（`ROUND_SIZE`＝8，候選例句不足時取全部），題目**隨機不重複**；
+②沿用 v3.28 的共用 `ProgressBar` 顯示進度（這就補上了 ROADMAP 點名的那一塊）；③答完出**結算**——
+說對 n / m、`roundNote()` 一句話中文提示、**列出還沒說順的句子**（中文題目＋日文答案），
+並提供「🔁 只練沒說對的（n 句）」直接用那幾句再開一輪，以及「▶ 再來一輪」回到整個詞池。
+純邏輯抽 `lib/patternRound.ts`（`buildRound` Fisher–Yates 取樣、rng 以參數注入沿用 `lib/quiz.ts`
+慣例、`roundSummary`／`missedItems`／`roundNote`），所以「一輪怎麼抽、結算怎麼算」變成可被 Node 測試。
+**刻意不套用 `components/ScoreReveal.tsx` 的 ◎／○／△ 等第徽章**——這裡的百分比是**使用者自評**
+（自己說對了沒），不是系統評分，同一個徽章不該在不同語境代表不同意思（正是 ROADMAP #6 ① 提醒的事）；
+結算畫面明寫「以上是你自己的判斷，不是系統評分」。**其餘一切不動**：練習／自由造句兩個模式行為不變、
+`logActivity('pattern')` 的記錄時機不變（看答案時記）、仍是選配加練**不卡蓋章**、不進 SRS、
+不動 Dexie schema、不新增 CSS（結算的句子清單沿用既有 `.composeCk`／`.slotWord`）。
+
+測試：`npm test` 684/684（新增 5ag 共 32 項：`buildRound` 取樣不重複／來源皆在題庫／題庫不足取全部／
+同 seed 可重現／不同 seed 換一組／60 個 seed 掃得到題庫每一個詞／不修改傳入陣列／size 0 與負數回空輪／
+rng 永遠回 0 或 1 的邊界不越界也不遺漏／全部句型空進度都開得出非空一輪，`roundSummary` 未作答／
+答到一半 pct 以整輪為分母／全對／全錯／marks 超量／空輪／`ok+missed=answered`，`missedItems`
+取出並維持順序／全對回空／未作答不算沒說對／可直接開下一輪，`roundNote` 四情境非空且互異、
+帶出句數、全對不叫人再練、**不含「分」字**以免與評分等第混淆）、`npm run test:e2e` 86/86
+（pattern.spec 的回想テスト測試改寫為一輪制全流程：進度條 `aria-valuenow` 隨題號遞增、第 1 題自評
+「再一次」→ 其餘說對 → 結算顯示「說對 n-1 / n」與還沒說順的句子＋「不是系統評分」字樣 →
+「只練沒說對的（1 句）」開出只剩那句的一輪 → 說對後結算全對且該鈕消失 → 「再來一輪」回到整個詞池）、
+`npm run build` strict 綠燈。
+
 ---
 
 ## ⭐ 本機實測任務（此專案轉到 Claude Code 的主因）
@@ -824,7 +853,7 @@ Claude Code 在本機可以真正跑起來、觀察、修正。建議依序進�
 
 ## 提交前檢查
 
-`npm run build`（strict 綠燈）＋ `npm test`（652/652）＋ `npm run test:e2e`（86/86）
+`npm run build`（strict 綠燈）＋ `npm test`（684/684）＋ `npm run test:e2e`（86/86）
 ＋（動到 sidecar 時）`python sidecar/test_score.py` 與 `python sidecar/test_article.py`。
 新功能盡量補測：純邏輯進 `tests/integration.ts`，UI 流程進 `e2e/*.spec.ts`（共用步驟放
 `e2e/helpers.ts`），後端進 `test_score.py`。
