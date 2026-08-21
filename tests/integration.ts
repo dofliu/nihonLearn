@@ -78,6 +78,13 @@ import {
 } from '../src/lib/activity.ts'
 import { PATTERNS } from '../src/data/patterns.ts'
 import { poolFor, candidatesFor, buildItem, itemsFor, dailyPattern } from '../src/lib/patternDrill.ts'
+import {
+  buildRound,
+  roundSummary,
+  missedItems,
+  roundNote,
+  ROUND_SIZE,
+} from '../src/lib/patternRound.ts'
 import { KANJI_STROKES, KANJI_STROKE_VIEWBOX } from '../src/data/kanjiStrokes.ts'
 import { strokeStart, refStrokeStarts, judgeStrokeOrder, pathEnd, strokeVector } from '../src/lib/strokeOrder.ts'
 import { sentencePrompts, patternPrompts, kaiwaPrompts, tutorPrompts, filterPrompts, pickPrompt, buildQuizSystem, buildQuizUser, parseCritique, VERDICT_LABEL, SOURCE_TABS } from '../src/lib/tutorQuiz.ts'
@@ -1867,6 +1874,138 @@ console.log('=== 5af. 拗音ドリル（出題與誘答，純函式） ===')
   ok('yoon 不是核心五修行', !(CORE_FEATURES as readonly string[]).includes('yoon'))
   ok('yoon 有中文標籤且不與他項重複', FEATURE_LABEL['yoon'] === '拗音' && Object.values(FEATURE_LABEL).filter((v) => v === '拗音').length === 1)
   ok('yoon 練了會讓済印變金', hasExtraFeature(['yoon']))
+}
+
+console.log('=== 5ag. 文型ドリル 回想テスト 一輪制（純函式） ===')
+{
+  const empty = new Set<string>()
+  const big = itemsFor(PATTERNS[0], empty)
+  // 詞池 fallback 只補到 4 個，先自行做一個大題庫來測「取樣不重複／上限」
+  const wide = poolFor(PATTERNS[0]).map((w) => buildItem(PATTERNS[0], w, empty))
+
+  // ---- buildRound：隨機不重複取樣 ----
+  ok('一輪上限 ROUND_SIZE', ROUND_SIZE === 8)
+  ok('題庫夠大時剛好取 ROUND_SIZE 題', buildRound(wide, ROUND_SIZE, seededRng(1)).length === ROUND_SIZE)
+  ok('題庫不足時取全部', buildRound(big.slice(0, 3), ROUND_SIZE, seededRng(1)).length === 3)
+  ok('一輪內題目不重複', (() => {
+    const r = buildRound(wide, ROUND_SIZE, seededRng(7))
+    return new Set(r.map((it) => it.word.jp)).size === r.length
+  })())
+  ok('題目全部來自傳入題庫', buildRound(wide, ROUND_SIZE, seededRng(7)).every((it) => wide.includes(it)))
+  ok('同一 seed 整輪可重現', (() => {
+    const a = buildRound(wide, ROUND_SIZE, seededRng(3)).map((it) => it.word.jp)
+    const b = buildRound(wide, ROUND_SIZE, seededRng(3)).map((it) => it.word.jp)
+    return a.join(',') === b.join(',')
+  })())
+  ok('不同 seed 會換一組題目', (() => {
+    const a = buildRound(wide, ROUND_SIZE, seededRng(3)).map((it) => it.word.jp).join(',')
+    const b = buildRound(wide, ROUND_SIZE, seededRng(9)).map((it) => it.word.jp).join(',')
+    return a !== b
+  })())
+  ok('多個 seed 掃得到題庫裡的每一個詞', (() => {
+    const seen = new Set<string>()
+    for (let s2 = 1; s2 <= 60; s2++) for (const it of buildRound(wide, ROUND_SIZE, seededRng(s2))) seen.add(it.word.jp)
+    return seen.size === wide.length
+  })())
+  ok('不修改傳入的陣列', (() => {
+    const before = wide.map((it) => it.word.jp).join(',')
+    buildRound(wide, ROUND_SIZE, seededRng(5))
+    return wide.map((it) => it.word.jp).join(',') === before
+  })())
+  ok('size = 0 → 空輪', buildRound(wide, 0, seededRng(1)).length === 0)
+  ok('size 為負 → 空輪（不炸）', buildRound(wide, -3, seededRng(1)).length === 0)
+  ok('空題庫 → 空輪', buildRound([], ROUND_SIZE, seededRng(1)).length === 0)
+  ok('rng 永遠回 1（邊界）不越界也不遺漏', (() => {
+    const r = buildRound(wide, ROUND_SIZE, () => 1)
+    return r.length === ROUND_SIZE && r.every((it) => it !== undefined) && new Set(r).size === r.length
+  })())
+  ok('rng 永遠回 0（邊界）不越界也不遺漏', (() => {
+    const r = buildRound(wide, ROUND_SIZE, () => 0)
+    return r.length === ROUND_SIZE && r.every((it) => it !== undefined) && new Set(r).size === r.length
+  })())
+  ok('每個句型（空進度）都開得出非空的一輪', PATTERNS.every((p) => buildRound(itemsFor(p, empty), ROUND_SIZE, seededRng(2)).length > 0))
+
+  // ---- roundSummary：自評結果統計 ----
+  const r4 = buildRound(wide, 4, seededRng(11))
+  ok('尚未作答：answered 0、未完成', (() => {
+    const s2 = roundSummary(r4, [])
+    return s2.total === 4 && s2.answered === 0 && s2.ok === 0 && s2.missed === 0 && s2.pct === 0 && !s2.done
+  })())
+  ok('答到一半：pct 以整輪為分母', (() => {
+    const s2 = roundSummary(r4, [true, false])
+    return s2.answered === 2 && s2.ok === 1 && s2.missed === 1 && s2.pct === 25 && !s2.done
+  })())
+  ok('全對：pct 100、done', (() => {
+    const s2 = roundSummary(r4, [true, true, true, true])
+    return s2.ok === 4 && s2.missed === 0 && s2.pct === 100 && s2.done
+  })())
+  ok('全錯：pct 0、done', (() => {
+    const s2 = roundSummary(r4, [false, false, false, false])
+    return s2.ok === 0 && s2.missed === 4 && s2.pct === 0 && s2.done
+  })())
+  ok('marks 比題數多時只算到題數為止', (() => {
+    const s2 = roundSummary(r4, [true, true, true, true, true, true])
+    return s2.answered === 4 && s2.ok === 4 && s2.done
+  })())
+  ok('空輪：total 0、pct 0、不算完成', (() => {
+    const s2 = roundSummary([], [])
+    return s2.total === 0 && s2.pct === 0 && !s2.done
+  })())
+  ok('ok + missed = answered（掃各種組合）', (() => {
+    for (const m of [[true], [false], [true, false], [false, true, true], [true, true, false, false]]) {
+      const s2 = roundSummary(r4, m)
+      if (s2.ok + s2.missed !== s2.answered) return false
+    }
+    return true
+  })())
+
+  // ---- missedItems：只練沒說對的 ----
+  ok('取出自評「再一次」的題目', (() => {
+    const m = missedItems(r4, [true, false, false, true])
+    return m.length === 2 && m[0] === r4[1] && m[1] === r4[2]
+  })())
+  ok('維持該輪的出現順序', (() => {
+    const m = missedItems(r4, [false, false, false, false])
+    return m.every((it, i) => it === r4[i])
+  })())
+  ok('全對 → 沒有要重練的', missedItems(r4, [true, true, true, true]).length === 0)
+  ok('還沒作答的不算沒說對', missedItems(r4, [false]).length === 1)
+  ok('沒說對的題目可以直接開下一輪', (() => {
+    const m = missedItems(r4, [false, true, false, true])
+    const next = buildRound(m, ROUND_SIZE, seededRng(4))
+    return next.length === m.length && next.every((it) => m.includes(it))
+  })())
+
+  // ---- roundNote：結算的一句話（自評語氣，不是評分） ----
+  ok('四種情境的提示皆非空', (() => {
+    const notes = [
+      roundNote(roundSummary([], [])),
+      roundNote(roundSummary(r4, [true, true, true, true])),
+      roundNote(roundSummary(r4, [false, false, false, false])),
+      roundNote(roundSummary(r4, [true, true, true, false])),
+    ]
+    return notes.every((n) => n.length > 0)
+  })())
+  ok('四種情境的提示互不相同', (() => {
+    const notes = [
+      roundNote(roundSummary([], [])),
+      roundNote(roundSummary(r4, [true, true, true, true])),
+      roundNote(roundSummary(r4, [false, false, false, false])),
+      roundNote(roundSummary(r4, [true, true, true, false])),
+    ]
+    return new Set(notes).size === 4
+  })())
+  ok('有沒說對的時提示裡帶出句數', roundNote(roundSummary(r4, [true, true, false, false])).includes('2'))
+  ok('全對的提示不叫人再練', !roundNote(roundSummary(r4, [true, true, true, true])).includes('只練'))
+  ok('自評提示不含「分」字（不與評分等第混淆）', (() => {
+    const notes = [
+      roundNote(roundSummary([], [])),
+      roundNote(roundSummary(r4, [true, true, true, true])),
+      roundNote(roundSummary(r4, [false, false, false, false])),
+      roundNote(roundSummary(r4, [true, true, true, false])),
+    ]
+    return notes.every((n) => !n.includes('分'))
+  })())
 }
 
 console.log('=== 6. 資料完整性 ===')

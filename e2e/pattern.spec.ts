@@ -49,26 +49,58 @@ test.describe('文型ドリル（句型練習）', () => {
     await expect(page.locator('.sentZh')).toContainText('在哪裡')
   })
 
-  test('回想テスト：只看中文 → 看答案 → 自評進下一題', async ({ page }) => {
+  test('回想テスト：一輪制 → 自評 → 結算可只練沒說對的', async ({ page }) => {
     await gotoApp(page)
     await openExtra(page, /文型ドリル/)
     await page.locator('.patGrid .passBtn', { hasText: '請給我〜' }).click()
 
-    // 切到回想模式：中文題目出現、日文答案先隱藏
+    // 切到回想模式：一輪固定題數，進度條從 0 開始
     await page.getByRole('button', { name: /回想テスト/ }).click()
+    const bar = page.locator('[role="progressbar"]')
+    await expect(bar).toHaveAttribute('aria-valuenow', '0')
+    const total = Number(await bar.getAttribute('aria-valuemax'))
+    expect(total).toBeGreaterThan(1)
+
+    // 中文題目出現、日文答案先隱藏
     await expect(page.locator('.recallZh')).toContainText('請給我')
     await expect(page.locator('.sent')).toHaveCount(0)
 
-    // 看答案 → 日文揭曉
+    // 第 1 題：看答案 → 自評「再一次」（結算時要能被挑出來重練）
     await page.getByRole('button', { name: /看答案/ }).click()
     await expect(page.locator('.sent')).toBeVisible()
-
-    // 自評「說對了」→ 換下一題（答案再次隱藏）
     const first = await page.locator('.recallZh').innerText()
-    await page.getByRole('button', { name: /說對了/ }).click()
+    await page.getByRole('button', { name: /再一次/ }).click()
     await expect(page.locator('.sent')).toHaveCount(0)
     await expect(page.locator('.recallZh')).not.toHaveText(first)
+    await expect(bar).toHaveAttribute('aria-valuenow', '1')
     await expect(page.locator('main')).toContainText('說對')
+
+    // 其餘題目全部自評「說對了」→ 進結算
+    for (let i = 1; i < total; i++) {
+      await page.getByRole('button', { name: /看答案/ }).click()
+      await page.getByRole('button', { name: /說對了/ }).click()
+    }
+    await expect(page.locator('.recallZh')).toContainText(`說對 ${total - 1} / ${total}`)
+    await expect(page.locator('main')).toContainText('還沒說順的句子')
+    await expect(page.locator('main')).toContainText('不是系統評分')
+    await expect(bar).toHaveAttribute('aria-valuenow', String(total))
+
+    // 只練沒說對的 → 新的一輪只剩那 1 題
+    await page.getByRole('button', { name: /只練沒說對的（1 句）/ }).click()
+    await expect(bar).toHaveAttribute('aria-valuemax', '1')
+    await expect(page.locator('.recallZh')).toHaveText(first)
+
+    // 說對 → 結算全對，不再出現「只練沒說對的」
+    await page.getByRole('button', { name: /看答案/ }).click()
+    await page.getByRole('button', { name: /說對了/ }).click()
+    await expect(page.locator('.recallZh')).toContainText('說對 1 / 1')
+    await expect(page.getByRole('button', { name: /只練沒說對的/ })).toHaveCount(0)
+    await expect(page.locator('main')).toContainText('整輪都說對了')
+
+    // 再來一輪 → 回到整個詞池
+    await page.getByRole('button', { name: /再來一輪/ }).click()
+    await expect(bar).toHaveAttribute('aria-valuemax', String(total))
+    await expect(bar).toHaveAttribute('aria-valuenow', '0')
   })
 })
 

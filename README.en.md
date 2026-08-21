@@ -144,8 +144,8 @@ docs/          ANDROID_RELEASE_PLAN, PRIVACY_POLICY, PLAY_LISTING
 | Layer | Command | Result |
 |--|--|--|
 | Build (strict) | `npm run build` | ✅ green, PWA SW generated |
-| Front-end logic | `npm test` | ✅ 202 / 202 |
-| Browser E2E | `npm run test:e2e` | ✅ 51 / 51 |
+| Front-end logic | `npm test` | ✅ 684 / 684 |
+| Browser E2E | `npm run test:e2e` | ✅ 86 / 86 |
 | Backend scoring | `python sidecar/test_score.py` | ✅ 4 / 4 |
 | Backend article parsing | `python sidecar/test_article.py` | ✅ 13 / 13 |
 | Android shell compiles | GitHub Actions `android` job (`gradlew assembleDebug`) | ✅ |
