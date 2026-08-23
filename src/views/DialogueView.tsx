@@ -2,15 +2,28 @@ import { useState, useEffect, useRef } from 'react'
 import { DIALOGUES, PARTNER_TAGS, type Dialogue, type PartnerTag } from '../data/dialogues'
 import { speak } from '../audio/tts'
 import { useApp } from '../state/store'
-import { toast } from '../components/ui'
+import { toast, ProgressBar } from '../components/ui'
 import { FollowUp } from '../components/FollowUp'
 import { dialogueTopic } from '../lib/followUp'
+import {
+  maskJp,
+  recallSummary,
+  aidedLines,
+  recallNote,
+  type DialogueMode,
+} from '../lib/dialogueRound'
 import { RoleplayView } from './RoleplayView'
 
 /**
  * 情境對話引導（会話）：選場景 → 逐句進行。
  * 對方（role a）的台詞自動朗讀；輪到你（role b）時看句子唸出來（可先聽手本），
  * 按「唸完了」進下一句並計入每日「口」任務。素材全為已驗證的固定基本句。
+ *
+ * 兩種走法（`lib/dialogueRound.ts`）：
+ *   📖 看稿    ─ 預設，日文攤在眼前照著唸（第一次走這段的人）。
+ *   🎯 暗記    ─ 輪到你的句子只顯示中文與遮罩，自己先說出來，說不出來再按「看稿」；
+ *                走完結算「幾句沒看稿」並列出看了稿的那幾句。統計的是**有沒有看稿**，
+ *                不是評估說得對不對（這個畫面沒有 ASR／評分，故不套等第徽章）。
  *
  * 另有「自由対話」（`RoleplayView`）：同樣的場景但沒有稿子，由 AI 扮演對方即時回話——
  * 屬純加練，AI 生成內容僅供參考、不入庫、不計入蓋章；無金鑰時本頁固定腳本照常可用。
@@ -31,6 +44,7 @@ export function DialogueView() {
         <p className="sub">
           選一個場景，跟<b>店員・家人・情人・同學・朋友・廠商</b>來一段對話。
           對方的話會自動唸給你聽；輪到你時，照著句子說出來（可先聽手本）。
+          走過幾次之後，可以在對話裡切到<b>暗記モード</b>——只看中文，自己說說看。
         </p>
       </div>
       <div className="card">
@@ -79,8 +93,14 @@ function DialoguePlay({ dlg, onBack }: { dlg: Dialogue; onBack: () => void }) {
   const rate = useApp((s) => s.rate)
   const [step, setStep] = useState(0) // 已進行到第幾句（0-based，當前句）
   const [done, setDone] = useState(false)
+  const [mode, setMode] = useState<DialogueMode>('script')
+  const [revealed, setRevealed] = useState(false) // 暗記モード：當前這句是否已按「看稿」
+  const [unaided, setUnaided] = useState<number[]>([]) // 沒看稿就說出來的句子索引
+  const [recallUsed, setRecallUsed] = useState(false) // 這一輪有沒有用過暗記モード
   const endRef = useRef<HTMLDivElement>(null)
   const cur = dlg.lines[step]
+  // 當前這句要不要遮起來（只遮「輪到你」且尚未看稿的那一句；已走過的句子一律顯示，方便對答案）
+  const hideCur = !done && mode === 'recall' && !revealed && cur?.role === 'b'
 
   // 對方的台詞：進到該句時自動朗讀
   useEffect(() => {
@@ -97,7 +117,14 @@ function DialoguePlay({ dlg, onBack }: { dlg: Dialogue; onBack: () => void }) {
 
   async function next() {
     if (!cur) return
-    if (cur.role === 'b') await bump('speak', 1)
+    if (cur.role === 'b') {
+      if (mode === 'recall') {
+        setRecallUsed(true)
+        if (!revealed) setUnaided((u) => (u.includes(step) ? u : [...u, step]))
+      }
+      await bump('speak', 1)
+    }
+    setRevealed(false)
     if (step + 1 >= dlg.lines.length) {
       setDone(true)
       toast('会話練習 完成！お見事！')
@@ -105,6 +132,17 @@ function DialoguePlay({ dlg, onBack }: { dlg: Dialogue; onBack: () => void }) {
     }
     setStep(step + 1)
   }
+
+  function restart() {
+    setStep(0)
+    setDone(false)
+    setRevealed(false)
+    setUnaided([])
+    setRecallUsed(false)
+  }
+
+  const summary = recallSummary(dlg.lines, unaided)
+  const aided = aidedLines(dlg.lines, unaided)
 
   return (
     <>
@@ -117,42 +155,94 @@ function DialoguePlay({ dlg, onBack }: { dlg: Dialogue; onBack: () => void }) {
             返回
           </button>
         </div>
+        <ProgressBar current={done ? dlg.lines.length : step + 1} total={dlg.lines.length} />
         <p className="sub" style={{ marginTop: 2 }}>
           對方：{dlg.partner}。{dlg.scene}
         </p>
 
+        <div className="modeRow">
+          <button
+            className={'btn small' + (mode === 'script' ? '' : ' ghost')}
+            onClick={() => setMode('script')}
+          >
+            📖 看稿
+          </button>
+          <button
+            className={'btn small' + (mode === 'recall' ? '' : ' ghost')}
+            onClick={() => setMode('recall')}
+          >
+            🎯 暗記モード
+          </button>
+        </div>
+        {mode === 'recall' && !done && (
+          <p className="sub" style={{ marginTop: 6 }}>
+            輪到你的句子會遮起來——先看中文自己說說看，說不出來再按「👀 看稿」。
+          </p>
+        )}
+
         <div className="dlgBox">
-          {dlg.lines.slice(0, done ? dlg.lines.length : step + 1).map((l, i) => (
-            <div key={i} className={`dlgRow ${l.role === 'b' ? 'me' : ''}`}>
-              <div
-                className={`dlgBubble ${l.role === 'b' ? 'me' : ''} ${!done && i === step ? 'now' : ''}`}
-              >
-                <div className="dlgWho">{l.role === 'a' ? dlg.partner : 'あなた'}</div>
-                <div className="dlgJp" onClick={() => speak(l.jp, rate)}>
-                  {l.jp} <span style={{ opacity: 0.55, fontSize: 13 }}>🔊</span>
+          {dlg.lines.slice(0, done ? dlg.lines.length : step + 1).map((l, i) => {
+            const hide = hideCur && i === step
+            return (
+              <div key={i} className={`dlgRow ${l.role === 'b' ? 'me' : ''}`}>
+                <div
+                  className={`dlgBubble ${l.role === 'b' ? 'me' : ''} ${!done && i === step ? 'now' : ''}`}
+                >
+                  <div className="dlgWho">{l.role === 'a' ? dlg.partner : 'あなた'}</div>
+                  {hide ? (
+                    <div className="dlgJp" style={{ letterSpacing: 2, opacity: 0.5 }}>
+                      {maskJp(l.jp)}
+                    </div>
+                  ) : (
+                    <div className="dlgJp" onClick={() => speak(l.jp, rate)}>
+                      {l.jp} <span style={{ opacity: 0.55, fontSize: 13 }}>🔊</span>
+                    </div>
+                  )}
+                  <div className="dlgZh">{l.zh}</div>
                 </div>
-                <div className="dlgZh">{l.zh}</div>
               </div>
-            </div>
-          ))}
+            )
+          })}
           <div ref={endRef} />
         </div>
 
         {done ? (
-          <div className="row center" style={{ marginTop: 12 }}>
-            <button
-              className="btn ghost"
-              onClick={() => {
-                setStep(0)
-                setDone(false)
-              }}
-            >
-              再來一次
-            </button>
-            <button className="btn" onClick={onBack}>
-              換一個場景
-            </button>
-          </div>
+          <>
+            {recallUsed && (
+              <div className="composeCk" style={{ marginTop: 12 }}>
+                <div className="ckLine ok">
+                  🎯 暗記モード：{dlg.lines.length} 句的對話裡，輪到你 {summary.mine} 句——
+                  <b>
+                    {summary.unaided} 句沒看稿
+                  </b>
+                </div>
+                <div className="sub" style={{ marginTop: 4 }}>
+                  {recallNote(summary)}
+                </div>
+                {aided.length > 0 && (
+                  <div style={{ marginTop: 8 }}>
+                    {aided.map((a) => (
+                      <div key={a.index} className="slotWord" style={{ marginTop: 4 }}>
+                        {a.zh}　<b>{a.jp}</b>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <div className="sub" style={{ marginTop: 8, opacity: 0.8 }}>
+                  ※ 這只是統計你有沒有看稿，<b>不是</b>評估你說得對不對——
+                  發音要評分請用「跟読」分頁。
+                </div>
+              </div>
+            )}
+            <div className="row center" style={{ marginTop: 12 }}>
+              <button className="btn ghost" onClick={restart}>
+                再來一次
+              </button>
+              <button className="btn" onClick={onBack}>
+                換一個場景
+              </button>
+            </div>
+          </>
         ) : cur.role === 'a' ? (
           <div className="row center" style={{ marginTop: 12 }}>
             <button className="btn small ghost" onClick={() => speak(cur.jp, rate)}>
@@ -165,14 +255,22 @@ function DialoguePlay({ dlg, onBack }: { dlg: Dialogue; onBack: () => void }) {
         ) : (
           <div style={{ marginTop: 12 }}>
             <p className="sub center" style={{ marginBottom: 8 }}>
-              換你說——照著上面的句子唸出來（點句子可聽手本）。
+              {hideCur
+                ? '換你說——看著中文，自己說說看。'
+                : '換你說——照著上面的句子唸出來（點句子可聽手本）。'}
             </p>
             <div className="row center">
-              <button className="btn small ghost" onClick={() => speak(cur.jp, 0.8)}>
-                🔊 聽手本（慢速）
-              </button>
+              {hideCur ? (
+                <button className="btn small ghost" onClick={() => setRevealed(true)}>
+                  👀 看稿
+                </button>
+              ) : (
+                <button className="btn small ghost" onClick={() => speak(cur.jp, 0.8)}>
+                  🔊 聽手本（慢速）
+                </button>
+              )}
               <button className="btn" onClick={() => void next()}>
-                唸完了，下一句 ▶
+                {hideCur ? '言えた、つぎへ ▶' : '唸完了，下一句 ▶'}
               </button>
             </div>
           </div>

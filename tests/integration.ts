@@ -39,6 +39,14 @@ import {
   MAX_RECENT_SCENES,
   type RecentScene,
 } from '../src/lib/recentScenes.ts'
+import {
+  maskJp,
+  MASK_CHAR,
+  myLineIndexes,
+  recallSummary,
+  aidedLines,
+  recallNote,
+} from '../src/lib/dialogueRound.ts'
 import { generateQuiz, seededRng, MIN_POOL } from '../src/lib/quiz.ts'
 import { karaokeChars, activeCharIndices } from '../src/lib/karaoke.ts'
 import { listeningQuestions, pickParagraphs, spreadByGroup, responseQuestions, expressionQuestions, LISTEN_MIN_POOL, type ListenItem } from '../src/lib/listening.ts'
@@ -2003,6 +2011,107 @@ console.log('=== 5ag. 文型ドリル 回想テスト 一輪制（純函式） =
       roundNote(roundSummary(r4, [true, true, true, true])),
       roundNote(roundSummary(r4, [false, false, false, false])),
       roundNote(roundSummary(r4, [true, true, true, false])),
+    ]
+    return notes.every((n) => !n.includes('分'))
+  })())
+}
+
+console.log('=== 5ah. 会話 暗記モード（遮罩／結算，純函式） ===')
+{
+  const lines = [
+    { role: 'a' as const, jp: 'いらっしゃいませ。', zh: '歡迎光臨。' },
+    { role: 'b' as const, jp: 'おにぎりは どこですか。', zh: '飯糰在哪裡？' },
+    { role: 'a' as const, jp: 'あちらです。', zh: '在那邊。' },
+    { role: 'b' as const, jp: 'これを ください。', zh: '請給我這個。' },
+  ]
+
+  // --- 遮罩 ---
+  ok('遮罩後看不到原本的假名', (() => {
+    const m = maskJp('おにぎりは どこですか。')
+    return !/[ぁ-んァ-ヶ]/.test(m)
+  })())
+  ok('遮罩保留空白（看得出幾個詞塊）', maskJp('これを ください。').includes(' '))
+  ok('遮罩保留句讀（看得出是問句還是陳述句）', maskJp('どこですか。').endsWith('。') && maskJp('そう？').endsWith('？'))
+  ok('遮罩長度與原句相同', (() => {
+    const src = 'これを ふたつ ください。'
+    return Array.from(maskJp(src)).length === Array.from(src).length
+  })())
+  ok('遮罩字元就是 MASK_CHAR', maskJp('あい').split('').every((c) => c === MASK_CHAR))
+  ok('空字串遮罩後仍是空字串', maskJp('') === '')
+  ok('全部 DIALOGUES 的每一句遮罩後都不含假名或漢字', DIALOGUES.every((d) =>
+    d.lines.every((l) => !/[ぁ-んァ-ヶ一-龥]/.test(maskJp(l.jp))),
+  ))
+  ok('遮罩不會把整句吃掉（仍有可見內容）', DIALOGUES.every((d) =>
+    d.lines.every((l) => maskJp(l.jp).trim().length > 0),
+  ))
+
+  // --- 輪到你的句子 ---
+  ok('myLineIndexes 取出 role b 的索引', JSON.stringify(myLineIndexes(lines)) === JSON.stringify([1, 3]))
+  ok('沒有 role b 時回空陣列', myLineIndexes([lines[0], lines[2]]).length === 0)
+  ok('空對話回空陣列', myLineIndexes([]).length === 0)
+  ok('每一段對話都至少有一句輪到你', DIALOGUES.every((d) => myLineIndexes(d.lines).length > 0))
+  ok('索引都指得回 role b 的那一句', DIALOGUES.every((d) =>
+    myLineIndexes(d.lines).every((i) => d.lines[i].role === 'b'),
+  ))
+
+  // --- 結算 ---
+  ok('全部沒看稿 → unaided 等於自己的句數、pct 100', (() => {
+    const s = recallSummary(lines, [1, 3])
+    return s.mine === 2 && s.unaided === 2 && s.aided === 0 && s.pct === 100
+  })())
+  ok('全部看了稿 → unaided 0、pct 0', (() => {
+    const s = recallSummary(lines, [])
+    return s.mine === 2 && s.unaided === 0 && s.aided === 2 && s.pct === 0
+  })())
+  ok('一半沒看稿 → pct 50', recallSummary(lines, [1]).pct === 50)
+  ok('unaided 重複的索引只算一次', recallSummary(lines, [1, 1, 1]).unaided === 1)
+  ok('不是 role b 的索引不算數', recallSummary(lines, [0, 2]).unaided === 0)
+  ok('超出範圍的索引不算數', recallSummary(lines, [99, -1]).unaided === 0)
+  ok('沒有自己的句子時 mine 0 且 pct 0（不除以零）', (() => {
+    const s = recallSummary([lines[0]], [0])
+    return s.mine === 0 && s.unaided === 0 && s.aided === 0 && s.pct === 0
+  })())
+  ok('unaided + aided 恆等於 mine', DIALOGUES.every((d) => {
+    const s = recallSummary(d.lines, myLineIndexes(d.lines).slice(0, 1))
+    return s.unaided + s.aided === s.mine
+  }))
+
+  // --- 看了稿的那幾句 ---
+  ok('aidedLines 取出沒說出來的那幾句', (() => {
+    const a = aidedLines(lines, [1])
+    return a.length === 1 && a[0].index === 3 && a[0].jp === 'これを ください。' && a[0].zh === '請給我這個。'
+  })())
+  ok('全部沒看稿時 aidedLines 為空', aidedLines(lines, [1, 3]).length === 0)
+  ok('aidedLines 維持對話出現順序', (() => {
+    const a = aidedLines(lines, [])
+    return a[0].index === 1 && a[1].index === 3
+  })())
+  ok('aidedLines 只會列出輪到你的句子', DIALOGUES.every((d) =>
+    aidedLines(d.lines, []).every((a) => d.lines[a.index].role === 'b'),
+  ))
+  ok('aidedLines 的數量與結算的 aided 一致', DIALOGUES.every((d) => {
+    const un = myLineIndexes(d.lines).filter((_, i) => i % 2 === 0)
+    return aidedLines(d.lines, un).length === recallSummary(d.lines, un).aided
+  }))
+
+  // --- 一句話提示 ---
+  ok('四種情境的提示各不相同且非空', (() => {
+    const notes = [
+      recallNote(recallSummary([lines[0]], [])),
+      recallNote(recallSummary(lines, [1, 3])),
+      recallNote(recallSummary(lines, [])),
+      recallNote(recallSummary(lines, [1])),
+    ]
+    return notes.every((n) => n.length > 0) && new Set(notes).size === 4
+  })())
+  ok('有看稿時提示帶出句數', recallNote(recallSummary(lines, [1])).includes('1'))
+  ok('全部沒看稿時不指向「看了稿的清單」', !recallNote(recallSummary(lines, [1, 3])).includes('列出'))
+  ok('提示不含「分」字（有沒有看稿的統計，不是評分）', (() => {
+    const notes = [
+      recallNote(recallSummary([lines[0]], [])),
+      recallNote(recallSummary(lines, [1, 3])),
+      recallNote(recallSummary(lines, [])),
+      recallNote(recallSummary(lines, [1])),
     ]
     return notes.every((n) => !n.includes('分'))
   })())

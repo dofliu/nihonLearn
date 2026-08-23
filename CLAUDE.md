@@ -40,9 +40,9 @@ src/
   db/         schema(Dexie v8)・repo（任務計數、蓋章、卡片、發音紀錄、生成句）
   srs/        scheduler：ts-fsrs 封裝（newCard/review/isDue/isMastered）
   audio/      tts（VOICEVOX▸原生▸WebSpeech 門面 + 逐字 boundary 回呼）・scorer（相似度 + ASR + whisper 錄音 + mora 型別）
-  lib/        date・importV1（v1→v2 遷移 + 備份匯出）・content（生成 client + 持久化審核佇列 + 採用）・listening（聽力理解＋JLPT 題型出題，純函式）・articles（NHK Easy 導入 client + 採用）・llm（Gemini 直連 + 金鑰/模型本機儲存）・llmParse（Gemini 回應純解析）・coverage（覆蓋率檢核，無依賴）・pitch（mora 切分 + 東京式 pattern）・sidecar（base URL 抽象 + probeHealth）・vocabGate（詞彙隨假名解鎖，純函式）・quiz（N5 模擬測驗出題，純函式）・karaoke（朗讀逐字上色對齊，純函式）・furigana（漢字↔假名注音對齊，純函式）・handwriting（手寫字形相似度評分，純函式）・activity（學習活動統計，純函式）・kanaChart（五十音圖表格結構＋拗音規則推導，純函式）・yoonDrill（拗音出題與分層誘答，純函式）・patternDrill（句型×已學單字組句，純函式）・patternRound（回想テスト一輪制取樣／結算／只練沒說對的，純函式）・roleplay（自由対話場景/prompt/歷史組裝，純函式）・recentScenes（自由対話最近用過的自訂場景，localStorage、純函式）・scoreReveal（分數等第／數字滾動／環形幾何，純函式）・tutorQuiz（助教「考我」出題＋講評 prompt/解析，純函式）・followUp（跟讀例句／会話腳本的 AI 追問 prompt/解析，純函式）・patternCompose（自由造句句型骨架程式檢核＋講評 prompt，純函式）・voiceInput（語音輸入候選挑選/合併/錯誤訊息，純函式）・vocabBook（單字帳查詢/篩選/分組/狀態標記，純函式）
+  lib/        date・importV1（v1→v2 遷移 + 備份匯出）・content（生成 client + 持久化審核佇列 + 採用）・listening（聽力理解＋JLPT 題型出題，純函式）・articles（NHK Easy 導入 client + 採用）・llm（Gemini 直連 + 金鑰/模型本機儲存）・llmParse（Gemini 回應純解析）・coverage（覆蓋率檢核，無依賴）・pitch（mora 切分 + 東京式 pattern）・sidecar（base URL 抽象 + probeHealth）・vocabGate（詞彙隨假名解鎖，純函式）・quiz（N5 模擬測驗出題，純函式）・karaoke（朗讀逐字上色對齊，純函式）・furigana（漢字↔假名注音對齊，純函式）・handwriting（手寫字形相似度評分，純函式）・activity（學習活動統計，純函式）・kanaChart（五十音圖表格結構＋拗音規則推導，純函式）・yoonDrill（拗音出題與分層誘答，純函式）・patternDrill（句型×已學單字組句，純函式）・patternRound（回想テスト一輪制取樣／結算／只練沒說對的，純函式）・dialogueRound（会話暗記モード遮罩／結算，純函式）・roleplay（自由対話場景/prompt/歷史組裝，純函式）・recentScenes（自由対話最近用過的自訂場景，localStorage、純函式）・scoreReveal（分數等第／數字滾動／環形幾何，純函式）・tutorQuiz（助教「考我」出題＋講評 prompt/解析，純函式）・followUp（跟讀例句／会話腳本的 AI 追問 prompt/解析，純函式）・patternCompose（自由造句句型骨架程式檢核＋講評 prompt，純函式）・voiceInput（語音輸入候選挑選/合併/錯誤訊息，純函式）・vocabBook（單字帳查詢/篩選/分組/狀態標記，純函式）
   state/      store（zustand：今日/streak/rate/tts/showKanji）
-  views/      Today・Kana(含 Write 書寫練習・五十音圖一覽表・拗音ドリル)・Listen(含 Pitch)・Speak(含 Dialogue 会話＋Roleplay 自由対話，跟読與会話走完皆可 AI 追問)・Read・Progress・Review・Pattern(文型ドリル，含自由造句)
+  views/      Today・Kana(含 Write 書寫練習・五十音圖一覽表・拗音ドリル)・Listen(含 Pitch)・Speak(含 Dialogue 会話〔看稿／暗記モード〕＋Roleplay 自由対話，跟読與会話走完皆可 AI 追問)・Read・Progress・Review・Pattern(文型ドリル，含自由造句)
   components/ Nav・ui(toast/大印/進度條)・KanaChart(五十音圖)・YoonDrill(拗音ドリル)・VocabCard・VocabBook(單字帳：搜尋/收合/狀態標記)・Karaoke・Ruby・StrokeOrder・FollowUp(跟讀追問)・VoiceInput(共用麥克風鈕)・ScoreReveal(分數揭曉：環形進度＋數字滾動＋等第徽章)
 sidecar/      FastAPI：/health /tts /speakers /score /content /article/*；article.py（NHK Easy 解析，純函式）；mock_voicevox.py（假 engine）；test_score.py・test_article.py
 tests/        integration.ts（npm test）・INTEGRATION_REPORT.md・MANUAL_QA.md
@@ -758,6 +758,39 @@ rng 永遠回 0 或 1 的邊界不越界也不遺漏／全部句型空進度都�
 「只練沒說對的（1 句）」開出只剩那句的一輪 → 說對後結算全對且該鈕消失 → 「再來一輪」回到整個詞池）、
 `npm run build` strict 綠燈。
 
+v3.47（会話「暗記モード」：遮起來自己說＋走完結算）：ROADMAP #6 點名**仍未涵蓋 `DialogueView`**
+的續做——但同樣地，破口不只是缺進度條：会話（情境對話引導）原本只有**一種走法**，輪到你的句子
+**日文就攤在眼前**，照著唸完按「唸完了」。第一次走這段時剛好，但 7 段 × 8 句走過兩三次之後，
+看著稿子唸就只是**朗讀**——真正該練的「輪到我時能不能自己說出來」反而練不到（這正是 v3.46
+給文型ドリル加回想テスト的同一個理由，只是那邊是句型、這邊是完整情境對話）。
+這次加第二種走法：對話畫面上加 `.modeRow` 兩鍵「📖 看稿（預設，行為一字不變）／🎯 暗記モード」——
+暗記モード下**輪到你的句子只顯示中文與遮罩**（`maskJp`：空白與句讀原樣保留、其餘每字元換成 `・`，
+所以看得出幾個詞塊、是問句還是陳述句，但看不到假名），你先自己說，說不出來再按「👀 看稿」
+（按了才出現「🔊 聽手本」）；**已走過的句子一律顯示原文**，方便說完立刻對答案。走完一整段之後
+結算「輪到你 n 句、其中 m 句沒看稿」＋一句話中文提示＋**列出看了稿的那幾句**（中文＋日文）供下次留意。
+**誠實定位是本次重點**：這個畫面沒有 ASR、也沒有評分，所以統計的是**你有沒有看稿**、
+**不是**評估你說得對不對——結算卡上明寫這句話並指向「發音要評分請用跟読分頁」，且**刻意不套用
+`components/ScoreReveal.tsx` 的 ◎／○／△ 等第徽章**（那是相似度分數的等第，語意不同；沿用 v3.46
+立下的同一個判例）。順手補上 ROADMAP 點名的那一塊：`ProgressBar`（v3.28 的共用元件）接到会話的
+`n / 8` 進度上。純邏輯抽 `lib/dialogueRound.ts`（`maskJp`／`myLineIndexes`／`recallSummary`／
+`aidedLines`／`recallNote`，無 Dexie/window/React）。素材完全沿用已驗證的 `data/dialogues.ts`
+（遮罩是對原句的純機械字元替換）、**不經 LLM、不新增任何日文、零正確性風險**。
+**刻意不動的部分**：会話仍計入每日「口」任務（每句 role b 照樣 `bump('speak', 1)`，暗記モード
+不改變核心門檻與蓋章判定）、不新增 feature key、不動 Dexie schema、不新增 CSS（沿用既有
+`.modeRow`／`.dlgBubble`／`.composeCk`／`.slotWord`）；走完後的 AI「追問」卡與自由対話入口都不動。
+
+測試：`npm test` 714/714（新增 5ah 共 30 項：遮罩後不含假名／保留空白與句讀／長度與原句相同／
+空字串／**全部 `DIALOGUES` 的每一句遮罩後都不含假名或漢字且不會整句消失**、`myLineIndexes`
+三情境＋全對話都有輪到你的句子且索引指得回 role b、`recallSummary` 七情境（全沒看稿／全看稿／
+一半／重複索引只算一次／非 role b 與超出範圍的索引不算數／沒有自己的句子時不除以零／
+unaided+aided 恆等於 mine）、`aidedLines` 五情境（取出未說出的句子與其 jp/zh、全沒看稿回空、
+維持出現順序、只列 role b、數量與結算一致）、`recallNote` 四情境互異非空／帶出句數／
+不含「分」字）、`npm run test:e2e` 88/88（新增 `dialogue.spec.ts` 兩項：切到暗記モード→輪到你的句子
+遮起來（有 `・`、無假名）→第一句按「看稿」揭曉並出現聽手本→其餘三句自己說→結算顯示
+「輪到你 4 句・3 句沒看稿・有 1 句看了稿」與該句清單＋「不是評估你說得對不對」、走完全部句子
+都看得到日文、進度條 `aria-valuenow` 由 1 到 8，且「口の修行」照舊 3/3；以及預設看稿模式
+句子照常顯示、走完不出現暗記結算）、`npm run build` strict 綠燈。
+
 ---
 
 ## ⭐ 本機實測任務（此專案轉到 Claude Code 的主因）
@@ -853,7 +886,7 @@ Claude Code 在本機可以真正跑起來、觀察、修正。建議依序進�
 
 ## 提交前檢查
 
-`npm run build`（strict 綠燈）＋ `npm test`（684/684）＋ `npm run test:e2e`（86/86）
+`npm run build`（strict 綠燈）＋ `npm test`（714/714）＋ `npm run test:e2e`（88/88）
 ＋（動到 sidecar 時）`python sidecar/test_score.py` 與 `python sidecar/test_article.py`。
 新功能盡量補測：純邏輯進 `tests/integration.ts`，UI 流程進 `e2e/*.spec.ts`（共用步驟放
 `e2e/helpers.ts`），後端進 `test_score.py`。
