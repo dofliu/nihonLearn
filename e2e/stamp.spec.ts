@@ -50,6 +50,8 @@ test('五項修行全完成 → 蓋章、大印動畫、streak +1', async ({ pag
   await expect(stamp).toContainText(`${d.getMonth() + 1}／${d.getDate()}`)
   // 蓋章當下尚未加練 → 大印為一般朱印（非金）
   await expect(stamp.locator('.inner.gold')).toHaveCount(0)
+  // 最後一項完成＝五項全達標 → 走蓋章大印，不再出現「次は…」動線提示
+  await expect(page.locator('.nextUp')).toHaveCount(0)
   // 點擊可提前關閉
   await stamp.click()
   await expect(stamp).toBeHidden()

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Nav, type Tab } from './components/Nav'
-import { Toast, BigStamp, toast } from './components/ui'
+import { Toast, BigStamp, NextUpBar, toast } from './components/ui'
 import { TodayView } from './views/TodayView'
 import { KanaView } from './views/KanaView'
 import { ListenView } from './views/ListenView'
@@ -42,6 +42,7 @@ export default function App() {
     setTab(t)
     setOverlay(null)
     setSpeakTab('shadow')
+    useApp.getState().clearNextUp() // 換分頁＝動線提示已完成任務
     window.scrollTo(0, 0)
   }
 
@@ -107,6 +108,7 @@ export default function App() {
       </main>
 
       <Nav tab={tab} onChange={nav} />
+      <NextUpBar onNav={(t) => nav(t as Tab)} />
       <Toast />
       <BigStamp />
     </div>

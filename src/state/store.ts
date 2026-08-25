@@ -11,6 +11,7 @@ import {
 } from '../db/repo'
 import { computeStreak } from '../lib/date'
 import { hasExtraFeature } from '../lib/activity'
+import { buildNextUp, type NextUp } from '../lib/taskFlow'
 import { initTTS, reprobeTTS, ttsProviderName, setSpeaker } from '../audio/tts'
 
 interface AppState {
@@ -24,12 +25,14 @@ interface AppState {
   showKanji: boolean
   lastStamped: string | null // 觸發蓋章動畫用
   lastStampGold: boolean // 蓋章當下是否已做過加練（大印同步升金）
+  nextUp: NextUp | null // 某項修行剛達標 → 提示下一項（動線提示條）
   refresh: () => Promise<void>
   bump: (taskId: string, n?: number) => Promise<void>
   setRate: (r: number) => Promise<void>
   toggleKanji: () => Promise<void>
   reprobe: () => Promise<void>
   clearStampFlag: () => void
+  clearNextUp: () => void
 }
 
 export const useApp = create<AppState>((set, get) => ({
@@ -43,6 +46,7 @@ export const useApp = create<AppState>((set, get) => ({
   showKanji: false,
   lastStamped: null,
   lastStampGold: false,
+  nextUp: null,
 
   async refresh() {
     const [day, stamps, rate, stats, showKanji] = await Promise.all([
@@ -65,13 +69,18 @@ export const useApp = create<AppState>((set, get) => ({
   },
 
   async bump(taskId, n = 1) {
-    const { stamped } = await bumpTask(taskId, n)
+    const before = get().counts
+    const { day, stamped } = await bumpTask(taskId, n)
+    // 這一次計數是否讓某項修行剛好達標 → 算出接下來該去哪一項（純函式）
+    const up = buildNextUp(TASKS, before, day.counts)
     await get().refresh()
     if (stamped) {
       // 核心全達標的當下若已做過任一加練 → 大印同步升金印（與蓋章格一致）
       const feats = await todayActivityFeatures()
       const gold = hasExtraFeature(feats)
-      set({ lastStamped: new Date().toISOString(), lastStampGold: gold })
+      set({ lastStamped: new Date().toISOString(), lastStampGold: gold, nextUp: null })
+    } else if (up) {
+      set({ nextUp: up })
     }
   },
 
@@ -95,6 +104,10 @@ export const useApp = create<AppState>((set, get) => ({
 
   clearStampFlag() {
     set({ lastStamped: null })
+  },
+
+  clearNextUp() {
+    set({ nextUp: null })
   },
 }))
 
