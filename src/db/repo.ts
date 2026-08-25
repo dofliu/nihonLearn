@@ -4,15 +4,10 @@ import { todayStr } from '../lib/date'
 import { extraDays } from '../lib/activity'
 import { KANA_BY_ID } from '../data/kana'
 import type { Card as FSRSCard } from 'ts-fsrs'
+import { TASKS } from '../data/tasks'
 
-/** 每日五項修行的定義（驅動今日頁與蓋章） */
-export const TASKS = [
-  { id: 'kana', name: '字の修行（五十音 SRS）', target: 10, tab: 'kana' },
-  { id: 'vocab', name: 'ことば（今日的 5 語）', target: 5, tab: 'read' },
-  { id: 'listen', name: '耳の修行（辨音 5 題）', target: 5, tab: 'listen' },
-  { id: 'speak', name: '口の修行（跟讀 3 句）', target: 3, tab: 'speak' },
-  { id: 'read', name: '読む修行（短文 1 篇）', target: 1, tab: 'read' },
-] as const
+/** 每日五項修行的定義（純資料檔 `data/tasks.ts`，供 Node 測試直接 import） */
+export { TASKS }
 
 export const DAILY_NEW_LIMIT = 10
 export const DAILY_VOCAB_NEW_LIMIT = 6

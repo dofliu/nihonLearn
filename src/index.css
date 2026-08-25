@@ -1350,3 +1350,64 @@ select {
 .kanji-mode ruby {
   margin: 0 1px;
 }
+
+/* 動線提示條：某項修行剛達標 → 直接前往下一項（浮在底部導覽列之上） */
+/* 提示條在時把頁尾留白加高，避免蓋住最後一段內容 */
+.app:has(.nextUp) {
+  padding-bottom: 132px;
+}
+.nextUp {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: calc(58px + env(safe-area-inset-bottom));
+  width: min(612px, calc(100% - 20px));
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--card);
+  border: 1.5px solid var(--washi2);
+  border-left: 5px solid var(--shu);
+  border-radius: 12px;
+  padding: 9px 10px 9px 12px;
+  box-shadow: 0 6px 18px rgba(43, 42, 38, 0.16);
+  animation: nextUpIn 0.28s ease;
+}
+@keyframes nextUpIn {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 10px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+.nextUpBody {
+  flex: 1;
+  min-width: 0;
+}
+.nextUpDone {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ai);
+}
+.nextUpNote {
+  font-size: 11.5px;
+  color: var(--nezu);
+  margin-top: 1px;
+}
+.nextUp .btn.small {
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.nextUpClose {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--nezu);
+  font-size: 13px;
+  padding: 4px 2px;
+  line-height: 1;
+}

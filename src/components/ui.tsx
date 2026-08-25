@@ -67,3 +67,29 @@ export function BigStamp() {
     </div>
   )
 }
+
+// ---------- 動線提示條（某項修行剛達標 → 直接前往下一項） ----------
+/**
+ * 核心五修行散在四個分頁，過去每完成一項都得自己回「今日」頁再點一次「前往」。
+ * 這條提示只在「某項剛達標、且今天還有沒做完的項目」時出現（全部達標時走的是蓋章大印），
+ * 點「次は…」直接導到下一項所在的分頁；可按 ✕ 收起，換分頁時也會自動收起。
+ */
+export function NextUpBar({ onNav }: { onNav: (tab: string) => void }) {
+  const nextUp = useApp((s) => s.nextUp)
+  const clear = useApp((s) => s.clearNextUp)
+  if (!nextUp) return null
+  return (
+    <div className="nextUp" role="status">
+      <div className="nextUpBody">
+        <div className="nextUpDone">{nextUp.doneName} 完成 ✓</div>
+        <div className="nextUpNote">{nextUp.note}</div>
+      </div>
+      <button className="btn small" onClick={() => onNav(nextUp.nextTab)}>
+        次は{nextUp.nextName} →
+      </button>
+      <button className="nextUpClose" onClick={clear} aria-label="收起提示">
+        ✕
+      </button>
+    </div>
+  )
+}

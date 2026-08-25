@@ -3,6 +3,17 @@
 // 覆蓋率檢核、資料完整性。不含瀏覽器 UI（見 MANUAL_QA.md）。
 
 import { KANA, KANA_BY_ID } from '../src/data/kana.ts'
+import { TASKS } from '../src/data/tasks.ts'
+import {
+  shortTaskName,
+  isTaskDone,
+  remainingTasks,
+  justCompleted,
+  nextUnfinished,
+  nextUpNote,
+  buildNextUp,
+  type TaskCounts,
+} from '../src/lib/taskFlow.ts'
 import { VOCAB } from '../src/data/vocab.ts'
 import { splitMora, pitchPattern, accentTypeName } from '../src/lib/pitch.ts'
 import { similarity, normKana } from '../src/audio/scorer.ts'
@@ -2114,6 +2125,108 @@ console.log('=== 5ah. 会話 暗記モード（遮罩／結算，純函式） ==
       recallNote(recallSummary(lines, [1])),
     ]
     return notes.every((n) => !n.includes('分'))
+  })())
+}
+
+console.log('=== 5ai. 修行動線（某項達標 → 下一項）===')
+{
+  const empty: TaskCounts = {}
+  const allDone: TaskCounts = { kana: 10, vocab: 5, listen: 5, speak: 3, read: 1 }
+  const kanaDone: TaskCounts = { kana: 10 }
+
+  // --- 短名 ---
+  ok('shortTaskName 去掉全形括號說明', shortTaskName('字の修行（五十音 SRS）') === '字の修行')
+  ok('shortTaskName 去掉半形括號說明', shortTaskName('口の修行(跟讀 3 句)') === '口の修行')
+  ok('shortTaskName 沒有括號時原樣', shortTaskName('読む修行') === '読む修行')
+  ok('shortTaskName 只有括號時不回空字串', shortTaskName('（説明だけ）').length > 0)
+  ok('shortTaskName 去掉前後空白', shortTaskName('  耳の修行 （辨音）') === '耳の修行')
+  ok('五項修行的短名皆非空且互異', (() => {
+    const names = TASKS.map((t) => shortTaskName(t.name))
+    return names.every((n) => n.length > 0) && new Set(names).size === TASKS.length
+  })())
+
+  // --- 單項達標判定 ---
+  ok('isTaskDone 未達標', !isTaskDone(TASKS[0], { kana: 9 }))
+  ok('isTaskDone 剛好達標', isTaskDone(TASKS[0], { kana: 10 }))
+  ok('isTaskDone 超標仍算達標', isTaskDone(TASKS[0], { kana: 99 }))
+  ok('isTaskDone 沒有記錄視為 0', !isTaskDone(TASKS[0], empty))
+
+  // --- 還剩哪幾項 ---
+  ok('remainingTasks 空進度＝全部五項', remainingTasks(TASKS, empty).length === TASKS.length)
+  ok('remainingTasks 全達標＝空', remainingTasks(TASKS, allDone).length === 0)
+  ok('remainingTasks 維持傳入順序', (() => {
+    const r = remainingTasks(TASKS, kanaDone)
+    return r.length === 4 && r[0].id === 'vocab' && r[3].id === 'read'
+  })())
+
+  // --- 這次是否剛好跨過門檻 ---
+  ok('justCompleted 抓到剛跨過門檻的那一項', justCompleted(TASKS, { kana: 9 }, { kana: 10 })?.id === 'kana')
+  ok('justCompleted 還沒到門檻回 null', justCompleted(TASKS, { kana: 8 }, { kana: 9 }) === null)
+  ok('justCompleted 早就達標的不重複回報', justCompleted(TASKS, { kana: 10 }, { kana: 10 }) === null)
+  ok('justCompleted 一次補滿也算跨過', justCompleted(TASKS, empty, { listen: 5 })?.id === 'listen')
+  ok('justCompleted 沒有任何變化回 null', justCompleted(TASKS, kanaDone, kanaDone) === null)
+
+  // --- 下一項 ---
+  ok('nextUnfinished 從剛完成的下一項開始', nextUnfinished(TASKS, kanaDone, 'kana')?.id === 'vocab')
+  ok('nextUnfinished 跳過已達標的項目', nextUnfinished(TASKS, { kana: 10, vocab: 5 }, 'kana')?.id === 'listen')
+  ok('nextUnfinished 走到最後一項會繞回開頭', nextUnfinished(TASKS, { listen: 5, speak: 3, read: 1 }, 'read')?.id === 'kana')
+  ok('nextUnfinished 未指定起點時從頭找', nextUnfinished(TASKS, kanaDone)?.id === 'vocab')
+  ok('nextUnfinished 起點不在清單時從頭找', nextUnfinished(TASKS, kanaDone, 'nope')?.id === 'vocab')
+  ok('nextUnfinished 全達標回 null', nextUnfinished(TASKS, allDone, 'kana') === null)
+  ok('nextUnfinished 空清單回 null', nextUnfinished([], empty, 'kana') === null)
+
+  // --- 一句話提示 ---
+  ok('剩 1 項時是「最後一項」的提示', nextUpNote(1).includes('最後'))
+  ok('剩多項時提示帶出項數', nextUpNote(3).includes('3'))
+  ok('兩種提示非空且不同', nextUpNote(1).length > 0 && nextUpNote(4).length > 0 && nextUpNote(1) !== nextUpNote(4))
+
+  // --- 組合起來的動線提示 ---
+  ok('完成第一項 → 提示下一項與剩餘項數', (() => {
+    const up = buildNextUp(TASKS, { kana: 9 }, kanaDone)
+    return up?.doneId === 'kana' && up.nextId === 'vocab' && up.remaining === 4
+  })())
+  ok('沒有剛完成的項目 → 不出現動線提示', buildNextUp(TASKS, { kana: 8 }, { kana: 9 }) === null)
+  ok('最後一項完成（五項全達標）→ 不出現動線提示（走蓋章大印）', (() => {
+    const before = { ...allDone, read: 0 }
+    return buildNextUp(TASKS, before, allDone) === null
+  })())
+  ok('提示的 remaining 與 remainingTasks 一致', (() => {
+    const after = { kana: 10, vocab: 5 }
+    const up = buildNextUp(TASKS, { kana: 10 }, after)
+    return up != null && up.remaining === remainingTasks(TASKS, after).length
+  })())
+  ok('提示的 nextTab 是真的分頁', (() => {
+    const tabs = new Set(TASKS.map((t) => t.tab as string))
+    const up = buildNextUp(TASKS, empty, { kana: 10 })
+    return up != null && tabs.has(up.nextTab)
+  })())
+  ok('提示用的是短名（不含括號說明）', (() => {
+    const up = buildNextUp(TASKS, empty, { kana: 10 })
+    return up != null && !up.doneName.includes('（') && !up.nextName.includes('（')
+  })())
+  ok('依序做完五項：每一步都指向還沒做的項目，最後一步不再提示', (() => {
+    const counts: TaskCounts = {}
+    const seen: string[] = []
+    for (const t of TASKS) {
+      const before = { ...counts }
+      counts[t.id] = t.target
+      const up = buildNextUp(TASKS, before, counts)
+      if (up === null) {
+        // 只有做完最後一項時才允許沒有提示
+        return t.id === TASKS[TASKS.length - 1].id && seen.length === TASKS.length - 1
+      }
+      if (isTaskDone(TASKS.find((x) => x.id === up.nextId)!, counts)) return false
+      seen.push(up.nextId)
+    }
+    return false
+  })())
+  ok('一次超量計數（被 repo 封頂前後）都判得出剛達標', (() => {
+    const up = buildNextUp(TASKS, empty, { speak: 3 })
+    return up?.doneId === 'speak' && up.nextId === 'read'
+  })())
+  ok('不認得的 key 與負數不影響判定', (() => {
+    const up = buildNextUp(TASKS, { kana: -3, nope: 99 }, { kana: 10, nope: 99 })
+    return up?.doneId === 'kana' && up.remaining === 4
   })())
 }
 
