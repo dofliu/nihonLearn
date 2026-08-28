@@ -59,6 +59,14 @@ import {
   recallNote,
 } from '../src/lib/dialogueRound.ts'
 import { generateQuiz, seededRng, MIN_POOL } from '../src/lib/quiz.ts'
+import {
+  weakStats,
+  weakRefIds,
+  clearedRefIds,
+  weakSummary,
+  CLEAR_STREAK,
+  type QuizRecord,
+} from '../src/lib/quizWeak.ts'
 import { karaokeChars, activeCharIndices } from '../src/lib/karaoke.ts'
 import { listeningQuestions, pickParagraphs, spreadByGroup, responseQuestions, expressionQuestions, LISTEN_MIN_POOL, type ListenItem } from '../src/lib/listening.ts'
 import { PASSAGES, PASSAGE_CATS } from '../src/data/passages.ts'
@@ -2227,6 +2235,154 @@ console.log('=== 5ai. 修行動線（某項達標 → 下一項）===')
   ok('不認得的 key 與負數不影響判定', (() => {
     const up = buildNextUp(TASKS, { kana: -3, nope: 99 }, { kana: 10, nope: 99 })
     return up?.doneId === 'kana' && up.remaining === 4
+  })())
+}
+
+console.log('=== 5aj. 測驗弱點追蹤（答對會退＋弱點特訓出題） ===')
+{
+  // 造一個小詞池（誘答夠用），refId 即 vocab.jp
+  const pool = VOCAB.slice(0, 12)
+  const A = pool[0].jp
+  const B = pool[1].jp
+  const C = pool[2].jp
+  const rec = (ts: number, weakRefs: string[], askedRefs?: string[]): QuizRecord =>
+    askedRefs ? { ts, weakRefs, askedRefs } : { ts, weakRefs }
+
+  // --- weakStats：累計、連對、克服 ---
+  ok('沒有紀錄 → 空清單', weakStats([]).length === 0)
+  ok('沒答錯過的詞不進清單', weakStats([rec(1, [], [A, B])]).length === 0)
+  ok('答錯一次 → 入列且 wrong=1', (() => {
+    const e = weakStats([rec(1, [A], [A, B])])
+    return e.length === 1 && e[0].refId === A && e[0].wrong === 1 && e[0].streak === 0
+  })())
+  ok('再答錯一次 → wrong=2', weakStats([rec(1, [A], [A]), rec(2, [A], [A])])[0].wrong === 2)
+  ok('答錯後答對一次 → streak=1、尚未克服', (() => {
+    const e = weakStats([rec(1, [A], [A]), rec(2, [], [A])])[0]
+    return e.streak === 1 && e.cleared === false
+  })())
+  ok(`答錯後連續答對 ${CLEAR_STREAK} 次 → 克服`, (() => {
+    const e = weakStats([rec(1, [A], [A]), rec(2, [], [A]), rec(3, [], [A])])[0]
+    return e.streak === CLEAR_STREAK && e.cleared === true
+  })())
+  ok('克服後又答錯 → 連對歸零、重回弱點', (() => {
+    const e = weakStats([rec(1, [A], [A]), rec(2, [], [A]), rec(3, [], [A]), rec(4, [A], [A])])[0]
+    return e.cleared === false && e.streak === 0 && e.wrong === 2
+  })())
+  ok('沒考到的那幾輪不影響連對', (() => {
+    const e = weakStats([rec(1, [A], [A]), rec(2, [], [B]), rec(3, [], [B])])[0]
+    return e.streak === 0 && e.cleared === false
+  })())
+  ok('同一輪 refId 重複只算一次', weakStats([rec(1, [A, A], [A, A])])[0].wrong === 1)
+  ok('紀錄順序顛倒不影響判定（依 ts 排）', (() => {
+    const asc = weakStats([rec(1, [A], [A]), rec(2, [], [A]), rec(3, [], [A])])[0]
+    const desc = weakStats([rec(3, [], [A]), rec(2, [], [A]), rec(1, [A], [A])])[0]
+    return asc.cleared && desc.cleared && asc.streak === desc.streak
+  })())
+  ok('舊紀錄（無 askedRefs）不會被誤判為克服', (() => {
+    const e = weakStats([rec(1, [A]), rec(2, []), rec(3, [])])[0]
+    return e.wrong === 1 && e.streak === 0 && e.cleared === false
+  })())
+  ok('最後一次答錯的時間有記到', weakStats([rec(1, [A], [A]), rec(5, [A], [A])])[0].lastWrongTs === 5)
+
+  // --- 排序 ---
+  ok('未克服排在已克服之前', (() => {
+    const list = weakStats([
+      rec(1, [A, B], [A, B]),
+      rec(2, [], [A]),
+      rec(3, [], [A]), // A 克服
+    ])
+    return list[0].refId === B && list[1].refId === A && list[1].cleared
+  })())
+  ok('未克服者依答錯次數多到少', (() => {
+    const list = weakStats([rec(1, [A, B], [A, B]), rec(2, [B], [B])])
+    return list[0].refId === B && list[0].wrong === 2 && list[1].refId === A
+  })())
+  ok('相同條件排序穩定可重現', (() => {
+    const r = [rec(1, [A, B, C], [A, B, C])]
+    return JSON.stringify(weakStats(r)) === JSON.stringify(weakStats(r))
+  })())
+
+  // --- 衍生查詢 ---
+  const mixed = [rec(1, [A, B], [A, B]), rec(2, [], [A]), rec(3, [], [A])]
+  ok('weakRefIds 只回未克服', JSON.stringify(weakRefIds(mixed)) === JSON.stringify([B]))
+  ok('clearedRefIds 只回已克服', JSON.stringify(clearedRefIds(mixed)) === JSON.stringify([A]))
+  ok('weak 與 cleared 不重疊', weakRefIds(mixed).every((r) => !clearedRefIds(mixed).includes(r)))
+  ok('weakSummary 加總＝曾答錯過的詞數', (() => {
+    const s = weakSummary(mixed)
+    return s.weak === 1 && s.cleared === 1 && s.weak + s.cleared === weakStats(mixed).length
+  })())
+  ok('空紀錄的 summary 全 0', (() => {
+    const s = weakSummary([])
+    return s.weak === 0 && s.cleared === 0
+  })())
+
+  // --- generateQuiz 出題選項 ---
+  ok('不給 opts 時與舊版逐字相同', (() => {
+    const a = generateQuiz(pool, 10, seededRng(7))
+    const b = generateQuiz(pool, 10, seededRng(7), {})
+    return JSON.stringify(a) === JSON.stringify(b) && a.length === 10
+  })())
+  ok('priority：弱點詞排在最前面', (() => {
+    const qs = generateQuiz(pool, 10, seededRng(3), { priority: [A, B, C] })
+    const first3 = qs.slice(0, 3).map((q) => q.refId)
+    return new Set(first3).size === 3 && first3.every((r) => [A, B, C].includes(r))
+  })())
+  ok('priority 不改變題數，其餘詞照樣輪得到', (() => {
+    const qs = generateQuiz(pool, 10, seededRng(3), { priority: [A] })
+    return qs.length === 10 && qs.some((q) => q.refId !== A)
+  })())
+  ok('priority 空陣列＝與不給相同', (() => {
+    const a = generateQuiz(pool, 10, seededRng(9))
+    const b = generateQuiz(pool, 10, seededRng(9), { priority: [] })
+    return JSON.stringify(a) === JSON.stringify(b)
+  })())
+  ok('priority 含不在已學詞內的 refId 也不會壞', (() => {
+    const qs = generateQuiz(pool, 10, seededRng(4), { priority: ['この詞不存在', A] })
+    return qs.length === 10 && qs[0].refId === A
+  })())
+  ok('only：題目全部來自弱點詞', (() => {
+    const qs = generateQuiz(pool, 10, seededRng(5), { only: [A, B, C] })
+    return qs.every((q) => [A, B, C].includes(q.refId))
+  })())
+  ok('only：每個弱點詞剛好考一次（題數＝詞數）', (() => {
+    const qs = generateQuiz(pool, 10, seededRng(5), { only: [A, B, C] })
+    return qs.length === 3 && new Set(qs.map((q) => q.refId)).size === 3
+  })())
+  ok('only：弱點詞多於 n 時只出 n 題', (() => {
+    const many = pool.slice(0, 8).map((v) => v.jp)
+    return generateQuiz(pool, 5, seededRng(5), { only: many }).length === 5
+  })())
+  ok('only：誘答仍取自全部已學詞（弱點只有 1 個也出得了四選一）', (() => {
+    const qs = generateQuiz(pool, 10, seededRng(6), { only: [A] })
+    return qs.length === 1 && (qs[0].options?.length ?? 0) === 4 && qs[0].options!.includes(qs[0].answer)
+  })())
+  ok('only：一個都沒命中 → 空輪（呼叫端提示，不會出成別的詞）', (() => {
+    return generateQuiz(pool, 10, seededRng(6), { only: ['不存在的詞'] }).length === 0
+  })())
+  ok('only：空陣列 → 空輪', generateQuiz(pool, 10, seededRng(6), { only: [] }).length === 0)
+  ok('已學詞不足 MIN_POOL 時，任何 opts 都回空輪', (() => {
+    const tiny = VOCAB.slice(0, MIN_POOL - 1)
+    return (
+      generateQuiz(tiny, 10, seededRng(1), { only: [tiny[0].jp] }).length === 0 &&
+      generateQuiz(tiny, 10, seededRng(1), { priority: [tiny[0].jp] }).length === 0
+    )
+  })())
+  ok('only 的題目結構與一般題一致（有正解、選擇題選項互異）', (() => {
+    const qs = generateQuiz(pool, 10, seededRng(8), { only: [A, B, C] })
+    return qs.every(
+      (q) => !!q.answer && (!q.options || new Set(q.options).size === q.options.length),
+    )
+  })())
+  ok('同 seed 的 only 一輪可重現', (() => {
+    const a = generateQuiz(pool, 10, seededRng(12), { only: [A, B, C] })
+    const b = generateQuiz(pool, 10, seededRng(12), { only: [A, B, C] })
+    return JSON.stringify(a) === JSON.stringify(b)
+  })())
+  ok('弱點一輪考完再全對兩次即可克服（端到端判定）', (() => {
+    const qs = generateQuiz(pool, 10, seededRng(13), { only: [A] })
+    const asked = qs.map((q) => q.refId)
+    const recs = [rec(1, [A], [A]), rec(2, [], asked), rec(3, [], asked)]
+    return weakRefIds(recs).length === 0 && clearedRefIds(recs)[0] === A
   })())
 }
 

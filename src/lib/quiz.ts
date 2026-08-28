@@ -93,16 +93,50 @@ function arrangeQuestion(target: Vocab, rng: RNG): QuizQuestion {
 
 const CYCLE: QuizKind[] = ['meaning', 'listen', 'word', 'arrange']
 
+/** 出題範圍選項（v3.49 弱點復習）。兩者都不給時 = 舊行為：從全部已學詞均勻取樣。 */
+export interface QuizOpts {
+  /** 這些 refId 優先出題（答錯過的詞先出，出完才輪到其他已學詞）。 */
+  priority?: string[]
+  /** 只從這些 refId 出題（弱點特訓）。誘答仍取自全部已學詞，故不受弱點數量限制。 */
+  only?: string[]
+}
+
+/** 依 opts 決定出題對象與順序；誘答池一律是全部已學詞（維持四選一的品質）。 */
+function targetOrder(learned: Vocab[], rng: RNG, opts: QuizOpts): Vocab[] {
+  if (opts.only) {
+    const set = new Set(opts.only)
+    return shuffle(learned.filter((v) => set.has(v.jp)), rng)
+  }
+  if (opts.priority && opts.priority.length > 0) {
+    const set = new Set(opts.priority)
+    return [
+      ...shuffle(learned.filter((v) => set.has(v.jp)), rng),
+      ...shuffle(learned.filter((v) => !set.has(v.jp)), rng),
+    ]
+  }
+  return shuffle(learned, rng)
+}
+
 /**
  * 產生 n 題測驗。已學詞不足 MIN_POOL → 回空陣列（呼叫端提示先多學詞）。
  * arrange 只用讀音長度 2..6 的詞，否則該題退回 meaning。
+ *
+ * `opts.only`（弱點特訓）時題數 = min(n, 命中的詞數)，**每個弱點詞剛好考一次**
+ * （不足 n 題就短一輪——這比把 3 個詞硬湊成 10 題誠實）；其餘情況照舊補滿 n 題。
  */
-export function generateQuiz(learned: Vocab[], n = 10, rng: RNG = Math.random): QuizQuestion[] {
+export function generateQuiz(
+  learned: Vocab[],
+  n = 10,
+  rng: RNG = Math.random,
+  opts: QuizOpts = {},
+): QuizQuestion[] {
   if (learned.length < MIN_POOL) return []
-  const order = shuffle(learned, rng)
+  const order = targetOrder(learned, rng, opts)
+  if (order.length === 0) return []
+  const rounds = opts.only ? Math.min(n, order.length) : n
   const out: QuizQuestion[] = []
   let i = 0
-  while (out.length < n) {
+  while (out.length < rounds) {
     const target = order[i % order.length]
     i++
     let kind = CYCLE[out.length % CYCLE.length]

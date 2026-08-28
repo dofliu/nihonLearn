@@ -294,3 +294,59 @@ export function taskRow(page: Page, keyword: string) {
 export function statChip(page: Page, label: string) {
   return page.locator('.statChips .chip', { hasText: label })
 }
+
+/** 預埋一筆 N5 測驗紀錄（弱點追蹤用；askedRefs 省略＝模擬 v3.49 之前的舊紀錄） */
+export async function seedQuizResult(
+  page: Page,
+  weakRefs: string[],
+  askedRefs?: string[],
+  ts = Date.now(),
+) {
+  await page.evaluate(
+    async ({ weakRefs, askedRefs, ts }) => {
+      await new Promise<void>((resolve, reject) => {
+        const req = indexedDB.open('nihongo-michi')
+        req.onsuccess = () => {
+          const db = req.result
+          const tx = db.transaction('quizResults', 'readwrite')
+          const row: Record<string, unknown> = {
+            ts,
+            total: 10,
+            correct: 10 - weakRefs.length,
+            weakRefs,
+          }
+          if (askedRefs) row.askedRefs = askedRefs
+          tx.objectStore('quizResults').add(row)
+          tx.oncomplete = () => {
+            db.close()
+            resolve()
+          }
+          tx.onerror = () => reject(tx.error)
+        }
+        req.onerror = () => reject(req.error)
+      })
+    },
+    { weakRefs, askedRefs, ts },
+  )
+}
+
+/** 讀出 quizResults 全部紀錄（驗證 askedRefs 有沒有記到） */
+export async function quizRecords(page: Page) {
+  return page.evaluate(
+    () =>
+      new Promise<{ weakRefs: string[]; askedRefs?: string[] }[]>((resolve, reject) => {
+        const req = indexedDB.open('nihongo-michi')
+        req.onsuccess = () => {
+          const db = req.result
+          const tx = db.transaction('quizResults', 'readonly')
+          const all = tx.objectStore('quizResults').getAll()
+          all.onsuccess = () => {
+            db.close()
+            resolve(all.result as { weakRefs: string[]; askedRefs?: string[] }[])
+          }
+          all.onerror = () => reject(all.error)
+        }
+        req.onerror = () => reject(req.error)
+      }),
+  )
+}
