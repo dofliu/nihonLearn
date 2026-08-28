@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from 'react'
 import { VOCAB, type Vocab } from '../data/vocab'
 import { db } from '../db/schema'
-import { saveQuizResult, weakWordCounts, logActivity } from '../db/repo'
-import { generateQuiz, MIN_POOL, type QuizQuestion } from '../lib/quiz'
+import { saveQuizResult, quizWeakness, logActivity } from '../db/repo'
+import { generateQuiz, MIN_POOL, type QuizOpts, type QuizQuestion } from '../lib/quiz'
+import { CLEAR_STREAK } from '../lib/quizWeak'
 import { speak } from '../audio/tts'
 import { toast, ProgressBar } from '../components/ui'
 import { RubyText } from '../components/Ruby'
@@ -10,6 +11,7 @@ import { useApp } from '../state/store'
 
 const BY_JP = Object.fromEntries(VOCAB.map((v) => [v.jp, v])) as Record<string, Vocab>
 const QUIZ_N = 10
+const WEAK_SHOWN = 6 // 弱點卡最多列幾個（一輪仍會考到全部未克服的，上限 QUIZ_N）
 
 const KIND_LABEL: Record<QuizQuestion['kind'], string> = {
   meaning: '意味を選ぶ（日→中）',
@@ -23,6 +25,7 @@ export function QuizView({ onDone }: { onDone: () => void }) {
   const [mode, setMode] = useState<'home' | 'run' | 'result'>('home')
   const [learnedVocab, setLearnedVocab] = useState<Vocab[]>([])
   const [weak, setWeak] = useState<{ jp: string; zh: string; count: number }[]>([])
+  const [clearedCount, setClearedCount] = useState(0)
   const [qs, setQs] = useState<QuizQuestion[]>([])
   const [idx, setIdx] = useState(0)
   const [picked, setPicked] = useState<string | null>(null)
@@ -34,21 +37,22 @@ export function QuizView({ onDone }: { onDone: () => void }) {
     const cards = await db.cards.where('type').equals('vocab').toArray()
     const learned = cards.map((c) => BY_JP[c.refId]).filter(Boolean)
     setLearnedVocab(learned)
-    const counts = await weakWordCounts()
+    const entries = await quizWeakness()
     setWeak(
-      counts
-        .slice(0, 6)
-        .map((c) => ({ jp: c.refId, zh: BY_JP[c.refId]?.zh ?? '', count: c.count }))
+      entries
+        .filter((e) => !e.cleared)
+        .map((e) => ({ jp: e.refId, zh: BY_JP[e.refId]?.zh ?? '', count: e.wrong }))
         .filter((w) => w.zh),
     )
+    setClearedCount(entries.filter((e) => e.cleared && BY_JP[e.refId]).length)
   }, [])
 
   useEffect(() => {
     void refresh()
   }, [refresh])
 
-  function start() {
-    const generated = generateQuiz(learnedVocab, QUIZ_N)
+  function start(opts: QuizOpts = { priority: weak.map((w) => w.jp) }) {
+    const generated = generateQuiz(learnedVocab, QUIZ_N, Math.random, opts)
     if (generated.length === 0) {
       toast(`先學會至少 ${MIN_POOL} 個詞，再來測驗`)
       return
@@ -86,7 +90,9 @@ export function QuizView({ onDone }: { onDone: () => void }) {
     const finalWrong = Array.from(
       new Set(lastOk ? wrong : [...wrong, qs[idx].refId]),
     )
-    await saveQuizResult(qs.length, finalCorrect, finalWrong)
+    // askedRefs：這一輪考過的詞——有它才判定得出「答錯的詞後來克服了」（lib/quizWeak.ts）
+    const asked = Array.from(new Set(qs.map((q) => q.refId)))
+    await saveQuizResult(qs.length, finalCorrect, finalWrong, asked)
     await logActivity('quiz')
     setCorrect(finalCorrect)
     setMode('result')
@@ -149,7 +155,7 @@ export function QuizView({ onDone }: { onDone: () => void }) {
         )}
         <div className="card">
           <div className="row center">
-            <button className="btn" onClick={start}>
+            <button className="btn" onClick={() => start()}>
               再測一次
             </button>
             <button className="btn ghost" onClick={onDone}>
@@ -249,22 +255,31 @@ export function QuizView({ onDone }: { onDone: () => void }) {
         <p className="sub">
           從你<b>已學過的詞彙</b>出題（意味・語彙・聞き取り・並べ替え共 {QUIZ_N} 題）。
           題目全部來自已驗證資料，考的就是你學過的內容。
+          {weak.length > 0 && <>　以前<b>答錯過的詞會優先出題</b>。</>}
         </p>
         <div className="statChips">
           <span className="chip">
             可出題詞庫 <b>{learnedVocab.length}</b>
           </span>
+          {clearedCount > 0 && (
+            <span className="chip">
+              已克服 <b>{clearedCount}</b> 詞
+            </span>
+          )}
         </div>
         <div className="spacer" />
-        <button className="btn" onClick={start} disabled={learnedVocab.length < MIN_POOL}>
+        <button className="btn" onClick={() => start()} disabled={learnedVocab.length < MIN_POOL}>
           {learnedVocab.length < MIN_POOL ? `先學會 ${MIN_POOL} 個詞` : '開始測驗'}
         </button>
       </div>
 
       {weak.length > 0 && (
         <div className="card">
-          <div className="eyebrow">弱點分析（最常答錯）</div>
-          {weak.map((w) => (
+          <div className="eyebrow">弱點分析（答錯過、還沒克服）</div>
+          <p className="sub">
+            答錯過的詞會留在這裡；之後再考到、<b>連續答對 {CLEAR_STREAK} 次就會消失</b>。
+          </p>
+          {weak.slice(0, WEAK_SHOWN).map((w) => (
             <div key={w.jp} className="wordRow" onClick={() => speak(w.jp, 0.85)}>
               <span className="wj">{w.jp} 🔊</span>
               <span className="wz">
@@ -272,6 +287,17 @@ export function QuizView({ onDone }: { onDone: () => void }) {
               </span>
             </div>
           ))}
+          {weak.length > WEAK_SHOWN && (
+            <p className="sub">…等共 {weak.length} 詞</p>
+          )}
+          <div className="spacer" />
+          <button
+            className="btn small red"
+            onClick={() => start({ only: weak.map((w) => w.jp) })}
+            disabled={learnedVocab.length < MIN_POOL}
+          >
+            🎯 只考弱點（{Math.min(weak.length, QUIZ_N)} 詞）
+          </button>
         </div>
       )}
 

@@ -5,6 +5,7 @@ import { extraDays } from '../lib/activity'
 import { KANA_BY_ID } from '../data/kana'
 import type { Card as FSRSCard } from 'ts-fsrs'
 import { TASKS } from '../data/tasks'
+import { weakStats, type WeakEntry } from '../lib/quizWeak'
 
 /** 每日五項修行的定義（純資料檔 `data/tasks.ts`，供 Node 測試直接 import） */
 export { TASKS }
@@ -197,24 +198,22 @@ export async function perSentenceBest() {
 }
 
 // ---------- N5 模擬測驗 ----------
-export async function saveQuizResult(total: number, correct: number, weakRefs: string[]) {
-  await db.quizResults.add({ ts: Date.now(), total, correct, weakRefs })
+export async function saveQuizResult(
+  total: number,
+  correct: number,
+  weakRefs: string[],
+  askedRefs: string[] = [],
+) {
+  await db.quizResults.add({ ts: Date.now(), total, correct, weakRefs, askedRefs })
 }
 
-/** 依時間新到舊的測驗紀錄。 */
-export async function listQuizResults() {
+/**
+ * 跨紀錄聚合弱點（答錯次數、最後一次答錯之後的連對次數、是否已克服）。
+ * 判定邏輯在純函式 `lib/quizWeak.ts weakStats`（可被 Node 測試）。
+ */
+export async function quizWeakness(): Promise<WeakEntry[]> {
   const rows = await db.quizResults.toArray()
-  return rows.sort((a, b) => b.ts - a.ts)
-}
-
-/** 跨紀錄聚合最常答錯的詞（refId → 次數），多到少。 */
-export async function weakWordCounts(): Promise<{ refId: string; count: number }[]> {
-  const rows = await db.quizResults.toArray()
-  const map = new Map<string, number>()
-  for (const r of rows) for (const ref of r.weakRefs) map.set(ref, (map.get(ref) || 0) + 1)
-  return [...map.entries()]
-    .map(([refId, count]) => ({ refId, count }))
-    .sort((a, b) => b.count - a.count)
+  return weakStats(rows)
 }
 
 // ---------- 假名書寫練習成績 ----------

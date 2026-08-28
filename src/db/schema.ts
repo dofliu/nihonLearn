@@ -102,6 +102,12 @@ export interface QuizResult {
   total: number
   correct: number
   weakRefs: string[] // 答錯的 vocab.jp（弱項聚合用）
+  /**
+   * 該次出過題的 vocab.jp（v3.49 起記錄）。有了「考過但沒答錯」才判定得出
+   * 「答錯的詞後來克服了」（見 `lib/quizWeak.ts`）——舊紀錄沒有這個欄位，
+   * 一律視為未知、不算答對。非索引欄位，故不需升 Dexie 版本。
+   */
+  askedRefs?: string[]
 }
 
 /** 假名書寫練習的成績（每個假名字元存最佳分數與練習次數）。 */

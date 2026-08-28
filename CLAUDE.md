@@ -40,7 +40,7 @@ src/
   db/         schema(Dexie v8)・repo（任務計數、蓋章、卡片、發音紀錄、生成句）
   srs/        scheduler：ts-fsrs 封裝（newCard/review/isDue/isMastered）
   audio/      tts（VOICEVOX▸原生▸WebSpeech 門面 + 逐字 boundary 回呼）・scorer（相似度 + ASR + whisper 錄音 + mora 型別）
-  lib/        date・importV1（v1→v2 遷移 + 備份匯出）・content（生成 client + 持久化審核佇列 + 採用）・listening（聽力理解＋JLPT 題型出題，純函式）・articles（NHK Easy 導入 client + 採用）・llm（Gemini 直連 + 金鑰/模型本機儲存）・llmParse（Gemini 回應純解析）・coverage（覆蓋率檢核，無依賴）・pitch（mora 切分 + 東京式 pattern）・sidecar（base URL 抽象 + probeHealth）・vocabGate（詞彙隨假名解鎖，純函式）・quiz（N5 模擬測驗出題，純函式）・karaoke（朗讀逐字上色對齊，純函式）・furigana（漢字↔假名注音對齊，純函式）・handwriting（手寫字形相似度評分，純函式）・activity（學習活動統計，純函式）・kanaChart（五十音圖表格結構＋拗音規則推導，純函式）・yoonDrill（拗音出題與分層誘答，純函式）・patternDrill（句型×已學單字組句，純函式）・patternRound（回想テスト一輪制取樣／結算／只練沒說對的，純函式）・dialogueRound（会話暗記モード遮罩／結算，純函式）・taskFlow（某項修行達標→下一項的動線，純函式）・roleplay（自由対話場景/prompt/歷史組裝，純函式）・recentScenes（自由対話最近用過的自訂場景，localStorage、純函式）・scoreReveal（分數等第／數字滾動／環形幾何，純函式）・tutorQuiz（助教「考我」出題＋講評 prompt/解析，純函式）・followUp（跟讀例句／会話腳本的 AI 追問 prompt/解析，純函式）・patternCompose（自由造句句型骨架程式檢核＋講評 prompt，純函式）・voiceInput（語音輸入候選挑選/合併/錯誤訊息，純函式）・vocabBook（單字帳查詢/篩選/分組/狀態標記，純函式）
+  lib/        date・importV1（v1→v2 遷移 + 備份匯出）・content（生成 client + 持久化審核佇列 + 採用）・listening（聽力理解＋JLPT 題型出題，純函式）・articles（NHK Easy 導入 client + 採用）・llm（Gemini 直連 + 金鑰/模型本機儲存）・llmParse（Gemini 回應純解析）・coverage（覆蓋率檢核，無依賴）・pitch（mora 切分 + 東京式 pattern）・sidecar（base URL 抽象 + probeHealth）・vocabGate（詞彙隨假名解鎖，純函式）・quiz（N5 模擬測驗出題＋弱點優先/特訓選項，純函式）・quizWeak（測驗弱點追蹤：答對會退，純函式）・karaoke（朗讀逐字上色對齊，純函式）・furigana（漢字↔假名注音對齊，純函式）・handwriting（手寫字形相似度評分，純函式）・activity（學習活動統計，純函式）・kanaChart（五十音圖表格結構＋拗音規則推導，純函式）・yoonDrill（拗音出題與分層誘答，純函式）・patternDrill（句型×已學單字組句，純函式）・patternRound（回想テスト一輪制取樣／結算／只練沒說對的，純函式）・dialogueRound（会話暗記モード遮罩／結算，純函式）・taskFlow（某項修行達標→下一項的動線，純函式）・roleplay（自由対話場景/prompt/歷史組裝，純函式）・recentScenes（自由対話最近用過的自訂場景，localStorage、純函式）・scoreReveal（分數等第／數字滾動／環形幾何，純函式）・tutorQuiz（助教「考我」出題＋講評 prompt/解析，純函式）・followUp（跟讀例句／会話腳本的 AI 追問 prompt/解析，純函式）・patternCompose（自由造句句型骨架程式檢核＋講評 prompt，純函式）・voiceInput（語音輸入候選挑選/合併/錯誤訊息，純函式）・vocabBook（單字帳查詢/篩選/分組/狀態標記，純函式）
   state/      store（zustand：今日/streak/rate/tts/showKanji）
   views/      Today・Kana(含 Write 書寫練習・五十音圖一覽表・拗音ドリル)・Listen(含 Pitch)・Speak(含 Dialogue 会話〔看稿／暗記モード〕＋Roleplay 自由対話，跟読與会話走完皆可 AI 追問)・Read・Progress・Review・Pattern(文型ドリル，含自由造句)
   components/ Nav・ui(toast/大印/進度條/動線提示條)・KanaChart(五十音圖)・YoonDrill(拗音ドリル)・VocabCard・VocabBook(單字帳：搜尋/收合/狀態標記)・Karaoke・Ruby・StrokeOrder・FollowUp(跟讀追問)・VoiceInput(共用麥克風鈕)・ScoreReveal(分數揭曉：環形進度＋數字滾動＋等第徽章)
@@ -824,6 +824,46 @@ import 路徑一律不變）。
 → 提示條重新出現寫「還差 3 項」→ 自己換分頁自動收起。stamp.spec 加一行：最後一項完成當下
 **不出現動線提示**、走蓋章大印）、`npm run build` strict 綠燈。
 
+v3.49（弱點復習：測驗答錯的詞練得到、也退得掉）：這一版修的是一條**死路**——v3.4 起
+N5 模擬測驗每次把答錯的詞存進 `quizResults.weakRefs`，首頁列出「弱點分析（最常答錯）」，
+但那份清單**看得到、練不到、也永遠不會消失**：①`generateQuiz` 從全部已學詞均勻取樣，
+答錯過的詞不會多出一次；②計數只累加——三個月前錯過一次的詞，之後每次都答對，仍舊掛在
+「最常答錯」上。對每天只練 10 分鐘的人，這等於「系統告訴你哪裡弱，然後什麼也沒發生」，
+而且那份清單會越長越沒有參考價值（與 v3.46「自評結果沒被用到」是同一種破口）。
+這次兩件事一起補：
+①**答對會退**：新純函式 `lib/quizWeak.ts`（`weakStats` 逐筆依時間累計每個曾答錯的詞的
+「答錯次數／最後一次答錯之後的連對次數」、`weakRefIds`／`clearedRefIds`／`weakSummary`、
+常數 `CLEAR_STREAK`＝2）——答錯 → 次數 +1、連對歸零；之後**考到而沒答錯** → 連對 +1；
+連對 2 次即「克服」，從弱點清單移到首頁的「已克服 n 詞」chip（克服後再答錯會重新入列）。
+判定需要「這一輪考過哪些詞」，故 `QuizResult` 新增 `askedRefs`（`saveQuizResult` 第四參數，
+`QuizView.finish` 傳入該輪 refId）——**非索引欄位，Dexie 版本維持 v8 不動**（`version().stores()`
+只宣告索引）；**舊紀錄沒有這個欄位 → 答對無從得知 → 連對不增加 → 一律留在清單上**
+（寧可多留，不誤判為已克服，有測試釘住）。
+②**練得到**：`generateQuiz` 加**可選**第四參數 `QuizOpts`——`priority`（這些詞先出，
+出完才輪到其他已學詞）與 `only`（只從這些詞出題，**誘答仍取自全部已學詞**，所以弱點只有
+1 個也出得了四選一）。不給 opts 時**與舊版逐字相同**（有測試釘住）。`only` 一輪的題數＝
+min(n, 命中詞數)，**每個弱點詞剛好考一次**（3 個詞就是 3 題的短輪——比硬湊成 10 題誠實）。
+UI：弱點卡改名「弱點分析（答錯過、還沒克服）」並說明「連續答對 2 次就會消失」，加一顆
+「🎯 只考弱點（n 詞）」直接開一輪特訓；一般測驗則自動帶 `priority`，首頁文案明講
+「以前答錯過的詞會優先出題」（不做沒說出口的暗箱調整）。順手刪掉被取代的 `repo.weakWordCounts` 與從未被呼叫過的 `repo.listQuizResults`（死碼）。
+**刻意不動的部分**：題目與誘答仍全部來自已驗證的 `data/vocab`、不經 LLM；測驗仍是
+**選配加練**（`logActivity('quiz')` 時機不變、不卡蓋章、不進 SRS——弱點追蹤是測驗自己的紀錄，
+與 FSRS 卡片狀態互不干涉）；不動 Dexie schema 版本、不動蓋章判定、不新增 CSS。
+
+測試：`npm test` 786/786（新增 5aj 共 35 項：`weakStats` 十二情境（沒答錯的不入列／累計／
+連對／連對 2 次克服／克服後再錯歸零／沒考到的輪次不影響連對／同輪重複只算一次／紀錄順序顛倒
+不影響／**舊紀錄無 askedRefs 不會被誤判為克服**／最後答錯時間），排序三項（未克服優先、
+答錯多的優先、可重現），衍生查詢五項（weak 與 cleared 不重疊、summary 加總、空輸入全 0），
+`generateQuiz` 出題選項十五項（**不給 opts 與舊版逐字相同**、priority 弱點排最前且題數不變、
+priority 空陣列＝不給、priority 含不存在的詞不會壞、only 只出弱點詞且每詞剛好一次、
+超過 n 時只出 n 題、只有 1 個弱點仍是四選一、一個都沒命中／空陣列回空輪、
+已學詞不足 MIN_POOL 時任何 opts 都回空輪、同 seed 可重現、端到端「特訓兩輪全對即克服」））、
+`npm run test:e2e` 92/92（quiz.spec 新增兩項：預埋一筆答錯紀錄 → 弱點卡列出該詞 →
+「只考弱點（2 詞）」開出剛好 2 題的短輪 → 全對一輪仍在清單（連對 1 次）→ 再全對一輪
+→ 弱點卡消失且出現「已克服 2 詞」；一般測驗第 1 題題幹就是那個答錯過的詞。既有 10 題流程
+延伸驗證 `askedRefs` 有寫進 `quizResults`；`e2e/helpers.ts` 新增 `seedQuizResult`／`quizRecords`）、
+`npm run build` strict 綠燈。
+
 ---
 
 ## ⭐ 本機實測任務（此專案轉到 Claude Code 的主因）
@@ -919,7 +959,7 @@ Claude Code 在本機可以真正跑起來、觀察、修正。建議依序進�
 
 ## 提交前檢查
 
-`npm run build`（strict 綠燈）＋ `npm test`（751/751）＋ `npm run test:e2e`（90/90）
+`npm run build`（strict 綠燈）＋ `npm test`（786/786）＋ `npm run test:e2e`（92/92）
 ＋（動到 sidecar 時）`python sidecar/test_score.py` 與 `python sidecar/test_article.py`。
 新功能盡量補測：純邏輯進 `tests/integration.ts`，UI 流程進 `e2e/*.spec.ts`（共用步驟放
 `e2e/helpers.ts`），後端進 `test_score.py`。
