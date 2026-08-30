@@ -1,5 +1,7 @@
 import { test, expect, type Page } from '@playwright/test'
-import { gotoApp, openExtra, fakeSpeechRecognition } from './helpers'
+import { gotoApp, openExtra, fakeSpeechRecognition, activityCount } from './helpers'
+import { PATTERNS } from '../src/data/patterns'
+import { particleOf, restAfterParticle } from '../src/lib/particleDrill'
 
 function geminiText(text: string) {
   return { candidates: [{ content: { parts: [{ text }] } }] }
@@ -169,5 +171,97 @@ test.describe('文型ドリル ─ 自由造句', () => {
     await expect(page.locator('.composeCk .ckLine').first()).toHaveClass(/ok/)
     await expect(page.locator('.composeCk .ckLine').nth(1)).toContainText('みず')
     await expect(mic).toHaveCount(0)
+  })
+})
+
+test.describe('文型ドリル ─ 助詞クイズ', () => {
+  /**
+   * 由畫面上的挖空句與中文對照，回推這一題出自哪個已驗證句型（＝正解助詞）。
+   * 用的是 App 自己那份 `data/patterns.ts`，所以測試不需要另外手打助詞。
+   */
+  function correctParticle(sentence: string, zh: string): string {
+    const hit = PATTERNS.filter(
+      (p) =>
+        !p.noParticleQuiz &&
+        sentence.endsWith(restAfterParticle(p)) &&
+        zh.startsWith(p.zhPre) &&
+        zh.endsWith(p.zhPost),
+    )
+    expect(hit.length, `「${sentence}／${zh}」對得上唯一句型`).toBe(1)
+    return particleOf(hit[0])!
+  }
+
+  test('一輪 8 題：答完不自動跳題、結算列出答錯的句型並記入学習記録', async ({ page }) => {
+    await gotoApp(page)
+    await openExtra(page, /文型ドリル/)
+    await page.getByRole('button', { name: /助詞クイズ/ }).click()
+
+    // 這個模式混合各句型，故上方的句型選單收起來
+    await expect(page.locator('main')).not.toContainText('選一個句型')
+    await expect(page.locator('main')).toContainText('教科書句型固定用哪個助詞')
+
+    const bar = page.locator('[role="progressbar"]')
+    await expect(bar).toHaveAttribute('aria-valuenow', '0')
+    const total = Number(await bar.getAttribute('aria-valuemax'))
+    expect(total).toBe(8)
+
+    let wrongLabel = ''
+    for (let i = 0; i < total; i++) {
+      await expect(bar).toHaveAttribute('aria-valuenow', String(i))
+      const sentence = await page.locator('.sent').innerText()
+      const zh = await page.locator('.sentZh').innerText()
+      expect(sentence).toContain('（　）') // 助詞挖空
+      const answer = correctParticle(sentence, zh)
+      const opts = await page.locator('.qopt').allInnerTexts()
+      expect(opts.length).toBe(4)
+      expect(opts).toContain(answer)
+
+      // 第 1 題故意選錯（結算要挑得出這個句型），其餘選對
+      const pick = i === 0 ? opts.find((o) => o !== answer)! : answer
+      await page.locator('.qopt', { hasText: new RegExp(`^${pick}$`) }).click()
+
+      // 揭曉：正解上色、句子補上助詞、附教科書句型與用法提示
+      await expect(page.locator('.qopt.ok')).toHaveText(answer)
+      await expect(page.locator('.sent')).toContainText(answer)
+      await expect(page.locator('.slotWord')).toContainText('教科書句型')
+      if (i === 0) {
+        await expect(page.locator('.qopt.ng')).toHaveText(pick)
+        wrongLabel = (await page.locator('.slotWord b').first().innerText()).trim()
+      }
+
+      // 不自動跳題：進度停在原地，要自己按下一題
+      await expect(bar).toHaveAttribute('aria-valuenow', String(i))
+      await expect(page.locator('.sent')).toContainText(answer)
+      await page.getByRole('button', { name: i + 1 >= total ? /完成/ : /下一題/ }).click()
+    }
+
+    // 結算：答對 7 / 8，並列出答錯的那個句型
+    await expect(page.locator('.recallZh')).toContainText(`答對 ${total - 1} / ${total}`)
+    await expect(page.locator('main')).toContainText('再看一次這幾個句型的固定說法')
+    await expect(page.locator('.composeCk')).toContainText(wrongLabel)
+    await expect(bar).toHaveAttribute('aria-valuenow', String(total))
+
+    // 選配加練：記入学習記録（沿用 pattern feature key），但不影響核心修行
+    expect(await activityCount(page, 'pattern')).toBe(total)
+
+    // 再來一輪 → 進度歸零
+    await page.getByRole('button', { name: /再來一輪/ }).click()
+    await expect(bar).toHaveAttribute('aria-valuenow', '0')
+    await expect(bar).toHaveAttribute('aria-valuemax', String(total))
+  })
+
+  test('切回練習模式後句型選單與原本選的句型都還在', async ({ page }) => {
+    await gotoApp(page)
+    await openExtra(page, /文型ドリル/)
+    await page.locator('.patGrid .passBtn', { hasText: '在哪裡' }).click()
+
+    await page.getByRole('button', { name: /助詞クイズ/ }).click()
+    await expect(page.locator('main')).not.toContainText('選一個句型')
+    // 移動句型（へ／に 兩種都有出現）不出題，說明文案要講清楚
+    await expect(page.locator('main')).toContainText('故不出題')
+
+    await page.getByRole('button', { name: /📖 練習/ }).click()
+    await expect(page.locator('main')).toContainText('選一個句型')
+    await expect(page.locator('.sentZh')).toContainText('在哪裡')
   })
 })

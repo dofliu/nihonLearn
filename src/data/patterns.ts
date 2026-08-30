@@ -10,6 +10,8 @@
  *  1. `post`（詞後接續）與 `pre`（詞前）一律純假名——確保能與帶漢字的詞組出可還原的 alt。
  *  2. `cats` 限定的**每個**詞填進去語意都通（如「〜をください」對整個「食べ物／物」類都成立），
  *     故不放需分辨「可吃／可喝」的動詞句型（たべます／のみます），避免「コーヒーをたべます」這種錯配。
+ *  3. `post` 一律是「助詞＋空白＋接續」的形狀——助詞クイズ（lib/particleDrill.ts）直接取這個
+ *     開頭 token 當正解，不另外手打助詞清單。形狀不符者自動不出題（降級不中斷）。
  */
 
 export interface Pattern {
@@ -30,6 +32,13 @@ export interface Pattern {
   cats: string[]
   /** 用法小提示（中文） */
   note: string
+  /**
+   * 標了本欄的句型**不出助詞クイズ**（`lib/particleDrill.ts`），字串為排除理由。
+   * 目前只用在兩個移動句型：本題庫的 `ikimasu` 用 へ、`ikitai` 用 に——
+   * **資料本身就顯示兩個助詞都接得上移動動詞**，程式無從判斷某一句裡另一個是否也成立，
+   * 故整個排除（寧可不出題，不要判錯）。
+   */
+  noParticleQuiz?: string
 }
 
 export const PATTERNS: Pattern[] = [
@@ -98,6 +107,7 @@ export const PATTERNS: Pattern[] = [
     zhPost: '',
     cats: ['場所'],
     note: '說要去某個地方。助詞「へ」在此唸作 e。',
+    noParticleQuiz: '本題庫的移動句型 へ／に 兩種都有出現，程式無從判斷單句中另一個是否也成立',
   },
   {
     id: 'onegai',
@@ -153,6 +163,7 @@ export const PATTERNS: Pattern[] = [
     zhPost: '',
     cats: ['場所'],
     note: '表達「想去某個地方」的願望。「〜たいです」＝想要做。',
+    noParticleQuiz: '本題庫的移動句型 へ／に 兩種都有出現，程式無從判斷單句中另一個是否也成立',
   },
   {
     id: 'takai',
