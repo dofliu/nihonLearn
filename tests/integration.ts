@@ -112,6 +112,18 @@ import {
   roundNote,
   ROUND_SIZE,
 } from '../src/lib/patternRound.ts'
+import {
+  particleOf,
+  restAfterParticle,
+  quizPatterns,
+  PARTICLE_CHOICES,
+  buildParticleQuestion,
+  buildParticleRound,
+  particleSummary,
+  missedPatterns,
+  particleNote,
+  ROUND_SIZE as PARTICLE_ROUND_SIZE,
+} from '../src/lib/particleDrill.ts'
 import { KANJI_STROKES, KANJI_STROKE_VIEWBOX } from '../src/data/kanjiStrokes.ts'
 import { strokeStart, refStrokeStarts, judgeStrokeOrder, pathEnd, strokeVector } from '../src/lib/strokeOrder.ts'
 import { sentencePrompts, patternPrompts, kaiwaPrompts, tutorPrompts, filterPrompts, pickPrompt, buildQuizSystem, buildQuizUser, parseCritique, VERDICT_LABEL, SOURCE_TABS } from '../src/lib/tutorQuiz.ts'
@@ -2384,6 +2396,156 @@ console.log('=== 5aj. 測驗弱點追蹤（答對會退＋弱點特訓出題） 
     const recs = [rec(1, [A], [A]), rec(2, [], asked), rec(3, [], asked)]
     return weakRefIds(recs).length === 0 && clearedRefIds(recs)[0] === A
   })())
+}
+
+console.log('=== 5ak. 助詞クイズ（文型ドリル 第四模式，純函式） ===')
+{
+  const empty = new Set<string>()
+  const qps = quizPatterns()
+  const byId = (id: string) => PATTERNS.find((p) => p.id === id)!
+
+  // ---- particleOf / restAfterParticle：正解一律取自已驗證模板，不手打助詞 ----
+  ok('助詞取自 post 開頭 token（〜を ください → を）', particleOf(byId('kudasai')) === 'を')
+  ok('兩字助詞也取得到（まで）', particleOf(byId('made')) === 'まで')
+  ok('全部句型都解析得出助詞', PATTERNS.every((p) => particleOf(p) !== null))
+  ok('解析出的助詞逐個都是 post 的開頭', PATTERNS.every((p) => p.post.startsWith(particleOf(p)! + ' ')))
+  ok('助詞＋空白＋接續可還原原 post', PATTERNS.every((p) => `${particleOf(p)} ${restAfterParticle(p)}` === p.post))
+  ok('接續非空（〜を ください → ください）', restAfterParticle(byId('kudasai')) === 'ください')
+  ok('post 沒有空白 → 不出題（回 null）', particleOf({ ...byId('kudasai'), post: 'ください' }) === null)
+  ok('post 只有助詞沒有接續 → 回 null', particleOf({ ...byId('kudasai'), post: 'を ' }) === null)
+  ok('開頭 token 過長（非助詞形狀）→ 回 null', particleOf({ ...byId('kudasai'), post: 'ください よ' }) === null)
+  ok('形狀不符的句型自動不出題（降級不中斷）',
+    quizPatterns([{ ...byId('kudasai'), post: 'ください' }]).length === 0)
+
+  // ---- quizPatterns：移動句型排除是資料層的欄位，不是程式裡的黑名單 ----
+  ok('移動句型標了 noParticleQuiz 並附理由',
+    Boolean(byId('ikimasu').noParticleQuiz) && Boolean(byId('ikitai').noParticleQuiz))
+  ok('標了 noParticleQuiz 的都不在題庫', !qps.some((p) => p.noParticleQuiz))
+  ok('沒標的全部都在題庫', PATTERNS.filter((p) => !p.noParticleQuiz).every((p) => qps.some((q) => q.id === p.id)))
+  ok('題庫＝全部句型扣掉排除的兩個', qps.length === PATTERNS.length - 2)
+  ok('へ／に 兩個助詞都出現在原始資料（＝排除的理由成立）',
+    PATTERNS.some((p) => particleOf(p) === 'へ') && PATTERNS.some((p) => particleOf(p) === 'に'))
+
+  // ---- PARTICLE_CHOICES：選項池只從可出題句型推導 ----
+  ok('選項池＝可出題句型用到的助詞（去重）',
+    PARTICLE_CHOICES.join(',') === [...new Set(qps.map((p) => particleOf(p)!))].join(','))
+  ok('選項池不含被排除句型的助詞 へ／に', !PARTICLE_CHOICES.includes('へ') && !PARTICLE_CHOICES.includes('に'))
+  ok('選項池至少 4 個（湊得出四選一）', PARTICLE_CHOICES.length >= 4)
+  ok('選項池不重複', new Set(PARTICLE_CHOICES).size === PARTICLE_CHOICES.length)
+
+  // ---- buildParticleQuestion：一題的組成 ----
+  const w = VOCAB.find((v) => v.jp === 'みず')!
+  const q1 = buildParticleQuestion(byId('kudasai'), w, seededRng(1))!
+  ok('空格前＝pre＋詞、空格後＝助詞之後的接續', q1.before === 'みず' && q1.after === 'ください')
+  ok('前＋助詞＋空白＋後＝完整句（與 patternDrill 一致）',
+    q1.jp === `${q1.before}${q1.particle} ${q1.after}` && q1.jp === buildItem(byId('kudasai'), w, empty).jp)
+  ok('中文對照與 patternDrill 一致', q1.zh === buildItem(byId('kudasai'), w, empty).zh)
+  ok('四選一且互異', q1.options.length === 4 && new Set(q1.options).size === 4)
+  ok('正解在選項內', q1.options.includes(q1.particle))
+  ok('誘答全部來自選項池', q1.options.every((o) => PARTICLE_CHOICES.includes(o)))
+  ok('每個可出題句型 × 每個詞都組得出一題，且正解＝該句型的助詞', qps.every((p) =>
+    poolFor(p).every((v) => {
+      const q = buildParticleQuestion(p, v, seededRng(2))
+      return q !== null && q.particle === particleOf(p) && q.options.includes(q.particle)
+    })))
+  ok('被排除的句型即使直接呼叫也組得出題（排除發生在題庫層）',
+    buildParticleQuestion(byId('ikimasu'), VOCAB.find((v) => v.jp === 'がっこう')!, seededRng(2))?.particle === 'へ')
+  ok('形狀不符的句型 → 回 null', buildParticleQuestion({ ...byId('kudasai'), post: 'ください' }, w, seededRng(2)) === null)
+  ok('已學過的詞 fallback 為 false', buildParticleQuestion(byId('kudasai'), w, seededRng(2), new Set(['みず']))!.fallback === false)
+  ok('沒學過的詞標成 fallback', buildParticleQuestion(byId('kudasai'), w, seededRng(2), empty)!.fallback === true)
+
+  // ---- buildParticleRound：一輪 ----
+  ok('一輪 ROUND_SIZE 題', PARTICLE_ROUND_SIZE === 8 && buildParticleRound(empty, PARTICLE_ROUND_SIZE, seededRng(3)).length === 8)
+  ok('題數 ≤ 句型數時句型不重複', (() => {
+    const r = buildParticleRound(empty, 8, seededRng(4))
+    return new Set(r.map((q) => q.patternId)).size === r.length
+  })())
+  ok('一輪的每一題都是可出題句型', buildParticleRound(empty, 8, seededRng(5)).every((q) => qps.some((p) => p.id === q.patternId)))
+  ok('一輪不含被排除的移動句型', buildParticleRound(empty, 10, seededRng(6)).every((q) => q.patternId !== 'ikimasu' && q.patternId !== 'ikitai'))
+  ok('同 seed 可重現', (() => {
+    const a = buildParticleRound(empty, 8, seededRng(7)).map((q) => q.patternId + q.word.jp).join(',')
+    const b = buildParticleRound(empty, 8, seededRng(7)).map((q) => q.patternId + q.word.jp).join(',')
+    return a === b
+  })())
+  ok('不同 seed 會換一組', (() => {
+    const a = buildParticleRound(empty, 8, seededRng(7)).map((q) => q.patternId).join(',')
+    const b = buildParticleRound(empty, 8, seededRng(21)).map((q) => q.patternId).join(',')
+    return a !== b
+  })())
+  ok('題數超過句型數時仍補滿（句型繞回）', buildParticleRound(empty, 10, seededRng(8)).length === 10)
+  ok('n = 0 → 空輪', buildParticleRound(empty, 0, seededRng(1)).length === 0)
+  ok('n 為負 → 空輪（不炸）', buildParticleRound(empty, -3, seededRng(1)).length === 0)
+  ok('沒有可出題句型 → 空輪', buildParticleRound(empty, 8, seededRng(1), [byId('ikimasu')]).length === 0)
+  ok('rng 邊界 0／1 都不越界', (() => {
+    const a = buildParticleRound(empty, 8, () => 0)
+    const b = buildParticleRound(empty, 8, () => 1)
+    return a.length === 8 && b.length === 8 && [...a, ...b].every((q) => q.options.length === 4 && q.options.includes(q.particle))
+  })())
+  ok('已學過的詞優先出現在一輪中', (() => {
+    const learnedSet = new Set(poolFor(byId('kudasai')).slice(0, 6).map((v) => v.jp))
+    const r = buildParticleRound(learnedSet, 8, seededRng(9))
+    return r.filter((q) => q.patternId === 'kudasai').every((q) => learnedSet.has(q.word.jp))
+  })())
+  ok('30 個 seed 掃得到每一個可出題句型', (() => {
+    const seen = new Set<string>()
+    for (let s2 = 1; s2 <= 30; s2++) for (const q of buildParticleRound(empty, 8, seededRng(s2))) seen.add(q.patternId)
+    return seen.size === qps.length
+  })())
+
+  // ---- 結算 ----
+  const r8 = buildParticleRound(empty, 8, seededRng(11))
+  ok('未作答：answered 0、pct 0', (() => {
+    const s2 = particleSummary(r8, [])
+    return s2.total === 8 && s2.answered === 0 && s2.ok === 0 && s2.wrong === 0 && s2.pct === 0
+  })())
+  ok('答到一半：pct 以整輪為分母', (() => {
+    const s2 = particleSummary(r8, [true, true, false, true])
+    return s2.answered === 4 && s2.ok === 3 && s2.wrong === 1 && s2.pct === Math.round((3 / 8) * 100)
+  })())
+  ok('全對：pct 100', particleSummary(r8, Array(8).fill(true)).pct === 100)
+  ok('全錯：ok 0、wrong 8', (() => {
+    const s2 = particleSummary(r8, Array(8).fill(false))
+    return s2.ok === 0 && s2.wrong === 8 && s2.pct === 0
+  })())
+  ok('marks 超量不會超過整輪題數', particleSummary(r8, Array(20).fill(true)).ok === 8)
+  ok('空輪不除以零', (() => {
+    const s2 = particleSummary([], [])
+    return s2.total === 0 && s2.pct === 0
+  })())
+  ok('ok + wrong = answered', (() => {
+    const s2 = particleSummary(r8, [true, false, false])
+    return s2.ok + s2.wrong === s2.answered
+  })())
+
+  // ---- missedPatterns ----
+  ok('答錯的句型被取出（去重、維持順序）', (() => {
+    const m = missedPatterns(r8, [false, true, false])
+    return m.length === 2 && m[0].id === r8[0].patternId && m[1].id === r8[2].patternId
+  })())
+  ok('全對 → 沒有要複習的句型', missedPatterns(r8, Array(8).fill(true)).length === 0)
+  ok('沒作答的題不算答錯', missedPatterns(r8, [true]).length === 0)
+  ok('同一句型答錯兩次只列一次', (() => {
+    const r = [r8[0], r8[0], r8[1]]
+    return missedPatterns(r, [false, false, false]).length === 2
+  })())
+  ok('列出的句型都有 label 與用法提示', missedPatterns(r8, Array(8).fill(false)).every((p) => p.label && p.note))
+
+  // ---- particleNote：一句話中文提示 ----
+  ok('全對／錯一題／全錯／錯多題 四種提示互異且非空', (() => {
+    const notes = [
+      particleNote(particleSummary(r8, Array(8).fill(true))),
+      particleNote(particleSummary(r8, [false, ...Array(7).fill(true)])),
+      particleNote(particleSummary(r8, Array(8).fill(false))),
+      particleNote(particleSummary(r8, [false, false, ...Array(6).fill(true)])),
+    ]
+    return notes.every((n) => n.length > 0) && new Set(notes).size === 4
+  })())
+  ok('錯多題時帶出題數', particleNote(particleSummary(r8, [false, false, ...Array(6).fill(true)])).includes('2'))
+  ok('全對不會叫人再看句型', !particleNote(particleSummary(r8, Array(8).fill(true))).includes('再看'))
+  ok('提示不含「分」字（這是答對題數，不是評分等第）',
+    [particleSummary(r8, Array(8).fill(true)), particleSummary(r8, Array(8).fill(false)), particleSummary([], [])]
+      .every((s2) => !particleNote(s2).includes('分')))
+  ok('空輪也有提示', particleNote(particleSummary([], [])).length > 0)
 }
 
 console.log('=== 6. 資料完整性 ===')

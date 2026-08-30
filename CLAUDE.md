@@ -40,9 +40,9 @@ src/
   db/         schema(Dexie v8)・repo（任務計數、蓋章、卡片、發音紀錄、生成句）
   srs/        scheduler：ts-fsrs 封裝（newCard/review/isDue/isMastered）
   audio/      tts（VOICEVOX▸原生▸WebSpeech 門面 + 逐字 boundary 回呼）・scorer（相似度 + ASR + whisper 錄音 + mora 型別）
-  lib/        date・importV1（v1→v2 遷移 + 備份匯出）・content（生成 client + 持久化審核佇列 + 採用）・listening（聽力理解＋JLPT 題型出題，純函式）・articles（NHK Easy 導入 client + 採用）・llm（Gemini 直連 + 金鑰/模型本機儲存）・llmParse（Gemini 回應純解析）・coverage（覆蓋率檢核，無依賴）・pitch（mora 切分 + 東京式 pattern）・sidecar（base URL 抽象 + probeHealth）・vocabGate（詞彙隨假名解鎖，純函式）・quiz（N5 模擬測驗出題＋弱點優先/特訓選項，純函式）・quizWeak（測驗弱點追蹤：答對會退，純函式）・karaoke（朗讀逐字上色對齊，純函式）・furigana（漢字↔假名注音對齊，純函式）・handwriting（手寫字形相似度評分，純函式）・activity（學習活動統計，純函式）・kanaChart（五十音圖表格結構＋拗音規則推導，純函式）・yoonDrill（拗音出題與分層誘答，純函式）・patternDrill（句型×已學單字組句，純函式）・patternRound（回想テスト一輪制取樣／結算／只練沒說對的，純函式）・dialogueRound（会話暗記モード遮罩／結算，純函式）・taskFlow（某項修行達標→下一項的動線，純函式）・roleplay（自由対話場景/prompt/歷史組裝，純函式）・recentScenes（自由対話最近用過的自訂場景，localStorage、純函式）・scoreReveal（分數等第／數字滾動／環形幾何，純函式）・tutorQuiz（助教「考我」出題＋講評 prompt/解析，純函式）・followUp（跟讀例句／会話腳本的 AI 追問 prompt/解析，純函式）・patternCompose（自由造句句型骨架程式檢核＋講評 prompt，純函式）・voiceInput（語音輸入候選挑選/合併/錯誤訊息，純函式）・vocabBook（單字帳查詢/篩選/分組/狀態標記，純函式）
+  lib/        date・importV1（v1→v2 遷移 + 備份匯出）・content（生成 client + 持久化審核佇列 + 採用）・listening（聽力理解＋JLPT 題型出題，純函式）・articles（NHK Easy 導入 client + 採用）・llm（Gemini 直連 + 金鑰/模型本機儲存）・llmParse（Gemini 回應純解析）・coverage（覆蓋率檢核，無依賴）・pitch（mora 切分 + 東京式 pattern）・sidecar（base URL 抽象 + probeHealth）・vocabGate（詞彙隨假名解鎖，純函式）・quiz（N5 模擬測驗出題＋弱點優先/特訓選項，純函式）・quizWeak（測驗弱點追蹤：答對會退，純函式）・karaoke（朗讀逐字上色對齊，純函式）・furigana（漢字↔假名注音對齊，純函式）・handwriting（手寫字形相似度評分，純函式）・activity（學習活動統計，純函式）・kanaChart（五十音圖表格結構＋拗音規則推導，純函式）・yoonDrill（拗音出題與分層誘答，純函式）・patternDrill（句型×已學單字組句，純函式）・particleDrill（助詞クイズ出題／結算，純函式）・patternRound（回想テスト一輪制取樣／結算／只練沒說對的，純函式）・dialogueRound（会話暗記モード遮罩／結算，純函式）・taskFlow（某項修行達標→下一項的動線，純函式）・roleplay（自由対話場景/prompt/歷史組裝，純函式）・recentScenes（自由対話最近用過的自訂場景，localStorage、純函式）・scoreReveal（分數等第／數字滾動／環形幾何，純函式）・tutorQuiz（助教「考我」出題＋講評 prompt/解析，純函式）・followUp（跟讀例句／会話腳本的 AI 追問 prompt/解析，純函式）・patternCompose（自由造句句型骨架程式檢核＋講評 prompt，純函式）・voiceInput（語音輸入候選挑選/合併/錯誤訊息，純函式）・vocabBook（單字帳查詢/篩選/分組/狀態標記，純函式）
   state/      store（zustand：今日/streak/rate/tts/showKanji）
-  views/      Today・Kana(含 Write 書寫練習・五十音圖一覽表・拗音ドリル)・Listen(含 Pitch)・Speak(含 Dialogue 会話〔看稿／暗記モード〕＋Roleplay 自由対話，跟読與会話走完皆可 AI 追問)・Read・Progress・Review・Pattern(文型ドリル，含自由造句)
+  views/      Today・Kana(含 Write 書寫練習・五十音圖一覽表・拗音ドリル)・Listen(含 Pitch)・Speak(含 Dialogue 会話〔看稿／暗記モード〕＋Roleplay 自由対話，跟読與会話走完皆可 AI 追問)・Read・Progress・Review・Pattern(文型ドリル，含自由造句・助詞クイズ)
   components/ Nav・ui(toast/大印/進度條/動線提示條)・KanaChart(五十音圖)・YoonDrill(拗音ドリル)・VocabCard・VocabBook(單字帳：搜尋/收合/狀態標記)・Karaoke・Ruby・StrokeOrder・FollowUp(跟讀追問)・VoiceInput(共用麥克風鈕)・ScoreReveal(分數揭曉：環形進度＋數字滾動＋等第徽章)
 sidecar/      FastAPI：/health /tts /speakers /score /content /article/*；article.py（NHK Easy 解析，純函式）；mock_voicevox.py（假 engine）；test_score.py・test_article.py
 tests/        integration.ts（npm test）・INTEGRATION_REPORT.md・MANUAL_QA.md
@@ -864,6 +864,41 @@ priority 空陣列＝不給、priority 含不存在的詞不會壞、only 只出
 延伸驗證 `askedRefs` 有寫進 `quizResults`；`e2e/helpers.ts` 新增 `seedQuizResult`／`quizRecords`）、
 `npm run build` strict 綠燈。
 
+v3.50（助詞クイズ：中文沒有的東西，終於練得到）：這一版補的是一個**整個 App 都沒碰過的類別**——
+文法。至今 12 個句型的助詞（〜**を** ください／〜**が** ほしいです／〜**は** いくらですか）只是
+跟著模板一起出現、跟著唸過去，**沒有任何地方讓人主動選出該用哪個助詞**；而中文沒有助詞，這正是
+中文母語者最典型的卡點（N5 文法題也考這個）。`PatternView` 三模式加為四模式（`.modeRow` 加
+「🔤 助詞クイズ」）：**混合各句型**（與上方選的句型無關，故該模式下句型選單收起）、只把助詞挖空
+（「みず（　）ください／請給我水」），一輪 8 題四選一，答後揭曉正解、補回助詞、附**教科書句型**
+與用法提示、可 🔊 聽一次，**不自動跳題**（比照 v3.18 聞き取り，停留到自己按「下一題 →」），
+走完結算「答對 n / 8」＋一句話中文提示＋**列出答錯的那幾個句型**（label＋用法提示）供再看一次。
+**資料誠信是本次重點——新檔 `lib/particleDrill.ts` 一個助詞、一個假名都沒有手打**：
+①正解＝已驗證模板 `data/patterns.ts` 的 `post` 開頭 token（`particleOf`，形狀不符者自動不出題），
+句子沿用 `lib/patternDrill.ts` 的組法（句型 × 已學過的 VOCAB 詞）；②誘答只從**本題庫句型實際
+用到的助詞**取（`PARTICLE_CHOICES`＝を・は・が・まで），不自行擴充助詞清單；③問法一律是
+「**這個教科書句型固定用哪個助詞**」，UI 照這樣寫，**不宣稱其他助詞在別的語境一定錯**；
+④**移動句型不出題**——`Pattern` 新增 `noParticleQuiz?: string`（排除理由），標在 `ikimasu`（へ）與
+`ikitai`（に）：**本題庫的資料本身就顯示兩個助詞都接得上移動動詞**，程式無從判斷單句中另一個是否
+也成立，故整個排除（寧可不出題，不要判錯）。這是**資料層的欄位而非程式裡的黑名單**，測試逐條核對。
+**不經 LLM、零正確性風險**；仍是**選配加練**——沿用既有 feature key `pattern` 記入学習記録
+（`EXTRA_FEATURES` 不變）、**不卡蓋章、不進 SRS**；不動 Dexie schema、不動蓋章判定、**不新增 CSS**
+（沿用 `.qopt`／`ProgressBar`／`.recallZh`／`.composeCk`／`.slotWord`）。
+
+測試：`npm test` 846/846（新增 5ak 助詞クイズ共 60 項：`particleOf` 逐句型解析且「助詞＋空白＋接續」
+可還原原 `post`、三種形狀不符回 null、`noParticleQuiz` 兩句型確實被排除而其餘全在、へ／に 兩個助詞
+都出現在原始資料（＝排除理由成立）、選項池只由可出題句型推導且不含 へ／に、**每個可出題句型 ×
+每個詞都組得出四選一且正解＝該句型助詞**、完整句與中文對照與 `patternDrill` 逐字一致、一輪取樣
+（題數 ≤ 句型數時句型不重複／同 seed 可重現／不同 seed 換一組／n 為 0 或負數回空／沒有可出題句型
+回空／rng 邊界 0 與 1 都不越界／30 個 seed 掃得到每個句型／已學過的詞優先）、結算七情境
+（未作答／答到一半 pct 以整輪為分母／全對／全錯／marks 超量／空輪不除以零／ok+wrong=answered）、
+`missedPatterns` 五情境（去重維持順序／全對回空／未作答不算／每項都有 label 與提示）、
+`particleNote` 四種提示互異且**不含「分」字**（這是答對題數，不是評分等第））、
+`npm run test:e2e` 94/94（pattern.spec 新增兩項：一輪 8 題逐題由 `data/patterns` 回推正解、
+第 1 題故意選錯 → 正解上色／句子補回助詞／揭曉教科書句型、**答後進度停在原地**要自己按下一題、
+結算「答對 7 / 8」並列出答錯的句型、`activityCount('pattern')`＝8、再來一輪歸零；切到助詞クイズ
+句型選單收起且說明寫明移動句型不出題、切回練習模式選單與原本選的句型都還在）、
+`npm run build` strict 綠燈。
+
 ---
 
 ## ⭐ 本機實測任務（此專案轉到 Claude Code 的主因）
@@ -959,7 +994,7 @@ Claude Code 在本機可以真正跑起來、觀察、修正。建議依序進�
 
 ## 提交前檢查
 
-`npm run build`（strict 綠燈）＋ `npm test`（786/786）＋ `npm run test:e2e`（92/92）
+`npm run build`（strict 綠燈）＋ `npm test`（846/846）＋ `npm run test:e2e`（94/94）
 ＋（動到 sidecar 時）`python sidecar/test_score.py` 與 `python sidecar/test_article.py`。
 新功能盡量補測：純邏輯進 `tests/integration.ts`，UI 流程進 `e2e/*.spec.ts`（共用步驟放
 `e2e/helpers.ts`），後端進 `test_score.py`。

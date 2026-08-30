@@ -8,6 +8,14 @@ import {
   roundNote,
 } from '../lib/patternRound'
 import {
+  buildParticleRound,
+  particleSummary,
+  missedPatterns,
+  particleNote,
+  PARTICLE_CHOICES,
+  type ParticleQuestion,
+} from '../lib/particleDrill'
+import {
   checkShape,
   shapeSummary,
   buildComposeSystem,
@@ -28,7 +36,7 @@ import { VoiceInput } from '../components/VoiceInput'
 import { hasKanji } from '../lib/furigana'
 import { toast, ProgressBar } from '../components/ui'
 
-type Mode = 'practice' | 'recall' | 'compose'
+type Mode = 'practice' | 'recall' | 'compose' | 'particle'
 
 /**
  * 文型ドリル（句型練習）：固定句型 × 已學過的單字 = 完整例句，每天重複、換不同單字。
@@ -38,6 +46,8 @@ type Mode = 'practice' | 'recall' | 'compose'
  *    一輪固定題數（`lib/patternRound.ts`），答完結算，可「只練沒說對的」再開一輪。
  *  ・自由造句：自己挑詞用該句型造一句 → 程式檢核句型骨架與填空詞（零風險、無金鑰照樣可用），
  *    有 Gemini 金鑰時再加一段**中文**講評（僅供參考、不寫入學習庫）。
+ *  ・助詞クイズ：混合各句型，只把助詞挖空要你選（`lib/particleDrill.ts`）——中文沒有助詞，
+ *    「〜を ください／〜が ほしいです」的差別是最典型的卡點。正解＝已驗證句型模板用的助詞。
  * 句型與詞皆來自已驗證來源、不經 LLM。屬今日頁「+α 選配練習」，記入学習記録、不卡蓋章。
  */
 export function PatternView({ onDone }: { onDone: () => void }) {
@@ -57,6 +67,12 @@ export function PatternView({ onDone }: { onDone: () => void }) {
   const [marks, setMarks] = useState<boolean[]>([])
   const [qi, setQi] = useState(0)
   const [finished, setFinished] = useState(false)
+  // 助詞クイズ：一輪制（題目、逐題對錯、目前第幾題、這題選了什麼、是否已答完整輪）
+  const [pq, setPq] = useState<ParticleQuestion[]>([])
+  const [pMarks, setPMarks] = useState<boolean[]>([])
+  const [pi, setPi] = useState(0)
+  const [picked, setPicked] = useState<string | null>(null)
+  const [pFinished, setPFinished] = useState(false)
   // 自由造句
   const [known, setKnown] = useState<string[]>([])
   const [input, setInput] = useState('')
@@ -95,9 +111,28 @@ export function PatternView({ onDone }: { onDone: () => void }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode, itemsKey, pat.id])
 
+  /** 開一輪助詞クイズ（混合各可出題句型，與上方選的句型無關）。 */
+  function startParticleRound() {
+    setPq(buildParticleRound(learned))
+    setPMarks([])
+    setPi(0)
+    setPicked(null)
+    setPFinished(false)
+  }
+
+  // 切到助詞クイズ／詞池變動 → 重開一輪
+  useEffect(() => {
+    if (mode !== 'particle') return
+    startParticleRound()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode, itemsKey])
+
   const cur = round.length ? round[Math.min(qi, round.length - 1)] : null
   const summary = roundSummary(round, marks)
   const missed = missedItems(round, marks)
+  const pCur = pq.length ? pq[Math.min(pi, pq.length - 1)] : null
+  const pSummary = particleSummary(pq, pMarks)
+  const pMissed = missedPatterns(pq, pMarks)
 
   function resetCompose() {
     setInput('')
@@ -121,7 +156,26 @@ export function PatternView({ onDone }: { onDone: () => void }) {
     setMode(m)
     setRevealed(false)
     setRange(null)
+    setPicked(null)
     resetCompose()
+  }
+
+  /** 助詞クイズ作答：不自動跳題（比照 v3.18 聞き取り，答案停留到自己按下一題）。 */
+  function answerParticle(opt: string) {
+    if (picked || !pCur) return
+    setPicked(opt)
+    setPMarks((m) => [...m, opt === pCur.particle])
+    setPracticed((n) => n + 1)
+    void logActivity('pattern')
+  }
+  function nextParticle() {
+    if (pi + 1 >= pq.length) {
+      setPFinished(true)
+      toast(pMarks.every(Boolean) ? '整輪都答對了！お見事！' : '一輪完成！')
+      return
+    }
+    setPi(pi + 1)
+    setPicked(null)
   }
 
   /**
@@ -208,7 +262,7 @@ export function PatternView({ onDone }: { onDone: () => void }) {
           記住一個句型（如「請給我〜」），把學過的單字輪流套進去——
           <b>請給我咖啡・請給我飯糰・請給我果汁</b>。
           用「回想テスト」只看中文說出日文；再進一步用「自由造句」<b>自己挑詞</b>造一句
-          ——主動產出，記得更牢。
+          ——主動產出，記得更牢。「助詞クイズ」則反過來把<b>助詞</b>挖空，混合各句型讓你選。
         </p>
         <div className="modeRow">
           <button
@@ -229,29 +283,52 @@ export function PatternView({ onDone }: { onDone: () => void }) {
           >
             ✍ 自由造句
           </button>
+          <button
+            className={'btn small' + (mode === 'particle' ? '' : ' ghost')}
+            onClick={() => switchMode('particle')}
+          >
+            🔤 助詞クイズ
+          </button>
         </div>
       </div>
 
-      <div className="card">
-        <div className="eyebrow">選一個句型</div>
-        <div className="patGrid">
-          {PATTERNS.map((p) => (
-            <button
-              key={p.id}
-              className={'btn passBtn' + (p.id === pat.id ? ' on' : '')}
-              onClick={() => pick(p)}
-            >
-              <span className="passJp">
-                {p.label}
-                {p.id === todayPat.id && <span className="patToday"> ・今日</span>}
-              </span>
-              <span className="passZh">{p.zh}</span>
-            </button>
-          ))}
+      {/* 助詞クイズ混合各句型出題，故該模式下不顯示句型選單 */}
+      {mode !== 'particle' && (
+        <div className="card">
+          <div className="eyebrow">選一個句型</div>
+          <div className="patGrid">
+            {PATTERNS.map((p) => (
+              <button
+                key={p.id}
+                className={'btn passBtn' + (p.id === pat.id ? ' on' : '')}
+                onClick={() => pick(p)}
+              >
+                <span className="passJp">
+                  {p.label}
+                  {p.id === todayPat.id && <span className="patToday"> ・今日</span>}
+                </span>
+                <span className="passZh">{p.zh}</span>
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
-      {mode === 'compose' ? (
+      {mode === 'particle' ? (
+        <ParticleQuiz
+          round={pq}
+          idx={pi}
+          picked={picked}
+          finished={pFinished}
+          summary={pSummary}
+          missed={pMissed}
+          rate={rate}
+          onAnswer={answerParticle}
+          onNext={nextParticle}
+          onRestart={startParticleRound}
+          practiced={practiced}
+        />
+      ) : mode === 'compose' ? (
         <div className="card">
           <div className="row between">
             <div className="eyebrow">自由造句 ─ 自分で つくる</div>
@@ -503,5 +580,140 @@ export function PatternView({ onDone }: { onDone: () => void }) {
         </div>
       )}
     </>
+  )
+}
+
+/**
+ * 助詞クイズ：混合各可出題句型，只把助詞挖空（`lib/particleDrill.ts`）。
+ * 問的是「**這個教科書句型固定用哪個助詞**」——助詞在別的語境可能有別種說法，
+ * 程式不做那種判斷，畫面上也照這樣寫，不宣稱其他助詞一定錯。
+ * 答完不自動跳題（比照 v3.18 聞き取り），日文對照停留到自己按「下一題」。
+ */
+function ParticleQuiz({
+  round,
+  idx,
+  picked,
+  finished,
+  summary,
+  missed,
+  rate,
+  onAnswer,
+  onNext,
+  onRestart,
+  practiced,
+}: {
+  round: ParticleQuestion[]
+  idx: number
+  picked: string | null
+  finished: boolean
+  summary: ReturnType<typeof particleSummary>
+  missed: Pattern[]
+  rate: number
+  onAnswer: (opt: string) => void
+  onNext: () => void
+  onRestart: () => void
+  practiced: number
+}) {
+  const q = round.length ? round[Math.min(idx, round.length - 1)] : null
+  if (!q) {
+    return (
+      <div className="card">
+        <p className="sub">目前沒有可出助詞題的句型。</p>
+      </div>
+    )
+  }
+  return (
+    <div className="card">
+      <div className="row between">
+        <div className="eyebrow">助詞クイズ ─ どの助詞？</div>
+        <span className="chip">
+          {finished ? `一輪 ${round.length} 題` : `${Math.min(idx + 1, round.length)} / ${round.length}`}
+        </span>
+      </div>
+      <ProgressBar current={finished ? round.length : idx} total={round.length} />
+
+      {finished ? (
+        <>
+          <div className="recallZh">
+            答對 {summary.ok} / {summary.total}
+          </div>
+          <p className="sub" style={{ textAlign: 'center', marginTop: 2 }}>
+            {particleNote(summary)}
+          </p>
+          {missed.length > 0 && (
+            <div className="composeCk">
+              <div className="sub" style={{ marginBottom: 2 }}>
+                再看一次這幾個句型的固定說法：
+              </div>
+              {missed.map((p) => (
+                <div key={p.id} className="slotWord" style={{ textAlign: 'left', lineHeight: 1.9 }}>
+                  <b>{p.label}</b> ─ {p.zh}
+                  <div className="sub">💡 {p.note}</div>
+                </div>
+              ))}
+            </div>
+          )}
+          <div className="row center" style={{ marginTop: 10 }}>
+            <button className="btn" onClick={onRestart}>
+              ▶ 再來一輪
+            </button>
+          </div>
+        </>
+      ) : (
+        <>
+          <div className="sent" style={{ fontSize: 24, textAlign: 'center', margin: '10px 0 2px' }}>
+            {q.before}
+            <span style={{ color: 'var(--shu)' }}>{picked ? q.particle : '（　）'}</span>
+            {q.after}
+          </div>
+          <div className="sentZh">{q.zh}</div>
+
+          <div style={{ marginTop: 8 }}>
+            {q.options.map((o) => {
+              let cls = 'qopt big'
+              if (picked) {
+                if (o === q.particle) cls += ' ok'
+                else if (o === picked) cls += ' ng'
+              }
+              return (
+                <button key={o} className={cls} onClick={() => onAnswer(o)}>
+                  {o}
+                </button>
+              )
+            })}
+          </div>
+
+          {picked && (
+            <>
+              <div className="slotWord" style={{ marginTop: 8 }}>
+                教科書句型：<b>{q.pattern.label}</b>（{q.pattern.zh}）
+                {q.fallback && <span className="patFallback"> ・這個詞尚未學到，先熟悉</span>}
+              </div>
+              <p className="sub" style={{ marginTop: 2 }}>💡 {q.pattern.note}</p>
+              <div className="row center" style={{ marginTop: 8 }}>
+                <button className="btn small ghost" onClick={() => void speak(q.jp, rate)}>
+                  🔊 聽一次
+                </button>
+                <button className="btn" onClick={onNext}>
+                  {idx + 1 >= round.length ? '完成 ✓' : '下一題 →'}
+                </button>
+              </div>
+            </>
+          )}
+        </>
+      )}
+
+      <p className="sub" style={{ marginTop: 12 }}>
+        這裡問的是<b>教科書句型固定用哪個助詞</b>（〜を ください／〜が ほしいです）。
+        選項只有本題庫句型用到的助詞（{PARTICLE_CHOICES.join('・')}）；
+        移動句型（〜へ いきます／〜に いきたいです）本題庫兩種助詞都有出現，
+        程式無從判斷單句中另一個是否也成立，故不出題。
+      </p>
+      {practiced > 0 && (
+        <p className="sub" style={{ marginTop: 4 }}>
+          今回已練 <b>{practiced}</b> 題——已記入学習記録。
+        </p>
+      )}
+    </div>
   )
 }
